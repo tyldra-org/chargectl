@@ -102,22 +102,36 @@ struct OverviewPage: View {
         Group {
             if mode == .automatic {
                 HStack(spacing: 8) {
-                    Button("Discharge") { model.perform(.discharge) }
-                        .disabled((model.battery?.percent ?? 0) <= limit)
-                        .help("Run on battery down to \(limit)%")
-                    Button("Top Up") { model.perform(.topUp) }
-                        .help("Charge to 100% once, then return to the limit")
-                    Button("Calibrate…") { confirmingCalibration = true }
+                    Button {
+                        model.perform(.discharge)
+                    } label: {
+                        Label("Discharge", systemImage: "battery.25percent")
+                    }
+                    .disabled((model.battery?.percent ?? 0) <= limit)
+                    .help("Run on battery down to \(limit)%")
+                    Button {
+                        model.perform(.topUp)
+                    } label: {
+                        Label("Top Up", systemImage: "battery.100percent.bolt")
+                    }
+                    .help("Charge to 100% once, then return to the limit")
+                    Button {
+                        confirmingCalibration = true
+                    } label: {
+                        Label("Calibrate", systemImage: "gauge.with.dots.needle.50percent")
+                    }
                 }
+                .frame(width: 360)
             } else {
-                HStack(spacing: 8) {
+                HStack(spacing: 10) {
                     ProgressView().controlSize(.small)
                     Text(mode.title.capitalizedFirst).foregroundStyle(.secondary)
-                    Button("Stop") { model.perform(.stop) }
+                    Button("Stop") { model.perform(.stop) }.frame(width: 80)
                 }
             }
         }
-        .controlSize(.regular)
+        .labelStyle(.titleAndIcon)
+        .buttonStyle(TileButtonStyle())
         .disabled(!model.isControllable)
         .confirmationDialog("Calibrate the battery?", isPresented: $confirmingCalibration) {
             Button("Calibrate") { model.perform(.calibrate) }

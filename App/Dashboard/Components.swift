@@ -220,3 +220,58 @@ enum TimeText {
         return rest == 0 ? "\(hours) h" : "\(hours) h \(rest) min"
     }
 }
+
+/// The one button look used for quick toggles and actions: a soft rounded tile that turns green
+/// when its setting is on.
+struct TileButtonStyle: ButtonStyle {
+    var isOn = false
+    var minHeight: CGFloat = 32
+
+    func makeBody(configuration: Configuration) -> some View {
+        Tile(configuration: configuration, isOn: isOn, minHeight: minHeight)
+    }
+
+    private struct Tile: View {
+        let configuration: Configuration
+        let isOn: Bool
+        let minHeight: CGFloat
+        @Environment(\.isEnabled) private var isEnabled
+        @State private var isHovered = false
+
+        var body: some View {
+            let shape = RoundedRectangle(cornerRadius: 9, style: .continuous)
+            configuration.label
+                .font(.callout.weight(isOn ? .semibold : .medium))
+                .foregroundStyle(isOn ? Theme.green : .primary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+                .padding(.horizontal, 8)
+                .frame(maxWidth: .infinity, minHeight: minHeight)
+                .background(shape.fill(isOn ? Theme.green.opacity(0.16) : Theme.chipFill))
+                .overlay {
+                    shape.fill(
+                        Color.primary.opacity(configuration.isPressed ? 0.08 : isHovered && isEnabled ? 0.04 : 0))
+                }
+                .overlay { shape.strokeBorder(isOn ? Theme.green.opacity(0.45) : Theme.cardStroke) }
+                .contentShape(shape)
+                .opacity(isEnabled ? 1 : 0.4)
+                .scaleEffect(configuration.isPressed ? 0.97 : 1)
+                .animation(.easeOut(duration: 0.12), value: configuration.isPressed)
+                .onHover { isHovered = $0 }
+        }
+    }
+}
+
+/// An icon above a short title, for square-ish toggle tiles.
+struct StackedTileLabel: View {
+    let title: String
+    let symbol: String
+
+    var body: some View {
+        VStack(spacing: 5) {
+            Image(systemName: symbol).font(.system(size: 15, weight: .medium))
+            Text(title).font(.caption.weight(.medium))
+        }
+        .padding(.vertical, 8)
+    }
+}

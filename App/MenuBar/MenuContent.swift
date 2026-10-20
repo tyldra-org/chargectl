@@ -77,39 +77,63 @@ struct MenuContent: View {
     }
 
     private func switches(_ settings: ChargeSettings) -> some View {
-        LazyVGrid(columns: [GridItem(.flexible(), spacing: 8), GridItem(.flexible())], spacing: 8) {
-            Chip(title: "Auto discharge", symbol: "arrow.down.circle", isOn: settings.autoDischarge) {
-                model.update { $0.autoDischarge.toggle() }
-            }
-            Chip(title: "Heat guard", symbol: "thermometer.medium", isOn: settings.heatProtection) {
-                model.update { $0.heatProtection.toggle() }
-            }
-            Chip(title: "Discharge asleep", symbol: "moon", isOn: settings.holdAsleep) {
-                model.update { $0.holdAsleep.toggle() }
-            }
+        HStack(spacing: 8) {
+            toggle("Auto discharge", "arrow.down.circle", settings.autoDischarge) { $0.autoDischarge.toggle() }
+                .help("Plugged in above the limit: discharge down to it instead of holding the charge")
+            toggle("Heat guard", "thermometer.medium", settings.heatProtection) { $0.heatProtection.toggle() }
+                .help("Pause charging while the battery is warm")
+            toggle("Sleep discharge", "moon", settings.holdAsleep) { $0.holdAsleep.toggle() }
+                .help("Keep discharging while the Mac sleeps")
         }
+    }
+
+    private func toggle(
+        _ title: String, _ symbol: String, _ isOn: Bool, change: @escaping (inout ChargeSettings) -> Void
+    ) -> some View {
+        Button {
+            model.update(change)
+        } label: {
+            StackedTileLabel(title: title, symbol: symbol)
+        }
+        .buttonStyle(TileButtonStyle(isOn: isOn, minHeight: 54))
+        .accessibilityLabel(title)
+        .accessibilityValue(isOn ? "on" : "off")
     }
 
     @ViewBuilder private func jobs(_ settings: ChargeSettings) -> some View {
         let mode = model.status?.mode ?? .automatic
         if mode == .automatic {
             HStack(spacing: 8) {
-                Button("Discharge") { model.perform(.discharge) }
-                    .disabled((model.battery?.percent ?? 0) <= settings.limit)
-                    .help("Run on battery down to \(settings.limit)%")
-                Button("Top Up") { model.perform(.topUp) }
-                    .help("Charge to 100% once, then return to the limit")
-                Button("Calibrate…") { openDashboard(.overview) }
-                    .help("Opens Chargectl to confirm a calibration")
+                Button {
+                    model.perform(.discharge)
+                } label: {
+                    Label("Discharge", systemImage: "battery.25percent")
+                }
+                .disabled((model.battery?.percent ?? 0) <= settings.limit)
+                .help("Run on battery down to \(settings.limit)%")
+                Button {
+                    model.perform(.topUp)
+                } label: {
+                    Label("Top Up", systemImage: "battery.100percent.bolt")
+                }
+                .help("Charge to 100% once, then return to the limit")
+                Button {
+                    openDashboard(.overview)
+                } label: {
+                    Label("Calibrate", systemImage: "gauge.with.dots.needle.50percent")
+                }
+                .help("Opens Chargectl to confirm a calibration")
             }
-            .controlSize(.small)
-            .frame(maxWidth: .infinity)
+            .labelStyle(.titleAndIcon)
+            .buttonStyle(TileButtonStyle())
         } else {
-            HStack {
+            HStack(spacing: 10) {
                 ProgressView().controlSize(.small)
                 Text("Running \(mode.title)").foregroundStyle(.secondary)
                 Spacer()
-                Button("Stop") { model.perform(.stop) }.controlSize(.small)
+                Button("Stop") { model.perform(.stop) }
+                    .buttonStyle(TileButtonStyle())
+                    .frame(width: 80)
             }
         }
     }
@@ -200,30 +224,5 @@ private struct Metric: View {
             Text(value).font(.callout).monospacedDigit()
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-    }
-}
-
-/// A soft pill that toggles one setting.
-private struct Chip: View {
-    let title: String
-    let symbol: String
-    let isOn: Bool
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            Label(title, systemImage: symbol)
-                .font(.callout.weight(isOn ? .semibold : .regular))
-                .lineLimit(1)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 6)
-                .frame(maxWidth: .infinity)
-                .foregroundStyle(isOn ? Theme.green : .primary)
-                .background(isOn ? Theme.green.opacity(0.16) : Theme.chipFill, in: Capsule())
-                .overlay { Capsule().strokeBorder(isOn ? Theme.green.opacity(0.45) : Theme.cardStroke) }
-                .contentShape(Capsule())
-        }
-        .buttonStyle(.plain)
-        .accessibilityValue(isOn ? "on" : "off")
     }
 }
