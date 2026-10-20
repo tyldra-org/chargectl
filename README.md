@@ -22,21 +22,16 @@ cd chargectl
 ./scripts/install.sh
 ```
 
-The script builds the app, copies it to `/Applications`, installs the control
-service and opens Chargectl. Chargectl starts with the limit set in System Settings > Battery. Click the ring
-in the menu bar and drag the white limit marker to change it.
+The script builds the app, copies it to `/Applications` and opens it. Click
+**Install Helper** in Chargectl and enter your password: the helper is the small
+root service that controls charging. It is on straight away and starts with the
+Mac. Chargectl starts with the limit set in System Settings > Battery; click the
+ring in the menu bar and drag the white limit marker to change it.
 
-How the service is installed depends on how the build is signed:
-
-- **With a signing certificate** (recommended): add your Apple ID in Xcode >
-  Settings > Accounts and create a free "Apple Development" certificate, or use a
-  Developer ID. `install.sh` finds it, signs with it and installs the service as
-  an administrator (it asks for your password once). The service is on straight
-  away and Login Items lists it under Chargectl's name and icon.
-- **Without one**, the build is signed ad hoc and the app registers the service
-  itself. macOS adds it switched off: turn on Chargectl under System Settings >
-  General > Login Items & Extensions (the script opens that page), and again after
-  each update.
+Login Items lists the helper as "Chargectl Service". To list it under Chargectl's
+name and icon, sign the build with a team: add your Apple ID in Xcode > Settings >
+Accounts and create a free "Apple Development" certificate. `install.sh` finds it
+and signs with it.
 
 Quit any other charge limiter first. Two of them fight over the same settings.
 
@@ -94,15 +89,16 @@ privileges.
 ## Install and uninstall
 
 ```sh
-./scripts/install.sh           # build, install the app and service, open it
-./scripts/install.sh --logs    # same, then follow the service log
+./scripts/install.sh           # build, install the app, open it
+./scripts/install.sh --logs    # same, then follow the helper's log
 ./scripts/uninstall.sh         # remove everything Chargectl added
 ```
 
-Run `install.sh` again after pulling changes; it replaces both the app and the
-service. **Settings > Uninstall Chargectl** in the app does the same as
-`uninstall.sh`: it reconnects wall power, restores your macOS charge limit and
-removes the service, its data, preferences and caches.
+Run `install.sh` again after pulling changes. An installed helper notices the new
+app and restarts into it; if Chargectl.app is deleted, the helper removes itself.
+**Settings > Uninstall Chargectl** in the app does the same as `uninstall.sh`: it
+reconnects wall power, restores your macOS charge limit and removes the helper,
+its data, preferences and caches.
 
 ## Limitations
 
@@ -110,7 +106,8 @@ removes the service, its data, preferences and caches.
   PowerUIAgent preferences). A macOS or firmware update can change them.
 - The control service runs as root. Read [SECURITY.md](SECURITY.md) for what it
   can do and who can talk to it.
-- Builds are not notarized. Without a signing certificate they are signed ad hoc.
+- Builds are not notarized. Without a signing certificate they are signed ad hoc,
+  and Login Items shows the helper as "Chargectl Service" with a generic icon.
 - Only Apple silicon MacBooks on macOS 27 are supported and tested.
 
 ## Development

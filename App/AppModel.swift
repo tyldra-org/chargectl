@@ -6,14 +6,12 @@ enum ServiceState: Equatable {
     case checking
     case running
     case notInstalled
-    case needsApproval
     case notResponding(String)
 }
 
 struct Notice: Identifiable, Equatable {
     enum Action: Equatable {
         case installService
-        case openLoginItems
         case openBatterySettings
     }
 
@@ -107,15 +105,10 @@ final class AppModel {
         case .notInstalled:
             notices.append(
                 Notice(
-                    text: "Charge control runs in a background service. Readings work without it.",
-                    isService: true, action: .installService, actionTitle: "Install"))
-        case .needsApproval:
-            notices.append(
-                Notice(
-                    text: "Allow Chargectl under Login Items to start charge control.",
-                    isService: true, action: .openLoginItems, actionTitle: "Open Settings"))
+                    text: "Charge control needs its helper. Install it once; macOS asks for your password.",
+                    isService: true, action: .installService, actionTitle: "Install Helper"))
         case .notResponding(let reason):
-            notices.append(Notice(text: "The control service is not answering. \(reason)", isService: true))
+            notices.append(Notice(text: "The helper is not answering. \(reason)", isService: true))
         }
         if service == .running, status?.adapterKey == nil {
             notices.append(Notice(text: "This Mac exposes no wall-power key, so charging cannot be controlled."))
@@ -161,12 +154,7 @@ final class AppModel {
             service = .running
         } catch {
             status = nil
-            service =
-                switch installer.registration {
-                case .enabled: .notResponding(error.localizedDescription)
-                case .requiresApproval: .needsApproval
-                case .notRegistered, .notFound: .notInstalled
-                }
+            service = installer.isInstalled ? .notResponding(error.localizedDescription) : .notInstalled
         }
     }
 
@@ -210,42 +198,51 @@ final class AppModel {
     func handle(_ action: Notice.Action) {
         switch action {
         case .installService: installService()
-        case .openLoginItems: installer.openLoginItems()
         case .openBatterySettings:
             NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.Battery-Settings.extension")!)
         }
     }
 
-    func installService() {
-        do {
-            try installer.register()
-            message = nil
-        } catch {
-            message = "Could not install the control service: \(error.localizedDescription)"
-        }
-        if installer.registration == .requiresApproval { installer.openLoginItems() }
-        Task { await refresh() }
-    }
+    private(set) var isInstallingService = false
 
-    /// launchd stops the daemon, which reconnects wall power before exiting. A daemon installed by
-    /// scripts/install.sh is not known to SMAppService, so it is asked to remove itself.
-    func uninstallService() {
+    func installService() {
+        guard !isInstallingService else { return }
+        isInstallingService = true
         Task {
             do {
-                switch installer.registration {
-                case .enabled, .requiresApproval: try await installer.unregister()
-                case .notRegistered, .notFound: try await client.perform(.removeService)
-                }
+                try await installer.install()
+                message = nil
+            } catch ServiceInstallError.cancelled {
                 message = nil
             } catch {
-                message = "Could not remove the control service: \(error.localizedDescription)"
+                message = "The helper could not be installed: \(error.localizedDescription)"
             }
+            isInstallingService = false
+            // launchd needs a moment to start the service.
+            try? await Task.sleep(for: .seconds(1))
             await refresh()
         }
     }
 
-    func openLoginItems() {
-        installer.openLoginItems()
+    /// The service removes itself (reconnecting wall power first); when it is not running, an
+    /// administrator removes its launchd entry instead.
+    func uninstallService() {
+        Task {
+            do {
+                if service == .running {
+                    try await client.perform(.removeService)
+                } else if installer.isInstalled {
+                    try await installer.remove()
+                }
+                message = nil
+            } catch ServiceInstallError.cancelled {
+                message = nil
+            } catch {
+                message = "The helper could not be removed: \(error.localizedDescription)"
+            }
+            try? await Task.sleep(for: .seconds(1))
+            await refresh()
+        }
     }
 
     /// Removes everything Chargectl added: restores charging, deletes the daemon and its data,
@@ -261,7 +258,7 @@ final class AppModel {
             }
         } else if FileManager.default.fileExists(atPath: Self.daemonDataPath) {
             message =
-                "Uninstall stopped: the control service is not running, so it cannot delete \(Self.daemonDataPath). Run ./scripts/uninstall.sh instead."
+                "Uninstall stopped: the helper is not running, so it cannot delete \(Self.daemonDataPath). Run ./scripts/uninstall.sh instead."
             return
         }
         ServiceInstaller.unregisterAll()

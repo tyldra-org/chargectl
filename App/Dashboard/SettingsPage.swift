@@ -49,10 +49,10 @@ struct SettingsPage: View {
                 }
                 serviceButton
             } header: {
-                Text("Control Service")
+                Text("Helper")
             } footer: {
                 Text(
-                    "A small background service switches wall power and keeps your limit while Chargectl is closed. Removing it reconnects wall power."
+                    "A small helper runs as root, switches wall power and keeps your limit while Chargectl is closed. Installing it asks for your password once. Removing it reconnects wall power."
                 )
             }
 
@@ -85,7 +85,6 @@ struct SettingsPage: View {
         case .running: "Running"
         case .checking: "Checking…"
         case .notInstalled: "Not installed"
-        case .needsApproval: "Waiting for approval"
         case .notResponding: "Not responding"
         }
     }
@@ -93,11 +92,10 @@ struct SettingsPage: View {
     @ViewBuilder private var serviceButton: some View {
         switch model.service {
         case .running, .notResponding:
-            Button("Remove Control Service…", role: .destructive) { model.uninstallService() }
+            Button("Remove Helper…", role: .destructive) { model.uninstallService() }
         case .notInstalled:
-            Button("Install Control Service") { model.installService() }
-        case .needsApproval:
-            Button("Open Login Items") { model.openLoginItems() }
+            Button(model.isInstallingService ? "Installing…" : "Install Helper…") { model.installService() }
+                .disabled(model.isInstallingService)
         case .checking:
             EmptyView()
         }

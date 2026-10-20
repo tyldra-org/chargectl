@@ -12,7 +12,7 @@ struct ControlPage: View {
             ServiceRequired(
                 model: model,
                 description:
-                    "Install the control service to set a charge limit. It runs in the background and keeps the limit while Chargectl is closed."
+                    "Install the helper to set a charge limit. It runs in the background and keeps the limit while Chargectl is closed."
             )
         }
     }

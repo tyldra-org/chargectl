@@ -35,6 +35,11 @@ final class ChargeController {
     private var timer: Timer?
     private var sleepWatcher: SleepWatcher?
     private var observer = PowerObserver()
+    /// The service's own executable inside Chargectl.app and its date when this process started.
+    /// Installing a new app replaces it; the service then restarts into the new version.
+    private let executablePath = CommandLine.arguments[0]
+    private let launchedExecutableDate: Date?
+    private var pendingExecutableChange: ExecutableChange?
     /// No settings were saved yet; the first limit is taken from macOS's own setting.
     private var isFirstRun: Bool
     /// Set once the app uninstalls Chargectl: nothing is written to disk after that.
@@ -53,6 +58,7 @@ final class ChargeController {
         history = store.load([HistorySample].self, from: .history) ?? []
         logs = store.load([LogEntry].self, from: .logs) ?? []
         savedMacOSLimit = store.load(MacOSChargeLimit.Setting.self, from: .macOSLimit)
+        launchedExecutableDate = Self.modificationDate(CommandLine.arguments[0])
     }
 
     func start() {
@@ -86,6 +92,7 @@ final class ChargeController {
 
     func tick(now: Date = .now) {
         guard !isRemoved else { return }
+        if followAppUpdates() { return }
         let battery: BatterySnapshot
         do {
             battery = try reader.read(now: now)
@@ -118,6 +125,42 @@ final class ChargeController {
         updateSleepAssertion(isPluggedIn: battery.isPluggedIn)
         applyLED()
         record(battery, now: now)
+    }
+
+    /// Restarts into a new app version, and removes itself when Chargectl.app is gone, so a
+    /// deleted app never leaves a root service behind. A change must be seen on two ticks in a
+    /// row, because installing replaces the app in steps. Returns true when the process is ending.
+    private func followAppUpdates() -> Bool {
+        let date = Self.modificationDate(executablePath)
+        guard date != launchedExecutableDate else {
+            pendingExecutableChange = nil
+            return false
+        }
+        let change: ExecutableChange = date.map { .replaced($0) } ?? .removed
+        guard pendingExecutableChange == change else {
+            pendingExecutableChange = change
+            return false
+        }
+        switch change {
+        case .removed:
+            log("Chargectl.app was removed; removing the helper", source: .chargectl)
+            _ = removeService()
+            return true
+        case .replaced:
+            log("Chargectl was updated; restarting the helper", source: .chargectl)
+            shutdown()
+            // launchd starts the new executable again (KeepAlive).
+            exit(0)
+        }
+    }
+
+    private enum ExecutableChange: Equatable {
+        case replaced(Date)
+        case removed
+    }
+
+    private static func modificationDate(_ path: String) -> Date? {
+        (try? FileManager.default.attributesOfItem(atPath: path))?[.modificationDate] as? Date
     }
 
     /// On a fresh install, start from the limit set in System Settings › Battery, so nothing

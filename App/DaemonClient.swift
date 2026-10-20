@@ -8,8 +8,8 @@ enum DaemonClientError: LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .unavailable(let reason): "The control service is not reachable: \(reason)"
-        case .timedOut: "The control service did not answer."
+        case .unavailable(let reason): "The helper is not reachable: \(reason)"
+        case .timedOut: "The helper did not answer."
         case .rejected(let message): message
         }
     }

@@ -273,7 +273,7 @@ struct OverviewPage: View {
                         value: settings.heatProtection ? unit.format(settings.heatThreshold, decimals: 0) : "Off")
                 }
             } else {
-                Text("The control service is not running.").foregroundStyle(.secondary)
+                Text("The helper is not running.").foregroundStyle(.secondary)
             }
         }
     }

@@ -36,7 +36,7 @@ struct LogsPage: View {
             Group {
                 if model.service != .running {
                     ServiceRequired(
-                        model: model, description: "The control service logs what the battery does and what it changes."
+                        model: model, description: "The helper logs what the battery does and what it changes."
                     )
                 } else {
                     let entries = Array(model.logs.reversed().filter(filter.includes))

@@ -39,7 +39,7 @@ struct HistoryPage: View {
             Group {
                 if model.service != .running {
                     ServiceRequired(
-                        model: model, description: "History is recorded by the control service, once a minute.")
+                        model: model, description: "History is recorded by the helper, once a minute.")
                 } else {
                     let now = Date.now
                     let samples = model.history.filter { $0.date >= now.addingTimeInterval(-range.duration) }
