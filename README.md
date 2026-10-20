@@ -19,6 +19,7 @@
 <p align="center">
   <a href="#quickstart">Quickstart</a> ·
   <a href="#features">Features</a> ·
+  <a href="#screenshots">Screenshots</a> ·
   <a href="#how-it-works">How it works</a> ·
   <a href="#install-and-uninstall">Install</a> ·
   <a href="CONTRIBUTING.md">Contributing</a> ·
@@ -26,10 +27,7 @@
 </p>
 
 <p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/welcome-dark.png">
-    <img alt="Chargectl welcome window" src="docs/assets/welcome-light.png" width="460">
-  </picture>
+  <img alt="Chargectl's Overview page: the charge and limit, live power flow, the charger, battery health and the charge control state" src="docs/assets/screenshots/overview.png" width="880">
 </p>
 
 ---
@@ -62,7 +60,7 @@ Then open **Chargectl** from Applications. A short welcome walks you through:
 2. **Choosing a limit.** It starts from the limit already set in System Settings ›
    Battery, so nothing changes until you pick another one.
 
-After that Chargectl lives in the menu bar. Click the ring to see your battery,
+After that Chargectl lives in the menu bar. Click <img src="docs/assets/screenshots/menu-bar-icon.png" alt="the Chargectl ring" height="20" align="top"> to see your battery,
 switch options and drag the white marker to change the limit.
 
 > [!IMPORTANT]
@@ -83,6 +81,43 @@ switch options and drag the white marker to change the limit.
 | **Live readings** | Charger, Mac and battery power each second, battery health, cycles, temperature and time to full or empty. |
 | **History and logs** | 24 hours of charge, temperature and power, and a log of what the battery and Chargectl did. |
 | **Clean removal** | Uninstall restores normal charging and your macOS limit, and removes every file Chargectl added. |
+
+## Screenshots
+
+<table>
+  <tr>
+    <td align="center" valign="top">
+      <img alt="Menu bar panel with the charge, live power and quick switches" src="docs/assets/screenshots/menu-bar.png" width="280"><br>
+      <b>Menu bar</b><br>
+      <sub>Charge, live power and quick switches. Drag the white marker to change the limit.</sub>
+    </td>
+    <td align="center" valign="top">
+      <img alt="Control page with the charge limit slider, sailing range, heat and sleep options" src="docs/assets/screenshots/control.png" width="472"><br>
+      <b>Control</b><br>
+      <sub>Limit, sailing range, what happens above the limit, heat and sleep.</sub>
+    </td>
+  </tr>
+</table>
+
+<table>
+  <tr>
+    <td align="center" valign="top">
+      <img alt="History page with charge, temperature and power charts" src="docs/assets/screenshots/history.png" width="240"><br>
+      <b>History</b><br>
+      <sub>Charge, temperature and power for up to 24 hours.</sub>
+    </td>
+    <td align="center" valign="top">
+      <img alt="Logs page listing battery and Chargectl events" src="docs/assets/screenshots/logs.png" width="240"><br>
+      <b>Logs</b><br>
+      <sub>Every battery change and every Chargectl action, filterable.</sub>
+    </td>
+    <td align="center" valign="top">
+      <img alt="Settings page with menu bar, appearance, units and helper options" src="docs/assets/screenshots/settings.png" width="240"><br>
+      <b>Settings</b><br>
+      <sub>Menu bar, appearance, units, the helper and uninstall.</sub>
+    </td>
+  </tr>
+</table>
 
 ## How it works
 
