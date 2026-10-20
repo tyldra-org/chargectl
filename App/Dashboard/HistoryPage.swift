@@ -27,13 +27,20 @@ struct HistoryPage: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            Picker("Range", selection: $range) {
-                ForEach(HistoryRange.allCases) { Text($0.rawValue).tag($0) }
+            HStack(spacing: 12) {
+                Picker("Range", selection: $range) {
+                    ForEach(HistoryRange.allCases) { Text($0.rawValue).tag($0) }
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                .fixedSize()
+                if let first = model.history.first?.date, first > Date.now.addingTimeInterval(-range.duration) {
+                    Text("Recorded since \(first.formatted(.dateTime.hour().minute()))")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
             }
-            .pickerStyle(.segmented)
-            .labelsHidden()
-            .fixedSize()
-            .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 24)
             .padding(.top, 12)
             Group {
@@ -42,9 +49,8 @@ struct HistoryPage: View {
                         model: model, description: "History is recorded by the helper, once a minute.")
                 } else {
                     let now = Date.now
-                    let samples = model.history.filter { $0.date >= now.addingTimeInterval(-range.duration) }
-                    // Start at the first recorded point, so a short history fills the width.
-                    let start = samples.first?.date ?? now.addingTimeInterval(-range.duration)
+                    let start = now.addingTimeInterval(-range.duration)
+                    let samples = model.history.filter { $0.date >= start }
                     if samples.count < 2 {
                         ContentUnavailableView(
                             "Collecting History", systemImage: "chart.xyaxis.line",
