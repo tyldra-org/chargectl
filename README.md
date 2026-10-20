@@ -82,8 +82,10 @@ third-party process can pause charging directly. Chargectl uses two other tools:
 | Sleep | Wall power is reconnected before sleep unless "hold limit asleep" is on |
 | MagSafe LED | `ACLC`: macOS-driven or off |
 
-Your own macOS charge limit is saved the first time Chargectl changes it and
-restored when Chargectl stops, is turned off or is uninstalled.
+Chargectl and System Settings > Battery stay in step: Chargectl's limit shows up
+there, and a limit chosen there becomes Chargectl's limit. Your own macOS charge
+limit is saved the first time Chargectl changes it and restored when Chargectl
+stops, is turned off or is uninstalled.
 
 Readings come from the `AppleSmartBattery` registry entry and live SMC keys
 (`B0AC`, `B0AV`, `PDTR`, `PSTR`, `VD0R`, `ID0R`, `TB0T`) and need no
