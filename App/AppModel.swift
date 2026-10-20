@@ -30,6 +30,8 @@ final class AppModel {
     /// third second.
     private static let refreshInterval = Duration.seconds(1)
     private static let serviceEvery = 3
+    /// How long an installed helper may be unreachable while it starts or restarts.
+    private static let helperStartGrace: TimeInterval = 20
     private static let conflictingApps = [
         "com.apphousekitchen.aldente-pro": "AlDente",
         "com.apphousekitchen.aldente": "AlDente",
@@ -158,10 +160,23 @@ final class AppModel {
             }?.value
         do {
             status = try await client.status()
+            if service != .running { message = nil }
             service = .running
+            unreachableSince = nil
         } catch {
             status = nil
-            service = installer.isInstalled ? .notResponding(error.localizedDescription) : .notInstalled
+            if installer.isInstalled {
+                // The helper restarts after an install or an app update; give it a moment before
+                // calling it unresponsive.
+                let since = unreachableSince ?? .now
+                unreachableSince = since
+                service =
+                    Date.now.timeIntervalSince(since) < Self.helperStartGrace
+                    ? .checking : .notResponding(error.localizedDescription)
+            } else {
+                unreachableSince = nil
+                service = .notInstalled
+            }
         }
     }
 
@@ -211,6 +226,7 @@ final class AppModel {
     }
 
     private(set) var isInstallingService = false
+    @ObservationIgnored private var unreachableSince: Date?
 
     func installService() {
         guard !isInstallingService else { return }

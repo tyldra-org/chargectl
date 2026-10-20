@@ -31,14 +31,16 @@ struct ServiceInstaller {
         let plist = Self.launchdPlist(program: program).base64EncodedString()
         let path = Self.plistPath
         let label = Self.label
+        let job = "system/\(label)"
+        // bootout returns before launchd has let go of the job; bootstrapping too early fails with
+        // "Bootstrap failed: 5". Wait until the old job is gone, and accept a job that is running.
         try await Self.runAsAdministrator(
             [
-                "/bin/launchctl bootout system/\(label) 2>/dev/null || true",
-                "/bin/echo \(plist) | /usr/bin/base64 -D > \(path)",
-                "/usr/sbin/chown root:wheel \(path)",
-                "/bin/chmod 644 \(path)",
-                "/bin/launchctl bootstrap system \(path)",
-            ].joined(separator: " && "))
+                "/bin/launchctl bootout \(job) 2>/dev/null",
+                "for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20; do /bin/launchctl print \(job) >/dev/null 2>&1 || break; /bin/sleep 0.25; done",
+                "/bin/echo \(plist) | /usr/bin/base64 -D > \(path) && /usr/sbin/chown root:wheel \(path) && /bin/chmod 644 \(path)",
+                "/bin/launchctl bootstrap system \(path) || /bin/launchctl print \(job) >/dev/null",
+            ].joined(separator: "; "))
     }
 
     /// For when the service cannot remove itself (it is not running).
