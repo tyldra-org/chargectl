@@ -32,6 +32,8 @@ final class ChargeController {
     private var timer: Timer?
     private var sleepWatcher: SleepWatcher?
     private var observer = PowerObserver()
+    /// No settings were saved yet; the first limit is taken from macOS's own setting.
+    private var isFirstRun: Bool
     /// Set once the app uninstalls Chargectl: nothing is written to disk after that.
     private var isRemoved = false
 
@@ -41,7 +43,9 @@ final class ChargeController {
         self.smc = smc
         reader = BatteryReader(smc: smc)
         adapter = smc.flatMap(AdapterSwitch.init(smc:))
-        settings = store.load(ChargeSettings.self, from: .settings) ?? ChargeSettings()
+        let stored = store.load(ChargeSettings.self, from: .settings)
+        settings = stored ?? ChargeSettings()
+        isFirstRun = stored == nil
         state = store.load(ControlState.self, from: .state) ?? ControlState()
         history = store.load([HistorySample].self, from: .history) ?? []
         logs = store.load([LogEntry].self, from: .logs) ?? []
@@ -63,6 +67,7 @@ final class ChargeController {
         } else {
             log("PowerUIAgent preferences: \(MacOSChargeLimit.preferencesSummary())")
         }
+        adoptMacOSLimitOnFirstRun()
         sleepWatcher = SleepWatcher(
             willSleep: { [weak self] in self?.prepareForSleep() },
             didWake: { [weak self] in self?.tick() })
@@ -107,6 +112,21 @@ final class ChargeController {
         updateSleepAssertion(isPluggedIn: battery.isPluggedIn)
         applyLED()
         record(battery, now: now)
+    }
+
+    /// On a fresh install, start from the limit set in System Settings › Battery, so nothing
+    /// changes until the user picks another one. macOS's limit off means charging to 100%.
+    private func adoptMacOSLimitOnFirstRun() {
+        guard isFirstRun else { return }
+        isFirstRun = false
+        guard let current = try? macOSLimit?.current() else { return }
+        settings.limit = current.isEnabled ? current.limit : 100
+        settings = settings.normalized()
+        save(settings, to: .settings)
+        log(
+            current.isEnabled
+                ? "starting with the macOS charge limit, \(settings.limit)%"
+                : "macOS charge limit is off; starting at 100%", source: .chargectl)
     }
 
     // MARK: Client requests

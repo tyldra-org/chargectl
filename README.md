@@ -23,8 +23,8 @@ cd chargectl
 ```
 
 The script builds the app, copies it to `/Applications`, installs the control
-service and opens Chargectl. Click the ring in the menu bar and drag the bar to set
-a limit.
+service and opens Chargectl. Chargectl starts with the limit set in System Settings > Battery. Click the ring
+in the menu bar and drag the white limit marker to change it.
 
 How the service is installed depends on how the build is signed:
 

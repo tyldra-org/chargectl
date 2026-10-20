@@ -112,7 +112,14 @@ struct ChargeBar: View {
                 .contentShape(Rectangle())
                 .gesture(
                     DragGesture(minimumDistance: 0)
-                        .onChanged { draggedLimit = clamp($0.location.x / max(width, 1) * 100) }
+                        .onChanged { drag in
+                            // Only a drag that starts on the limit tick moves it, so a stray click
+                            // on the bar never changes the limit.
+                            guard let limit, draggedLimit != nil || abs(drag.startLocation.x - x(limit)) <= 14 else {
+                                return
+                            }
+                            draggedLimit = clamp(drag.location.x / max(width, 1) * 100)
+                        }
                         .onEnded { _ in
                             if let draggedLimit { onSetLimit?(draggedLimit) }
                             draggedLimit = nil
