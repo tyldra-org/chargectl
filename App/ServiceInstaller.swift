@@ -41,12 +41,46 @@ struct ServiceInstaller {
     }
 }
 
-/// `Chargectl --unregister-services` lets scripts/uninstall.sh clear the Login Items entries,
-/// which only the app itself can do.
+/// Command-line entry points for scripts/install.sh and scripts/uninstall.sh. Only the app
+/// itself can register its service with SMAppService, which is what lets macOS list the service
+/// under Chargectl's name and icon in Login Items.
 enum CommandLineActions {
     static func runIfRequested() {
-        guard CommandLine.arguments.contains("--unregister-services") else { return }
-        ServiceInstaller.unregisterAll()
-        exit(0)
+        let arguments = CommandLine.arguments
+        if arguments.contains("--register-service") {
+            exit(registerService())
+        }
+        if arguments.contains("--unregister-service") {
+            try? SMAppService.daemon(plistName: DaemonIdentity.plistName).unregister()
+            exit(0)
+        }
+        if arguments.contains("--unregister-services") {
+            ServiceInstaller.unregisterAll()
+            exit(0)
+        }
+    }
+
+    /// Prints the result for the script: 0 running, 2 waiting for approval, 1 failed.
+    private static func registerService() -> Int32 {
+        let service = SMAppService.daemon(plistName: DaemonIdentity.plistName)
+        do {
+            try service.register()
+        } catch {
+            if service.status != .enabled && service.status != .requiresApproval {
+                print("failed: \(error.localizedDescription)")
+                return 1
+            }
+        }
+        switch service.status {
+        case .enabled:
+            print("enabled")
+            return 0
+        case .requiresApproval:
+            print("requires approval")
+            return 2
+        default:
+            print("failed: status \(service.status.rawValue)")
+            return 1
+        }
     }
 }

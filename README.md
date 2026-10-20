@@ -22,9 +22,11 @@ cd chargectl
 ./scripts/install.sh
 ```
 
-The script asks for your password once, builds the app, copies it to
-`/Applications`, starts the control service and opens Chargectl. Click the ring
-in the menu bar and drag the bar to set a limit.
+The script builds the app, copies it to `/Applications`, registers the control
+service and opens Chargectl. macOS adds the service switched off: turn on
+Chargectl under System Settings > General > Login Items & Extensions (the script
+opens that page). Then click the ring in the menu bar and drag the bar to set a
+limit.
 
 Quit any other charge limiter first. Two of them fight over the same settings.
 
@@ -86,7 +88,8 @@ privileges.
 ```
 
 Run `install.sh` again after pulling changes; it replaces both the app and the
-service. **Settings > Uninstall Chargectl** in the app does the same as
+service. Builds are signed ad hoc, so macOS asks you to turn the service on again
+after each update. **Settings > Uninstall Chargectl** in the app does the same as
 `uninstall.sh`: it reconnects wall power, restores your macOS charge limit and
 removes the service, its data, preferences and caches.
 
