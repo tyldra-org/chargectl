@@ -43,6 +43,8 @@ struct DashboardView: View {
         .frame(minWidth: 900, minHeight: 600)
         .tint(Theme.green)
         .ignoresSafeArea(edges: .top)
+        .onAppear { Dashboard.show() }
+        .onDisappear { Dashboard.didClose() }
         .onOpenURL { url in
             // chargectl://dashboard/<page>
             if let target = DashboardPage(rawValue: url.lastPathComponent) { page = target }
