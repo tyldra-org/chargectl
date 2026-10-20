@@ -91,14 +91,12 @@ On current Apple silicon firmware, the SMC keys that pause charging (`CH0B`,
 no third-party process can pause charging directly. Chargectl uses the two tools
 that remain:
 
-```mermaid
-flowchart LR
-    app["Chargectl.app<br/>menu bar and dashboard"] -- XPC --> helper["Chargectl Service<br/>root helper"]
-    helper -- "PowerUISmartChargeClient<br/>and PowerUIAgent preferences" --> limit["macOS charge limit"]
-    helper -- "SMC key CHIE" --> wall["Wall power"]
-    limit --> battery(("Battery"))
-    wall --> battery
-```
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/architecture-dark.svg">
+    <img alt="Chargectl.app talks to the root helper over XPC; the helper sets macOS's charge limit through PowerUI and switches wall power with the CHIE SMC key." src="docs/assets/architecture-light.svg" width="900">
+  </picture>
+</p>
 
 - **macOS's own charge limit.** PowerUIAgent holds the entitlement. At its limit
   the battery holds its charge while the Mac runs on the charger; above it the

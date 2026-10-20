@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="250" viewBox="0 0 900 250" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif">
+<defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#6e7681"/></marker></defs>
+<rect width="900" height="250" fill="#0d1117"/>
+<rect x="20" y="95" width="170" height="64" rx="10" fill="#161b22" stroke="#30363d" stroke-width="1.5"/>
+<text x="105" y="123" text-anchor="middle" font-size="15" font-weight="600" fill="#e6edf3">Chargectl.app</text>
+<text x="105" y="142" text-anchor="middle" font-size="12" fill="#8b949e">menu bar and dashboard</text>
+<rect x="270" y="95" width="170" height="64" rx="10" fill="rgba(46,160,67,0.15)" stroke="#2da44e" stroke-width="1.5"/>
+<text x="355" y="123" text-anchor="middle" font-size="15" font-weight="600" fill="#e6edf3">Chargectl Service</text>
+<text x="355" y="142" text-anchor="middle" font-size="12" fill="#8b949e">root helper</text>
+<rect x="540" y="30" width="180" height="64" rx="10" fill="#161b22" stroke="#30363d" stroke-width="1.5"/>
+<text x="630" y="58" text-anchor="middle" font-size="15" font-weight="600" fill="#e6edf3">macOS charge limit</text>
+<text x="630" y="77" text-anchor="middle" font-size="12" fill="#8b949e">PowerUIAgent</text>
+<rect x="540" y="160" width="180" height="64" rx="10" fill="#161b22" stroke="#30363d" stroke-width="1.5"/>
+<text x="630" y="188" text-anchor="middle" font-size="15" font-weight="600" fill="#e6edf3">Wall power</text>
+<text x="630" y="207" text-anchor="middle" font-size="12" fill="#8b949e">SMC key CHIE</text>
+<rect x="790" y="95" width="90" height="64" rx="10" fill="#161b22" stroke="#30363d" stroke-width="1.5"/>
+<text x="835" y="132" text-anchor="middle" font-size="15" font-weight="600" fill="#e6edf3">Battery</text>
+<path d="M190,127 L268,127" fill="none" stroke="#6e7681" stroke-width="1.5" marker-end="url(#a)"/>
+<text x="229" y="118" text-anchor="middle" font-size="11.5" fill="#8b949e">XPC</text>
+<path d="M440,115 C490,115 490,62 538,62" fill="none" stroke="#6e7681" stroke-width="1.5" marker-end="url(#a)"/>
+<text x="470" y="56" text-anchor="middle" font-size="11.5" fill="#8b949e">PowerUI API</text>
+<text x="470" y="70" text-anchor="middle" font-size="11.5" fill="#8b949e">and preferences</text>
+<path d="M440,139 C490,139 490,192 538,192" fill="none" stroke="#6e7681" stroke-width="1.5" marker-end="url(#a)"/>
+<text x="470" y="204" text-anchor="middle" font-size="11.5" fill="#8b949e">switch on/off</text>
+<path d="M720,62 C760,62 760,115 788,118" fill="none" stroke="#6e7681" stroke-width="1.5" marker-end="url(#a)"/>
+<path d="M720,192 C760,192 760,139 788,136" fill="none" stroke="#6e7681" stroke-width="1.5" marker-end="url(#a)"/>
+</svg>
