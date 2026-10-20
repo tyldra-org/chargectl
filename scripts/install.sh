@@ -38,6 +38,13 @@ pkill -x Chargectl 2>/dev/null || true
 sudo launchctl bootout "system/$label" 2>/dev/null || true
 rm -rf "$app"
 ditto "$built" "$app"
+# Xcode registers every build with Launch Services, which lists it as a second Chargectl in
+# the Apps launcher. Keep only the installed copy.
+lsregister=/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister
+for product in "$CHARGECTL_DERIVED_DATA"/Build/Products/*/Chargectl.app; do
+  "$lsregister" -u "$product" 2>/dev/null || true
+done
+"$lsregister" -f "$app"
 
 # A plain launchd plist, not SMAppService: it needs no approval in Login Items and keeps
 # working when a rebuild changes the binary.
@@ -46,7 +53,7 @@ sudo tee "$plist" >/dev/null <<PLIST
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0"><dict>
     <key>Label</key><string>$label</string>
-    <key>Program</key><string>$app/Contents/MacOS/chargectld</string>
+    <key>Program</key><string>$app/Contents/MacOS/Chargectl Service</string>
     <key>AssociatedBundleIdentifiers</key><array><string>com.tyldra.chargectl</string></array>
     <key>MachServices</key><dict><key>$label</key><true/></dict>
     <key>RunAtLoad</key><true/>
