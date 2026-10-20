@@ -4,9 +4,15 @@ nonisolated enum DaemonIdentity {
     static let machService = "com.tyldra.chargectl.daemon"
     static let plistName = "com.tyldra.chargectl.daemon.plist"
     static let version = "0.1.0"
-    /// Clients must be the Chargectl app. Ad-hoc builds can only pin the identifier;
-    /// add the team anchor once the app is signed with a Developer ID.
-    static let clientRequirement = #"identifier "com.tyldra.chargectl""#
+    static let appIdentifier = "com.tyldra.chargectl"
+
+    /// Clients must be the Chargectl app. When the service is signed with a team (Apple
+    /// Development or Developer ID), the app must be signed by the same team; ad-hoc builds can
+    /// only pin the identifier.
+    static func clientRequirement(team: String?) -> String {
+        guard let team else { return "identifier \"\(appIdentifier)\"" }
+        return "anchor apple generic and identifier \"\(appIdentifier)\" and certificate leaf[subject.OU] = \"\(team)\""
+    }
 }
 
 nonisolated enum DaemonCommand: String, Codable, CaseIterable, Sendable {

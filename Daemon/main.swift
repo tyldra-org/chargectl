@@ -1,12 +1,12 @@
 import Foundation
 
-// chargectld: the root launch daemon that enforces charge settings, also while the
-// app is closed. The app installs it with SMAppService and talks to it over XPC.
+// Chargectl Service: the root launch daemon that enforces charge settings, also while the
+// app is closed. The app talks to it over XPC.
 
 let controller = ChargeController(store: .system)
 let service = DaemonService(controller: controller)
 let listener = NSXPCListener(machServiceName: DaemonIdentity.machService)
-listener.setConnectionCodeSigningRequirement(DaemonIdentity.clientRequirement)
+listener.setConnectionCodeSigningRequirement(DaemonIdentity.clientRequirement(team: CodeSigning.ownTeam()))
 listener.delegate = service
 listener.resume()
 

@@ -22,11 +22,21 @@ cd chargectl
 ./scripts/install.sh
 ```
 
-The script builds the app, copies it to `/Applications`, registers the control
-service and opens Chargectl. macOS adds the service switched off: turn on
-Chargectl under System Settings > General > Login Items & Extensions (the script
-opens that page). Then click the ring in the menu bar and drag the bar to set a
-limit.
+The script builds the app, copies it to `/Applications`, installs the control
+service and opens Chargectl. Click the ring in the menu bar and drag the bar to set
+a limit.
+
+How the service is installed depends on how the build is signed:
+
+- **With a signing certificate** (recommended): add your Apple ID in Xcode >
+  Settings > Accounts and create a free "Apple Development" certificate, or use a
+  Developer ID. `install.sh` finds it, signs with it and installs the service as
+  an administrator (it asks for your password once). The service is on straight
+  away and Login Items lists it under Chargectl's name and icon.
+- **Without one**, the build is signed ad hoc and the app registers the service
+  itself. macOS adds it switched off: turn on Chargectl under System Settings >
+  General > Login Items & Extensions (the script opens that page), and again after
+  each update.
 
 Quit any other charge limiter first. Two of them fight over the same settings.
 
@@ -88,8 +98,7 @@ privileges.
 ```
 
 Run `install.sh` again after pulling changes; it replaces both the app and the
-service. Builds are signed ad hoc, so macOS asks you to turn the service on again
-after each update. **Settings > Uninstall Chargectl** in the app does the same as
+service. **Settings > Uninstall Chargectl** in the app does the same as
 `uninstall.sh`: it reconnects wall power, restores your macOS charge limit and
 removes the service, its data, preferences and caches.
 
@@ -99,7 +108,7 @@ removes the service, its data, preferences and caches.
   PowerUIAgent preferences). A macOS or firmware update can change them.
 - The control service runs as root. Read [SECURITY.md](SECURITY.md) for what it
   can do and who can talk to it.
-- Builds are signed ad hoc, not with a Developer ID, and are not notarized.
+- Builds are not notarized. Without a signing certificate they are signed ad hoc.
 - Only Apple silicon MacBooks on macOS 27 are supported and tested.
 
 ## Development
