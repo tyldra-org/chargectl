@@ -38,6 +38,11 @@ nonisolated struct ControlState: Codable, Equatable, Sendable {
     var holdLevel: Int?
     /// Reached the limit and has not yet fallen to the lower bound (limit − sailing).
     var isSailing = false
+    /// Plugged in on the previous decision; the hold level is only taken when plugging in.
+    var wasPluggedIn = false
+    /// Wall power was cut because macOS kept charging past the target (its occasional charge to
+    /// 100%, or "Charge to Full Now"); stays cut until the charge is back at the target.
+    var overchargeCut = false
 
     init(mode: ChargeMode = .automatic, adapterEnabled: Bool = true, heatPaused: Bool = false, holdLevel: Int? = nil) {
         self.mode = mode
@@ -53,6 +58,8 @@ nonisolated struct ControlState: Codable, Equatable, Sendable {
         heatPaused = try container.decodeIfPresent(Bool.self, forKey: .heatPaused) ?? false
         holdLevel = try container.decodeIfPresent(Int.self, forKey: .holdLevel)
         isSailing = try container.decodeIfPresent(Bool.self, forKey: .isSailing) ?? false
+        wasPluggedIn = try container.decodeIfPresent(Bool.self, forKey: .wasPluggedIn) ?? false
+        overchargeCut = try container.decodeIfPresent(Bool.self, forKey: .overchargeCut) ?? false
     }
 }
 
@@ -73,6 +80,8 @@ nonisolated enum ChargeActivity: Codable, Equatable, Sendable {
     case holding(Int)
     /// Sailing below the limit: held on the charger at this level until it falls to resumeAt.
     case sailingHold(Int, resumeAt: Int)
+    /// macOS charged past the target anyway; wall power is cut until the charge is back.
+    case stoppedOvercharge(Int)
     case discharging(to: Int)
     case heatPaused
     case toppingUp
@@ -90,6 +99,7 @@ nonisolated enum ChargeActivity: Codable, Equatable, Sendable {
         case .holdingAbove: "above the limit, running on the charger"
         case .holding(let level): "holding at \(level)%, running on the charger"
         case .sailingHold(_, let resumeAt): "sailing on the charger, charges again at \(resumeAt)%"
+        case .stoppedOvercharge(let target): "macOS kept charging past \(target)%; running on battery back to it"
         case .discharging(let target): "discharging to \(target)%"
         case .heatPaused: "too warm, charging paused"
         case .toppingUp: "topping up to 100%"
@@ -102,7 +112,7 @@ nonisolated enum ChargeActivity: Codable, Equatable, Sendable {
     /// True while the battery, not the charger, powers the Mac on purpose.
     var isDraining: Bool {
         switch self {
-        case .sailing, .aboveLimit, .discharging, .heatPaused, .calibrating(.draining): true
+        case .sailing, .aboveLimit, .discharging, .heatPaused, .calibrating(.draining), .stoppedOvercharge: true
         case .holdingAbove: false
         default: false
         }

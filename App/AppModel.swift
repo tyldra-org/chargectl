@@ -127,6 +127,13 @@ final class AppModel {
                 Notice(
                     text: "macOS stops charging at \(macOSLimit)%. Turn its limit off in Battery settings."))
         }
+        if status?.optimizedChargingEnabled == true {
+            notices.append(
+                Notice(
+                    text:
+                        "Optimized Battery Charging is on. It can hold or delay charging by itself; turn it off so Chargectl decides.",
+                    action: .openBatterySettings, actionTitle: "Open Battery"))
+        }
         if let error = status?.lastError { notices.append(Notice(text: error)) }
         if let message { notices.append(Notice(text: message)) }
         return notices

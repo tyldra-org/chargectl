@@ -78,6 +78,15 @@ final class MacOSChargeLimit {
         return Setting(isEnabled: enabled != 0, limit: Int(limit))
     }
 
+    /// Optimized Battery Charging, which can hold or delay charging by itself. nil when unknown.
+    func isOptimizedChargingEnabled() -> Bool? {
+        let selector = "isSmartChargingCurrentlyEnabled:"
+        guard (client as? NSObject)?.responds(to: Selector(selector)) == true else { return nil }
+        var error: NSError?
+        let enabled = Self.function(client, selector, WordFunction.self)(client, Selector(selector), &error)
+        return error == nil ? enabled != 0 : nil
+    }
+
     func apply(_ setting: Setting) throws {
         if setting.isEnabled {
             try set(limit: setting.limit)

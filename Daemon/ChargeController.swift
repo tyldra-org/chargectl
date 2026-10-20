@@ -105,7 +105,8 @@ final class ChargeController {
         adoptMacOSLimitChangedInSettings()
         let input = PolicyInput(
             percent: battery.percent, isPluggedIn: battery.isPluggedIn, temperature: battery.temperature,
-            canSetMacOSLimit: macOSLimit != nil, macOSLimitFloor: macOSLimitFloor)
+            canSetMacOSLimit: macOSLimit != nil, isCharging: battery.current > ObservedPower.flowThreshold,
+            macOSLimitFloor: macOSLimitFloor)
         let decision = ChargePolicy.decide(input, settings: effectiveSettings, state: state, now: now)
         if let event = decision.event { log(event, source: .chargectl) }
         if decision.activity != activity {
@@ -179,13 +180,15 @@ final class ChargeController {
     }
 
     /// Keeps Chargectl and System Settings › Battery in step: a limit chosen there becomes
-    /// Chargectl's limit. Turning macOS's limit off there means charging to 100%.
+    /// Chargectl's limit.
     private func adoptMacOSLimitChangedInSettings() {
+        // A limit macOS switched off itself (its occasional charge to 100%, "Charge to Full
+        // Now") is not a new choice; Chargectl turns it back on.
         guard settings.isEnabled, let applied = appliedMacOSLimit, let current = try? macOSLimit?.current(),
-            current != applied
+            current.isEnabled, current != applied
         else { return }
         appliedMacOSLimit = current
-        let limit = current.isEnabled ? current.limit : 100
+        let limit = current.limit
         guard limit != settings.limit else { return }
         let previous = settings.limit
         settings.limit = limit
@@ -201,7 +204,8 @@ final class ChargeController {
     func status() -> DaemonStatus {
         DaemonStatus(
             version: DaemonIdentity.version, settings: settings, mode: state.mode, activity: activity,
-            adapterEnabled: state.adapterEnabled, adapterKey: adapter?.key, lastError: lastError)
+            adapterEnabled: state.adapterEnabled, adapterKey: adapter?.key, lastError: lastError,
+            optimizedChargingEnabled: macOSLimit?.isOptimizedChargingEnabled())
     }
 
     func historySamples() -> [HistorySample] { history }

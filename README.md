@@ -77,6 +77,12 @@ third-party process can pause charging directly. Chargectl uses two other tools:
 | Sleep | Wall power is reconnected before sleep unless "hold limit asleep" is on |
 | MagSafe LED | `ACLC`: macOS-driven or off |
 
+macOS occasionally charges to 100% despite its limit, to keep its battery
+estimates accurate, and "Charge to Full Now" lifts the limit. When the battery
+keeps charging past the level Chargectl holds, Chargectl cuts wall power until the
+charge is back there, and turns macOS's limit back on. Use Top Up in Chargectl for
+a full charge. Turn Optimized Battery Charging off; Chargectl warns while it is on.
+
 Chargectl and System Settings > Battery stay in step: Chargectl's limit shows up
 there, and a limit chosen there becomes Chargectl's limit. Your own macOS charge
 limit is saved the first time Chargectl changes it and restored when Chargectl

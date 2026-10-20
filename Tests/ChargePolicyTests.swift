@@ -271,6 +271,43 @@ import Testing
         #expect(decision.state.adapterEnabled)
     }
 
+    func plugged(_ percent: Int, charging: Bool, settings: ChargeSettings, state: ControlState) -> ChargeDecision {
+        ChargePolicy.decide(
+            PolicyInput(
+                percent: percent, isPluggedIn: true, temperature: 30, canSetMacOSLimit: true, isCharging: charging,
+                macOSLimitFloor: 20),
+            settings: settings, state: state, now: now)
+    }
+
+    /// macOS's occasional charge to 100%: the battery keeps charging past the limit.
+    @Test func chargingPastTheLimitCutsWallPowerUntilBackAtIt() {
+        var settings = ChargeSettings.limit(80, sailing: 5)
+        settings.autoDischarge = false
+        let atLimit = plugged(80, charging: false, settings: settings, state: ControlState())
+        #expect(atLimit.state.adapterEnabled)
+        let overshoot = plugged(81, charging: true, settings: settings, state: atLimit.state)
+        #expect(overshoot.state.holdLevel == nil)
+        #expect(!overshoot.state.adapterEnabled)
+        #expect(overshoot.activity == .stoppedOvercharge(80))
+        let draining = plugged(81, charging: false, settings: settings, state: overshoot.state)
+        #expect(!draining.state.adapterEnabled)
+        let back = plugged(80, charging: false, settings: settings, state: draining.state)
+        #expect(back.state.adapterEnabled)
+        #expect(!back.state.overchargeCut)
+    }
+
+    @Test func plugInAboveTheLimitStillHolds() {
+        var settings = ChargeSettings.limit(80, sailing: 5)
+        settings.autoDischarge = false
+        let unplugged = ChargePolicy.decide(
+            PolicyInput(percent: 90, isPluggedIn: false, temperature: 30, canSetMacOSLimit: true, macOSLimitFloor: 20),
+            settings: settings, state: ControlState(), now: now)
+        let pluggedIn = plugged(90, charging: false, settings: settings, state: unplugged.state)
+        #expect(pluggedIn.state.holdLevel == 90)
+        #expect(pluggedIn.state.adapterEnabled)
+        #expect(pluggedIn.macOSLimit == 90)
+    }
+
     @Test func autoDischargeIsOffByDefault() {
         #expect(!ChargeSettings().autoDischarge)
     }

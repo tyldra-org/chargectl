@@ -9,6 +9,8 @@ nonisolated struct DaemonStatus: Codable, Equatable, Sendable {
     /// The SMC key used to switch wall power, or nil when this Mac has none.
     var adapterKey: String?
     var lastError: String?
+    /// Optimized Battery Charging can hold or delay charging on its own.
+    var optimizedChargingEnabled: Bool? = nil
 }
 
 nonisolated struct HistorySample: Codable, Equatable, Sendable {

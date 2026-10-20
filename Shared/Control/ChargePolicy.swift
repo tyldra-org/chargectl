@@ -7,6 +7,8 @@ nonisolated struct PolicyInput: Equatable, Sendable {
     var temperature: Double?
     /// Whether the daemon can set macOS's own charge limit through PowerUIAgent.
     var canSetMacOSLimit = false
+    /// Whether the battery is taking charge right now.
+    var isCharging = false
     /// The lowest macOS limit that can be set: 80 through Apple's API, lower through PowerUIAgent's
     /// own preferences.
     var macOSLimitFloor = ChargePolicy.macOSLimitAPIFloor
@@ -56,6 +58,8 @@ nonisolated enum ChargePolicy {
             state.adapterEnabled = true
             state.holdLevel = nil
             state.isSailing = false
+            state.overchargeCut = false
+            state.wasPluggedIn = false
             // Set macOS's limit even on battery, so System Settings shows it and charging
             // stops at the right point the moment the charger is connected.
             let limit = unpluggedMacOSLimit(settings: settings, mode: state.mode, input: input)
@@ -66,11 +70,18 @@ nonisolated enum ChargePolicy {
         }
 
         if state.mode == .automatic, !settings.autoDischarge, input.percent > settings.limit, settings.limit < 100 {
-            // Never raise the hold level: if the battery runs down on its own, it stays down.
-            state.holdLevel = min(state.holdLevel ?? input.percent, input.percent)
+            if let hold = state.holdLevel {
+                // Never raise the hold level: if the battery runs down on its own, it stays down.
+                state.holdLevel = min(hold, input.percent)
+            } else if !state.wasPluggedIn {
+                // Only plugging in above the limit starts a hold. Charging past the limit
+                // while plugged in is an overshoot, handled below.
+                state.holdLevel = input.percent
+            }
         } else {
             state.holdLevel = nil
         }
+        state.wasPluggedIn = true
         // Sailing: after reaching the limit, hold where the charge drifts to until it falls to the
         // lower bound, instead of topping it back up.
         if state.mode == .automatic {
@@ -82,10 +93,34 @@ nonisolated enum ChargePolicy {
         } else {
             state.isSailing = false
         }
-        let result = target(
+        var result = target(
             input.percent, settings: settings, state: state, native: native, floor: input.macOSLimitFloor)
+        guardAgainstOvercharge(&result, input: input, settings: settings, state: &state)
         state.adapterEnabled = result.adapterEnabled
         return ChargeDecision(state: state, activity: result.activity, event: event, macOSLimit: result.macOSLimit)
+    }
+
+    /// macOS occasionally charges to 100% despite its limit (Apple: "to maintain accurate battery
+    /// state-of-charge estimates"), and "Charge to Full Now" lifts it. When the battery keeps
+    /// charging past the level Chargectl is holding, wall power is cut until it is back there.
+    private static func guardAgainstOvercharge(
+        _ result: inout Target, input: PolicyInput, settings: ChargeSettings, state: inout ControlState
+    ) {
+        guard state.mode == .automatic, !state.heatPaused, settings.limit < 100,
+            let ceiling = state.holdLevel
+                ?? (result.adapterEnabled ? result.macOSLimit.map { max($0, settings.limit) } : nil)
+        else {
+            state.overchargeCut = false
+            return
+        }
+        if input.percent <= ceiling {
+            state.overchargeCut = false
+            return
+        }
+        if input.isCharging { state.overchargeCut = true }
+        guard state.overchargeCut else { return }
+        result.adapterEnabled = false
+        result.activity = .stoppedOvercharge(ceiling)
     }
 
     private static func unpluggedMacOSLimit(settings: ChargeSettings, mode: ChargeMode, input: PolicyInput) -> Int? {
