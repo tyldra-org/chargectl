@@ -84,10 +84,7 @@ struct MenuContent: View {
             Chip(title: "Heat guard", symbol: "thermometer.medium", isOn: settings.heatProtection) {
                 model.update { $0.heatProtection.toggle() }
             }
-            Chip(title: "Clamshell", symbol: "laptopcomputer", isOn: settings.clamshell) {
-                model.update { $0.clamshell.toggle() }
-            }
-            Chip(title: "Hold asleep", symbol: "moon", isOn: settings.holdAsleep) {
+            Chip(title: "Discharge asleep", symbol: "moon", isOn: settings.holdAsleep) {
                 model.update { $0.holdAsleep.toggle() }
             }
         }

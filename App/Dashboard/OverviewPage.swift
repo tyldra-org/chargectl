@@ -136,8 +136,7 @@ struct OverviewPage: View {
             if settings.heatProtection {
                 items.append("Heat guard \(unit.format(settings.heatThreshold, decimals: 0))")
             }
-            if settings.clamshell { items.append("Clamshell") }
-            if settings.holdAsleep { items.append("Holds asleep") }
+            if settings.holdAsleep { items.append("Discharges asleep") }
         }
         return items
     }

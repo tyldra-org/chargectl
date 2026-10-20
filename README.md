@@ -43,7 +43,7 @@ Quit any other charge limiter first. Two of them fight over the same settings.
 - Automatic discharge, off by default: when plugged in above the limit, either
   hold the current charge or discharge down to the limit.
 - Top up to 100%, discharge to the limit, and calibration jobs.
-- Heat protection, clamshell support, sleep handling and MagSafe LED control.
+- Heat protection, sleep handling and MagSafe LED control.
 - Live charger, Mac and battery power, battery health, a 24-hour history and a
   log of what the battery and Chargectl did.
 
@@ -73,8 +73,7 @@ third-party process can pause charging directly. Chargectl uses two other tools:
 | Top up, discharge | Temporary jobs that override the limit |
 | Calibrate | Drain to 15%, charge to 100%, rest an hour, return to the limit |
 | Heat protection | Cut wall power at the threshold, reconnect 2 °C below it |
-| Clamshell | Prevent-sleep assertion while wall power is cut |
-| Sleep | Wall power is reconnected before sleep unless "hold limit asleep" is on |
+| Sleep | macOS holds the limit while asleep; wall power cut to discharge is reconnected before sleep unless "keep discharging while asleep" is on |
 | MagSafe LED | `ACLC`: macOS-driven or off |
 
 macOS occasionally charges to 100% despite its limit, to keep its battery

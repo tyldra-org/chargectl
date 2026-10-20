@@ -67,13 +67,12 @@ struct ControlPage: View {
             }
 
             Section {
-                Toggle("Stay awake with the lid closed", isOn: binding(\.clamshell))
-                Toggle("Hold the limit during sleep", isOn: binding(\.holdAsleep))
+                Toggle("Keep discharging while asleep", isOn: binding(\.holdAsleep))
             } header: {
                 Text("Sleep")
             } footer: {
                 Text(
-                    "While holding the limit the Mac runs on battery. With an external display and the lid closed it would sleep, so Chargectl can keep it awake. Holding through sleep slowly drains the battery."
+                    "Before the Mac sleeps, Chargectl reconnects wall power if it had cut it to discharge. Turn this on to keep discharging while asleep. The limit itself is held by macOS, also during sleep."
                 )
             }
 

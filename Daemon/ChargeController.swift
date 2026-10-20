@@ -31,7 +31,6 @@ final class ChargeController {
     private var lastBattery: BatterySnapshot?
     private var lastError: String?
     private var appliedLED: MagSafeLEDMode?
-    private var sleepAssertion: IOPMAssertionID = 0
     private var timer: Timer?
     private var sleepWatcher: SleepWatcher?
     private var observer = PowerObserver()
@@ -123,7 +122,6 @@ final class ChargeController {
             state = decision.state
             save(state, to: .state)
         }
-        updateSleepAssertion(isPluggedIn: battery.isPluggedIn)
         applyLED()
         record(battery, now: now)
     }
@@ -315,10 +313,6 @@ final class ChargeController {
         restoreMacOSLimit()
         if let adapter, (try? adapter.isConnected()) == false { try? adapter.set(connected: true) }
         if appliedLED == .off { try? smc?.write(SMCKey.magSafeLED, bytes: [0]) }
-        if sleepAssertion != 0 {
-            IOPMAssertionRelease(sleepAssertion)
-            sleepAssertion = 0
-        }
     }
 
     // MARK: Applying decisions
@@ -387,27 +381,12 @@ final class ChargeController {
     private func prepareForSleep() {
         guard let adapter, (try? adapter.isConnected()) == false else { return }
         if settings.holdAsleep {
-            log("sleeping on battery to hold the limit", source: .chargectl)
+            log("sleeping with wall power cut to keep discharging", source: .chargectl)
             return
         }
         connectWallPower(true)
         state.adapterEnabled = true
         save(state, to: .state)
-    }
-
-    /// With the lid closed, a Mac on battery sleeps. Clamshell keeps it awake while wall power is cut.
-    private func updateSleepAssertion(isPluggedIn: Bool) {
-        let wanted = settings.clamshell && isPluggedIn && !state.adapterEnabled
-        if wanted, sleepAssertion == 0 {
-            let reason = "Chargectl holds the charge limit while the charger is connected" as CFString
-            let result = IOPMAssertionCreateWithName(
-                kIOPMAssertionTypePreventSystemSleep as CFString, IOPMAssertionLevel(kIOPMAssertionLevelOn),
-                reason, &sleepAssertion)
-            if result != kIOReturnSuccess { report("could not keep the Mac awake (\(result))") }
-        } else if !wanted, sleepAssertion != 0 {
-            IOPMAssertionRelease(sleepAssertion)
-            sleepAssertion = 0
-        }
     }
 
     private func applyLED() {

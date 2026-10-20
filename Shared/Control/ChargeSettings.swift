@@ -29,7 +29,7 @@ nonisolated struct ChargeSettings: Codable, Equatable, Sendable {
     var heatProtection = false
     /// °C
     var heatThreshold = 35.0
-    var clamshell = false
+    /// While wall power is cut on purpose, keep it cut through sleep instead of reconnecting.
     var holdAsleep = false
     var magSafeLED = MagSafeLEDMode.system
 
@@ -50,7 +50,6 @@ nonisolated struct ChargeSettings: Codable, Equatable, Sendable {
             try container.decodeIfPresent(Bool.self, forKey: .heatProtection) ?? defaults.heatProtection
         heatThreshold =
             try container.decodeIfPresent(Double.self, forKey: .heatThreshold) ?? defaults.heatThreshold
-        clamshell = try container.decodeIfPresent(Bool.self, forKey: .clamshell) ?? defaults.clamshell
         holdAsleep = try container.decodeIfPresent(Bool.self, forKey: .holdAsleep) ?? defaults.holdAsleep
         magSafeLED =
             try container.decodeIfPresent(MagSafeLEDMode.self, forKey: .magSafeLED) ?? defaults.magSafeLED
@@ -75,8 +74,7 @@ nonisolated struct ChargeSettings: Codable, Equatable, Sendable {
             "sailing \(sailing)%",
             "auto discharge \(autoDischarge ? "on" : "off")",
             "heat \(heatProtection ? "\(Int(heatThreshold)) °C" : "off")",
-            "clamshell \(clamshell ? "on" : "off")",
-            "hold asleep \(holdAsleep ? "on" : "off")",
+            "discharge asleep \(holdAsleep ? "on" : "off")",
             "LED \(magSafeLED.title)",
         ].joined(separator: " · ")
     }

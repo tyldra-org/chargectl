@@ -101,8 +101,9 @@ extension ChargeSettings {
         if heatThreshold != old.heatThreshold {
             lines.append("heat threshold \(Int(old.heatThreshold)) °C → \(Int(heatThreshold)) °C")
         }
-        if clamshell != old.clamshell { lines.append("clamshell \(onOff(old.clamshell)) → \(onOff(clamshell))") }
-        if holdAsleep != old.holdAsleep { lines.append("hold asleep \(onOff(old.holdAsleep)) → \(onOff(holdAsleep))") }
+        if holdAsleep != old.holdAsleep {
+            lines.append("discharge asleep \(onOff(old.holdAsleep)) → \(onOff(holdAsleep))")
+        }
         if magSafeLED != old.magSafeLED { lines.append("MagSafe LED \(old.magSafeLED.title) → \(magSafeLED.title)") }
         return lines
     }
