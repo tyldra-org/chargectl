@@ -25,6 +25,12 @@ fi
 sudo rm -f "/Library/LaunchDaemons/$label.plist"
 sudo rm -rf "/Library/Application Support/Chargectl"
 rm -rf "$app" "$HOME"/.Trash/Chargectl*.app
+# Homebrew keeps its own record of the cask; without the app, its next install or upgrade fails.
+for prefix in /opt/homebrew /usr/local; do
+  if [[ -x "$prefix/bin/brew" && -d "$prefix/Caskroom/chargectl" ]]; then
+    HOMEBREW_NO_AUTO_UPDATE=1 "$prefix/bin/brew" uninstall --cask --force chargectl >/dev/null 2>&1 || true
+  fi
+done
 
 # Per-user cache and temp folders under /private/var/folders, for you and for the root service.
 user_dirs() { echo "$(getconf DARWIN_USER_CACHE_DIR)" "$(getconf DARWIN_USER_TEMP_DIR)"; }
