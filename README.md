@@ -1,20 +1,52 @@
-# Chargectl
+<p align="center">
+  <img src="docs/assets/icon.png" alt="Chargectl" width="128" height="128">
+</p>
 
-Keep a MacBook's battery at a charge limit, from the menu bar.
+<h1 align="center">Chargectl</h1>
 
-[![CI](https://github.com/tyldra-org/chargectl/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/tyldra-org/chargectl/actions/workflows/ci.yml)
-[![License](https://img.shields.io/github/license/tyldra-org/chargectl)](LICENSE)
+<p align="center">
+  <strong>Battery charge limits for Apple silicon MacBooks, from the menu bar.</strong>
+</p>
+
+<p align="center">
+  <a href="https://github.com/tyldra-org/chargectl/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/tyldra-org/chargectl/actions/workflows/ci.yml/badge.svg?branch=main"></a>
+  <a href="LICENSE"><img alt="License: Apache-2.0" src="https://img.shields.io/badge/license-Apache--2.0-blue.svg"></a>
+  <img alt="macOS 27" src="https://img.shields.io/badge/macOS-27-black.svg?logo=apple">
+  <img alt="Apple silicon" src="https://img.shields.io/badge/Apple%20silicon-arm64-black.svg">
+  <img alt="Swift" src="https://img.shields.io/badge/Swift-SwiftUI-F05138.svg?logo=swift&logoColor=white">
+</p>
+
+<p align="center">
+  <a href="#quickstart">Quickstart</a> ·
+  <a href="#features">Features</a> ·
+  <a href="#how-it-works">How it works</a> ·
+  <a href="#install-and-uninstall">Install</a> ·
+  <a href="CONTRIBUTING.md">Contributing</a> ·
+  <a href="SECURITY.md">Security</a>
+</p>
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/welcome-dark.png">
+    <img alt="Chargectl welcome window" src="docs/assets/welcome-light.png" width="460">
+  </picture>
+</p>
+
+---
 
 Lithium-ion batteries wear faster when they sit at 100%. Chargectl stops charging
-at the limit you pick, anywhere from 20% to 100%, and keeps the Mac running on
-the charger while the battery stays where it is. It shows live power, battery
-health and a 24-hour history, and a small root service keeps the limit while
-the app is closed.
+at the limit you choose, anywhere from 20% to 100%, and keeps your Mac running on
+the charger while the battery rests. It works with macOS's own charge limit
+instead of around it, shows what the charger, the Mac and the battery are doing
+each second, and keeps working while the app is closed.
 
-## Quick start
+## Quickstart
 
-Requirements: an Apple silicon MacBook on macOS 27, Xcode 27 and
-[XcodeGen](https://github.com/yonaskolb/XcodeGen) (`brew install xcodegen`).
+| Requirement | Version |
+| --- | --- |
+| Mac | Apple silicon MacBook |
+| macOS | 27 or later |
+| To build | Xcode 27 and [XcodeGen](https://github.com/yonaskolb/XcodeGen) (`brew install xcodegen`) |
 
 ```sh
 git clone https://github.com/tyldra-org/chargectl.git
@@ -22,76 +54,79 @@ cd chargectl
 ./scripts/install.sh
 ```
 
-The script builds the app and copies it to `/Applications`. Open Chargectl from
-Applications: a short welcome walks you through installing the helper (the small
-root service that controls charging) and choosing the first limit, which starts
-from the one set in System Settings > Battery. After **Install Helper**, macOS
-lists Chargectl under System Settings > General > Login Items & Extensions; turn
-it on there once. Until setup is finished, the welcome opens again each time you
-open the app. Afterwards Chargectl lives in the menu bar; click the ring and drag
-the white limit marker to change the limit.
+Then open **Chargectl** from Applications. A short welcome walks you through:
 
-Builds are signed ad hoc unless you have a signing certificate (see
-`scripts/signing.sh`), so macOS asks you to turn Chargectl on again after each
-update.
+1. **Installing the helper**, the small root service that controls charging. macOS
+   lists it under Chargectl in System Settings › General › Login Items &
+   Extensions; turn it on there once.
+2. **Choosing a limit.** It starts from the limit already set in System Settings ›
+   Battery, so nothing changes until you pick another one.
 
-Quit any other charge limiter first. Two of them fight over the same settings.
+After that Chargectl lives in the menu bar. Click the ring to see your battery,
+switch options and drag the white marker to change the limit.
+
+> [!IMPORTANT]
+> Quit any other charge limiter, such as AlDente, before you install. Two of
+> them fight over the same settings.
 
 ## Features
 
-- Charge limit from 20% to 100%, held on the charger without using the battery.
-- Sailing: once at the limit, the charge may drift down a few percent before
-  charging resumes, so the battery is not topped up all day.
-- Automatic discharge, off by default: when plugged in above the limit, either
-  hold the current charge or discharge down to the limit.
-- Top up to 100%, discharge to the limit, and calibration jobs.
-- Heat protection, sleep handling and MagSafe LED control.
-- Live charger, Mac and battery power, battery health, a 24-hour history and a
-  log of what the battery and Chargectl did.
+| | |
+| --- | --- |
+| **Charge limit, 20% to 100%** | Charging stops at the limit and the Mac runs on the charger. The battery is not used to hold it. |
+| **Sailing** | After reaching the limit, the charge may drift down a few percent before charging resumes, so the battery is not topped up all day. |
+| **Above the limit** | Plugged in above the limit, either hold the current charge or discharge down to the limit. |
+| **Overcharge guard** | When macOS charges past the limit anyway (its occasional charge to 100%, or "Charge to Full Now"), Chargectl brings the battery back. |
+| **Two-way sync** | Chargectl's limit shows in System Settings › Battery, and a limit chosen there becomes Chargectl's limit. |
+| **Jobs** | Top up to 100% once, discharge to the limit, or calibrate the battery gauge. |
+| **Heat protection** | Pause charging while the battery is warm. |
+| **Live readings** | Charger, Mac and battery power each second, battery health, cycles, temperature and time to full or empty. |
+| **History and logs** | 24 hours of charge, temperature and power, and a log of what the battery and Chargectl did. |
+| **Clean removal** | Uninstall restores normal charging and your macOS limit, and removes every file Chargectl added. |
 
 ## How it works
 
 On current Apple silicon firmware, the SMC keys that pause charging (`CH0B`,
-`CH0C`, `CHTE`, `bfF0`) are gated behind a private Apple entitlement, so no
-third-party process can pause charging directly. Chargectl uses two other tools:
+`CH0C`, `CHTE`, `bfF0`) are reserved for Apple through a private entitlement, so
+no third-party process can pause charging directly. Chargectl uses the two tools
+that remain:
+
+```mermaid
+flowchart LR
+    app["Chargectl.app<br/>menu bar and dashboard"] -- XPC --> helper["Chargectl Service<br/>root helper"]
+    helper -- "PowerUISmartChargeClient<br/>and PowerUIAgent preferences" --> limit["macOS charge limit"]
+    helper -- "SMC key CHIE" --> wall["Wall power"]
+    limit --> battery(("Battery"))
+    wall --> battery
+```
 
 - **macOS's own charge limit.** PowerUIAgent holds the entitlement. At its limit
-  the battery hardware holds the charge while the Mac runs on the charger, and
-  above it the battery discharges to the limit. Limits of 80% to 100% are set
-  through `PowerUISmartChargeClient`. Lower limits are written to PowerUIAgent's
+  the battery holds its charge while the Mac runs on the charger; above it the
+  battery discharges to the limit. Limits from 80% to 100% go through
+  `PowerUISmartChargeClient`. Lower limits are written to PowerUIAgent's
   preferences (`com.apple.smartcharging.topoffprotection`, `mclLimitValue`)
-  after an allowed 80% request, then the `com.apple.smartcharging.defaultschanged`
+  after an allowed 80% request, and the `com.apple.smartcharging.defaultschanged`
   notification makes PowerUIAgent reload them. Chargectl reads the limit back and
   falls back to switching wall power if macOS did not take it.
 - **Switching wall power** with the `CHIE` SMC key, which runs the Mac on its
   battery while the charger stays plugged in. It is used to discharge to a limit
-  below 80%, for heat protection and calibration, and as the fallback.
+  below 80%, for heat protection, calibration, the overcharge guard and the
+  fallback.
 
-| Feature | How |
+| Situation | What Chargectl does |
 | --- | --- |
-| Limit | macOS's limit set to the limit; the Mac holds on the charger |
-| Sailing | After reaching the limit, macOS's limit follows the charge down until limit minus sailing, then charging resumes |
-| Automatic discharge | Off: macOS's limit is set to the current charge. On: macOS discharges to limits of 80% or more; below that, wall power is cut until the limit |
-| Top up, discharge | Temporary jobs that override the limit |
-| Calibrate | Drain to 15%, charge to 100%, rest an hour, return to the limit |
-| Heat protection | Cut wall power at the threshold, reconnect 2 °C below it |
-| Sleep | macOS holds the limit while asleep; wall power cut to discharge is reconnected before sleep unless "keep discharging while asleep" is on |
-| MagSafe LED | `ACLC`: macOS-driven or off |
+| Charging to the limit, or at it | Sets macOS's limit to the limit. The Mac holds on the charger. |
+| Above the limit, holding | Sets macOS's limit to the current charge. |
+| Above the limit, discharging, 80% or more | Sets macOS's limit to the limit; macOS discharges to it. |
+| Above the limit, discharging, below 80% | Cuts wall power until the limit, sets macOS's limit, then reconnects. |
+| Sailing | macOS's limit follows the charge down until limit minus sailing, then charging resumes. |
+| Heat protection | Cuts wall power at the threshold and reconnects 2 °C below it. |
+| Sleep | macOS holds the limit while asleep. A discharge in progress reconnects wall power before sleep unless "Sleep discharge" is on. |
 
-macOS occasionally charges to 100% despite its limit, to keep its battery
-estimates accurate, and "Charge to Full Now" lifts the limit. When the battery
-keeps charging past the level Chargectl holds, Chargectl cuts wall power until the
-charge is back there, and turns macOS's limit back on. Use Top Up in Chargectl for
-a full charge. Turn Optimized Battery Charging off; Chargectl warns while it is on.
-
-Chargectl and System Settings > Battery stay in step: Chargectl's limit shows up
-there, and a limit chosen there becomes Chargectl's limit. Your own macOS charge
-limit is saved the first time Chargectl changes it and restored when Chargectl
-stops, is turned off or is uninstalled.
-
+Chargectl saves your own macOS charge limit before its first change and restores
+it when it stops, when you turn charge control off and when you uninstall.
 Readings come from the `AppleSmartBattery` registry entry and live SMC keys
-(`B0AC`, `B0AV`, `PDTR`, `PSTR`, `VD0R`, `ID0R`, `TB0T`) and need no
-privileges.
+(`B0AC`, `B0AV`, `PDTR`, `PSTR`, `VD0R`, `ID0R`, `TB0T`) and need no privileges.
 
 ## Install and uninstall
 
@@ -101,48 +136,65 @@ privileges.
 ./scripts/uninstall.sh         # remove everything Chargectl added
 ```
 
-Run `install.sh` again after pulling changes. An installed helper notices the new
-app and restarts into it; if Chargectl.app is deleted, the helper removes itself.
-With an ad-hoc build, turn Chargectl on again in Login Items after updating.
-**Settings > Uninstall Chargectl** in the app does the same as `uninstall.sh`: it
-reconnects wall power, restores your macOS charge limit and removes the helper,
-its data, preferences and caches. If the helper is not running, it asks for your
-password and does the same as an administrator.
+Run `install.sh` again after pulling changes. The helper notices the new app and
+restarts into it. If `Chargectl.app` is deleted, the helper removes itself.
+
+**Settings › Uninstall Chargectl** does the same as `uninstall.sh`: it reconnects
+wall power, restores your macOS charge limit and removes the helper, its data,
+the Login Items entries, preferences and caches. If the helper is not running, it
+asks for your password and does the same as an administrator.
+
+### Signing
+
+`install.sh` signs with a Developer ID or Apple Development certificate when one
+is in your keychain (see [`scripts/signing.sh`](scripts/signing.sh)); otherwise
+the build is signed ad hoc. With a team signature, the helper only accepts the
+Chargectl app signed by the same team, and macOS keeps the helper turned on
+across updates. With an ad-hoc build, turn Chargectl on again in Login Items
+after each update.
 
 ## Limitations
 
-- Chargectl relies on private macOS interfaces (PowerUI, SMC keys and
-  PowerUIAgent preferences). A macOS or firmware update can change them.
-- The control service runs as root. Read [SECURITY.md](SECURITY.md) for what it
-  can do and who can talk to it.
-- Builds are not notarized. Without a signing certificate they are signed ad hoc.
+- Chargectl relies on private macOS interfaces: PowerUI, PowerUIAgent's
+  preferences and SMC keys. A macOS or firmware update can change them.
+- The helper runs as root. [SECURITY.md](SECURITY.md) describes what it can do and
+  who can talk to it.
+- Builds are not notarized.
 - Only Apple silicon MacBooks on macOS 27 are supported and tested.
 
 ## Development
 
-Built with Swift and SwiftUI, using XcodeGen for the project file.
+| Path | Contents |
+| --- | --- |
+| [`App/`](App) | Menu bar app: welcome, dashboard, menu bar panel, XPC client |
+| [`Daemon/`](Daemon) | Chargectl Service: control loop, SMC and macOS limit adapters, XPC service |
+| [`Shared/`](Shared) | Code built into both: SMC access, battery readings, `ChargePolicy`, XPC models |
+| [`Tests/`](Tests) | Swift Testing suites for the charging policy and shared models |
+| [`scripts/`](scripts) | Build, test, install, uninstall and the CI entry point |
 
 ```sh
-./scripts/check.sh          # format, build, test, shell and workflow checks
-./scripts/test.sh           # unit tests only
-./scripts/run.sh            # install a Debug build with its service
+./scripts/check.sh   # format, build, test, shell and workflow checks (what CI runs)
+./scripts/test.sh    # unit tests only
+./scripts/run.sh     # install a Debug build
 ```
 
-`./scripts/check.sh` is the same entry point CI runs. See
-[CONTRIBUTING.md](CONTRIBUTING.md) for the workflow and [AGENTS.md](AGENTS.md)
-for the project layout.
+Charging decisions live in [`ChargePolicy`](Shared/Control/ChargePolicy.swift),
+a pure function tested without hardware. Read [CONTRIBUTING.md](CONTRIBUTING.md)
+before opening a pull request, and [AGENTS.md](AGENTS.md) if you work with a
+coding agent.
 
 ## Contributing
 
-Contributions are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) and follow
-the [Code of Conduct](CODE_OF_CONDUCT.md).
+Contributions are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) and follow the
+[Code of Conduct](CODE_OF_CONDUCT.md). Changes to how charging is controlled must
+be tried on a real MacBook; say which one in the pull request.
 
 ## Security
 
-Report vulnerabilities privately as described in [SECURITY.md](SECURITY.md).
-Do not open public issues for security problems.
+Report vulnerabilities privately as described in [SECURITY.md](SECURITY.md). Do
+not open public issues for security problems.
 
 ## License
 
-Licensed under Apache-2.0; see [LICENSE](LICENSE).
+Chargectl is licensed under the [Apache License 2.0](LICENSE).
 Copyright 2026 Yogesh Prasad.
