@@ -22,11 +22,9 @@ cd chargectl
 ./scripts/install.sh
 ```
 
-The script builds the app, copies it to `/Applications`, registers the control
-service and opens Chargectl. macOS adds the service switched off: turn on
-Chargectl under System Settings > General > Login Items & Extensions (the script
-opens that page). Then click the ring in the menu bar and drag the bar to set a
-limit.
+The script asks for your password once, builds the app, copies it to
+`/Applications`, starts the control service and opens Chargectl. Click the ring
+in the menu bar and drag the bar to set a limit.
 
 Quit any other charge limiter first. Two of them fight over the same settings.
 
@@ -88,8 +86,7 @@ privileges.
 ```
 
 Run `install.sh` again after pulling changes; it replaces both the app and the
-service. Builds are signed ad hoc, so macOS asks you to turn the service on again
-after each update. **Settings > Uninstall Chargectl** in the app does the same as
+service. **Settings > Uninstall Chargectl** in the app does the same as
 `uninstall.sh`: it reconnects wall power, restores your macOS charge limit and
 removes the service, its data, preferences and caches.
 
@@ -99,7 +96,9 @@ removes the service, its data, preferences and caches.
   PowerUIAgent preferences). A macOS or firmware update can change them.
 - The control service runs as root. Read [SECURITY.md](SECURITY.md) for what it
   can do and who can talk to it.
-- Builds are signed ad hoc, not with a Developer ID, and are not notarized.
+- Builds are signed ad hoc, not with a Developer ID, and are not notarized. macOS
+  therefore lists the service in Login Items as "Chargectl Service" with a generic
+  icon instead of under Chargectl's name.
 - Only Apple silicon MacBooks on macOS 27 are supported and tested.
 
 ## Development
