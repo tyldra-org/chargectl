@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-10-20
+
+First release.
+
 ### Added
 
 - Menu bar app with a dashboard: overview, control, history, logs and settings.
@@ -30,4 +34,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - `scripts/install.sh` and `scripts/uninstall.sh`, and an in-app uninstall
   that restores the macOS charge limit and removes every file Chargectl added.
 
-[Unreleased]: https://github.com/tyldra-org/chargectl/commits/main
+[Unreleased]: https://github.com/tyldra-org/chargectl/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/tyldra-org/chargectl/releases/tag/v0.1.0

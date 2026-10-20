@@ -44,13 +44,14 @@ each second, and keeps working while the app is closed.
 | --- | --- |
 | Mac | Apple silicon MacBook |
 | macOS | 27 or later |
-| To build | Xcode 27 and [XcodeGen](https://github.com/yonaskolb/XcodeGen) (`brew install xcodegen`) |
 
 ```sh
-git clone https://github.com/tyldra-org/chargectl.git
-cd chargectl
-./scripts/install.sh
+brew install --cask tyldra-org/tools/chargectl
 ```
+
+You can also download `Chargectl-<version>.zip` from
+[Releases](https://github.com/tyldra-org/chargectl/releases/latest), or
+[build it from source](#build-from-source).
 
 Then open **Chargectl** from Applications. A short welcome walks you through:
 
@@ -163,7 +164,36 @@ Readings come from the `AppleSmartBattery` registry entry and live SMC keys
 
 ## Install and uninstall
 
+### Homebrew
+
 ```sh
+brew install --cask tyldra-org/tools/chargectl   # install
+brew upgrade --cask chargectl                    # update
+brew uninstall --zap --cask chargectl            # remove the app and its settings
+```
+
+### Download
+
+Each [release](https://github.com/tyldra-org/chargectl/releases) has
+`Chargectl-<version>.zip`, its SHA-256 checksum and a build provenance
+attestation. Unzip it and move Chargectl to Applications. Releases are not
+notarized, so macOS blocks the first launch of a downloaded copy: open it once,
+then choose **Open Anyway** in System Settings › Privacy & Security. To check a
+download:
+
+```sh
+shasum -a 256 -c Chargectl-<version>.zip.sha256
+gh attestation verify Chargectl-<version>.zip --repo tyldra-org/chargectl
+```
+
+### Build from source
+
+Needs Xcode 27 and [XcodeGen](https://github.com/yonaskolb/XcodeGen)
+(`brew install xcodegen`).
+
+```sh
+git clone https://github.com/tyldra-org/chargectl.git
+cd chargectl
 ./scripts/install.sh           # build and install the app
 ./scripts/install.sh --logs    # same, then follow the helper's log
 ./scripts/uninstall.sh         # remove everything Chargectl added
@@ -172,7 +202,10 @@ Readings come from the `AppleSmartBattery` registry entry and live SMC keys
 Run `install.sh` again after pulling changes. The helper notices the new app and
 restarts into it. If `Chargectl.app` is deleted, the helper removes itself.
 
-**Settings › Uninstall Chargectl** does the same as `uninstall.sh`: it reconnects
+### Uninstall
+
+**Settings › Uninstall Chargectl** works for every install method and does the
+same as `uninstall.sh`: it reconnects
 wall power, restores your macOS charge limit and removes the helper, its data,
 the Login Items entries, preferences and caches. If the helper is not running, it
 asks for your password and does the same as an administrator.
@@ -192,7 +225,9 @@ after each update.
   preferences and SMC keys. A macOS or firmware update can change them.
 - The helper runs as root. [SECURITY.md](SECURITY.md) describes what it can do and
   who can talk to it.
-- Builds are not notarized.
+- Releases are signed ad hoc and not notarized. The Homebrew cask removes the
+  quarantine flag after install so the app opens; a downloaded zip needs
+  **Open Anyway** once.
 - Only Apple silicon MacBooks on macOS 27 are supported and tested.
 
 ## Development
@@ -210,6 +245,23 @@ after each update.
 ./scripts/test.sh    # unit tests only
 ./scripts/run.sh     # install a Debug build
 ```
+
+### Releasing
+
+1. Set `MARKETING_VERSION` in [`project.yml`](project.yml) and move the
+   `Unreleased` entries in [`CHANGELOG.md`](CHANGELOG.md) under the new version.
+2. Merge that to `main`, then tag it:
+
+   ```sh
+   git tag -a v0.2.0 -m "Chargectl 0.2.0" && git push origin v0.2.0
+   ```
+
+The [release workflow](.github/workflows/release.yml) checks that the tag
+matches `project.yml`, runs the tests, builds and attests
+`Chargectl-<version>.zip`, publishes the release with notes from the changelog,
+and opens a pull request that updates the cask in
+[tyldra-org/homebrew-tools](https://github.com/tyldra-org/homebrew-tools).
+`./scripts/package.sh` builds the same zip locally.
 
 Charging decisions live in [`ChargePolicy`](Shared/Control/ChargePolicy.swift),
 a pure function tested without hardware. Read [CONTRIBUTING.md](CONTRIBUTING.md)
