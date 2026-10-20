@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-10-20
+
+### Fixed
+
+- Settings › Uninstall Chargectl and `scripts/uninstall.sh` left Homebrew's record
+  of the `chargectl` cask behind, so the next `brew install` or `brew upgrade`
+  failed with "It seems the App source '/Applications/Chargectl.app' is not
+  there". Both now remove that record as well.
+
 ## [0.1.1] - 2026-10-20
 
 ### Fixed
@@ -43,6 +52,7 @@ First release.
 - `scripts/install.sh` and `scripts/uninstall.sh`, and an in-app uninstall
   that restores the macOS charge limit and removes every file Chargectl added.
 
-[Unreleased]: https://github.com/tyldra-org/chargectl/compare/v0.1.1...HEAD
+[Unreleased]: https://github.com/tyldra-org/chargectl/compare/v0.1.2...HEAD
+[0.1.2]: https://github.com/tyldra-org/chargectl/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/tyldra-org/chargectl/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/tyldra-org/chargectl/releases/tag/v0.1.0
