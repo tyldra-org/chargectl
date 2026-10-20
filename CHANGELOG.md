@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-10-20
+
+### Fixed
+
+- With automatic discharge off, lowering the limit below the charge, or turning
+  automatic discharge off, while plugged in cut wall power and discharged to the
+  limit. Chargectl now holds the current charge on the charger, as it does when
+  you plug in above the limit.
+
 ## [0.1.0] - 2026-10-20
 
 First release.
@@ -34,5 +43,6 @@ First release.
 - `scripts/install.sh` and `scripts/uninstall.sh`, and an in-app uninstall
   that restores the macOS charge limit and removes every file Chargectl added.
 
-[Unreleased]: https://github.com/tyldra-org/chargectl/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/tyldra-org/chargectl/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/tyldra-org/chargectl/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/tyldra-org/chargectl/releases/tag/v0.1.0

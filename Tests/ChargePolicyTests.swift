@@ -69,6 +69,42 @@ import Testing
         #expect(decide(55, settings: settings, state: lower.state).state.holdLevel == nil)
     }
 
+    /// Plugged in at 78% with an 80% limit, then the limit is lowered to 70%: hold at 78% on the
+    /// charger instead of cutting wall power.
+    @Test func loweringTheLimitWhilePluggedInHolds() {
+        var settings = ChargeSettings.limit(80, sailing: 5)
+        settings.autoDischarge = false
+        let plugged = decide(78, settings: settings)
+        #expect(plugged.state.holdLevel == nil)
+        settings.limit = 70
+        let lowered = decide(78, settings: settings, state: plugged.state)
+        #expect(lowered.state.holdLevel == 78)
+        #expect(lowered.state.adapterEnabled)
+        #expect(lowered.activity == .holdingAbove(78))
+    }
+
+    @Test func turningAutoDischargeOffWhileDrainingHolds() {
+        var settings = ChargeSettings.limit(55, sailing: 5)
+        let draining = decide(80, settings: settings)
+        #expect(!draining.state.adapterEnabled)
+        settings.autoDischarge = false
+        let held = decide(79, settings: settings, state: draining.state)
+        #expect(held.state.holdLevel == 79)
+        #expect(held.state.adapterEnabled)
+        #expect(held.activity == .holdingAbove(79))
+    }
+
+    /// State saved by an earlier version has no record of the settings; holding is the safe start.
+    @Test func stateFromAnEarlierVersionHoldsAboveTheLimit() throws {
+        var settings = ChargeSettings.limit(70, sailing: 5)
+        settings.autoDischarge = false
+        let json = #"{"wasPluggedIn":true,"overchargeCut":false,"adapterEnabled":false,"isSailing":true}"#
+        let state = try JSONDecoder().decode(ControlState.self, from: Data(json.utf8))
+        let decision = decide(78, settings: settings, state: state)
+        #expect(decision.state.holdLevel == 78)
+        #expect(decision.state.adapterEnabled)
+    }
+
     @Test func turningAutoDischargeOnDrainsToLimit() {
         var settings = ChargeSettings.limit(55, sailing: 5)
         settings.autoDischarge = false
@@ -287,6 +323,7 @@ import Testing
         #expect(atLimit.state.adapterEnabled)
         let overshoot = plugged(81, charging: true, settings: settings, state: atLimit.state)
         #expect(overshoot.state.holdLevel == nil)
+        #expect(overshoot.state.lastLimit == 80)
         #expect(!overshoot.state.adapterEnabled)
         #expect(overshoot.activity == .stoppedOvercharge(80))
         let draining = plugged(81, charging: false, settings: settings, state: overshoot.state)
