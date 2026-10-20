@@ -53,6 +53,9 @@ nonisolated enum ChargePolicy {
 
         state.heatPaused = heatPaused(input.temperature, settings: settings, wasPaused: state.heatPaused)
         let event = advance(&state.mode, percent: input.percent, now: now)
+        let settingsChanged = state.lastLimit != settings.limit || state.lastAutoDischarge != settings.autoDischarge
+        state.lastLimit = settings.limit
+        state.lastAutoDischarge = settings.autoDischarge
 
         guard input.isPluggedIn else {
             state.adapterEnabled = true
@@ -73,8 +76,9 @@ nonisolated enum ChargePolicy {
             if let hold = state.holdLevel {
                 // Never raise the hold level: if the battery runs down on its own, it stays down.
                 state.holdLevel = min(hold, input.percent)
-            } else if !state.wasPluggedIn {
-                // Only plugging in above the limit starts a hold. Charging past the limit
+            } else if !state.wasPluggedIn || settingsChanged {
+                // Plugging in above the limit starts a hold, and so does lowering the limit below
+                // the charge or turning automatic discharge off. Charging past an unchanged limit
                 // while plugged in is an overshoot, handled below.
                 state.holdLevel = input.percent
             }

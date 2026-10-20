@@ -43,6 +43,10 @@ nonisolated struct ControlState: Codable, Equatable, Sendable {
     /// Wall power was cut because macOS kept charging past the target (its occasional charge to
     /// 100%, or "Charge to Full Now"); stays cut until the charge is back at the target.
     var overchargeCut = false
+    /// The limit and automatic discharge setting on the previous decision. Changing either while
+    /// plugged in above the limit starts a hold, the same as plugging in; nil after an update.
+    var lastLimit: Int?
+    var lastAutoDischarge: Bool?
 
     init(mode: ChargeMode = .automatic, adapterEnabled: Bool = true, heatPaused: Bool = false, holdLevel: Int? = nil) {
         self.mode = mode
@@ -60,6 +64,8 @@ nonisolated struct ControlState: Codable, Equatable, Sendable {
         isSailing = try container.decodeIfPresent(Bool.self, forKey: .isSailing) ?? false
         wasPluggedIn = try container.decodeIfPresent(Bool.self, forKey: .wasPluggedIn) ?? false
         overchargeCut = try container.decodeIfPresent(Bool.self, forKey: .overchargeCut) ?? false
+        lastLimit = try container.decodeIfPresent(Int.self, forKey: .lastLimit)
+        lastAutoDischarge = try container.decodeIfPresent(Bool.self, forKey: .lastAutoDischarge)
     }
 }
 
