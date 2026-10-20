@@ -117,13 +117,20 @@ struct MenuContent: View {
     private var serviceNotice: some View {
         HStack(alignment: .firstTextBaseline, spacing: 8) {
             Image(systemName: "bolt.slash").foregroundStyle(Theme.amber)
-            Text("Charge control needs its helper.")
-                .font(.callout)
-                .foregroundStyle(.secondary)
+            Text(
+                model.service == .needsApproval
+                    ? "Turn on Chargectl in Login Items." : "Charge control needs its helper."
+            )
+            .font(.callout)
+            .foregroundStyle(.secondary)
             Spacer()
-            Button(model.isInstallingService ? "Installing…" : "Install Helper") { model.installService() }
-                .controlSize(.small)
-                .disabled(model.isInstallingService)
+            if model.service == .needsApproval {
+                Button("Open") { ServiceInstaller.openLoginItems() }.controlSize(.small)
+            } else {
+                Button(model.isInstallingService ? "Installing…" : "Install Helper") { model.installService() }
+                    .controlSize(.small)
+                    .disabled(model.isInstallingService)
+            }
         }
     }
 

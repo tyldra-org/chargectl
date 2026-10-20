@@ -144,6 +144,9 @@ final class ChargeController {
         case .removed:
             log("Chargectl.app was removed; removing the helper", source: .chargectl)
             _ = removeService()
+            // A helper registered through SMAppService has no plist of its own to delete; without
+            // the app, launchd would keep trying to start a missing program.
+            bootOutSoon()
             return true
         case .replaced:
             log("Chargectl was updated; restarting the helper", source: .chargectl)
@@ -299,7 +302,11 @@ final class ChargeController {
             report("could not delete \(plist): \(error.localizedDescription)")
             return
         }
-        // Give the XPC reply time to reach the app before launchd stops this process.
+        bootOutSoon()
+    }
+
+    /// Asks launchd to stop and unload this job. Delayed so an XPC reply reaches the app first.
+    private func bootOutSoon() {
         DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
             let launchctl = Process()
             launchctl.executableURL = URL(fileURLWithPath: "/bin/launchctl")

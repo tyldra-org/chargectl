@@ -52,7 +52,8 @@ enum WindowID {
 /// helper is installed.
 enum Setup {
     static var isNeeded: Bool {
-        !UserDefaults.standard.bool(forKey: PreferenceKey.setupComplete) || !ServiceInstaller().isInstalled
+        !UserDefaults.standard.bool(forKey: PreferenceKey.setupComplete)
+            || ServiceInstaller().registration != .enabled
     }
 
     static func finish() {

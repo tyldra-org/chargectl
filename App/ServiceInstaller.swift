@@ -13,44 +13,60 @@ enum ServiceInstallError: LocalizedError {
     }
 }
 
-/// Installs Chargectl Service as a launchd daemon with administrator rights, the way charge
-/// limiters such as AlDente install their helpers. macOS shows its password dialog; an
-/// administrator-installed daemon counts as approved, so it is on straight away and starts with
-/// the Mac. The daemon runs from inside the app bundle, so app updates update it too.
+/// Installs Chargectl Service with SMAppService. macOS lists it under Chargectl in System
+/// Settings › General › Login Items & Extensions and asks the user to turn it on there once;
+/// after that launchd runs it as root, also while the app is closed.
 struct ServiceInstaller {
-    static let label = DaemonIdentity.machService
-    static let plistPath = "/Library/LaunchDaemons/\(label).plist"
-
-    var isInstalled: Bool { FileManager.default.fileExists(atPath: Self.plistPath) }
-
-    func install() async throws {
-        // Older versions registered the service through SMAppService under the same label;
-        // launchd refuses a second job with that label.
-        await Self.unregisterAppService()
-        let program = Bundle.main.bundleURL.appendingPathComponent("Contents/MacOS/Chargectl Service").path
-        let plist = Self.launchdPlist(program: program).base64EncodedString()
-        let path = Self.plistPath
-        let label = Self.label
-        let job = "system/\(label)"
-        try await Self.runAsAdministrator(
-            [
-                // Stop a helper that is already loaded, and wait until launchd has let go of it:
-                // bootout returns early, and bootstrapping too soon fails with "Bootstrap failed: 5".
-                "/bin/launchctl bootout \(job) 2>/dev/null",
-                "for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20; do /bin/launchctl print \(job) >/dev/null 2>&1 || break; /bin/sleep 0.25; done",
-                "/bin/echo \(plist) | /usr/bin/base64 -D > \(path) && /usr/sbin/chown root:wheel \(path) && /bin/chmod 644 \(path)",
-                // Unregistering an SMAppService copy leaves the label disabled in launchd, which
-                // also makes bootstrap fail.
-                "/bin/launchctl enable \(job)",
-                "for attempt in 1 2 3; do /bin/launchctl bootstrap system \(path) 2>/dev/null && break; /bin/launchctl print \(job) >/dev/null 2>&1 && break; /bin/sleep 1; /bin/launchctl bootout \(job) 2>/dev/null; /bin/launchctl enable \(job); done",
-                "/bin/launchctl print \(job) >/dev/null 2>&1 || { echo 'launchd did not start the helper' >&2; exit 1; }",
-            ].joined(separator: "; "))
+    enum Registration: Equatable {
+        case notRegistered
+        case needsApproval
+        case enabled
     }
 
-    /// For when the service cannot remove itself (it is not running).
+    static let label = DaemonIdentity.machService
+    /// Where versions before SMAppService installed the helper with an administrator prompt.
+    static let legacyPlistPath = "/Library/LaunchDaemons/\(label).plist"
+
+    private var service: SMAppService { .daemon(plistName: DaemonIdentity.plistName) }
+
+    var registration: Registration {
+        switch service.status {
+        case .enabled: return .enabled
+        case .requiresApproval: return .needsApproval
+        default: return FileManager.default.fileExists(atPath: Self.legacyPlistPath) ? .enabled : .notRegistered
+        }
+    }
+
+    var isInstalled: Bool { registration != .notRegistered }
+
+    func install() async throws {
+        // A helper installed by an older version uses the same label; launchd runs only one.
+        if FileManager.default.fileExists(atPath: Self.legacyPlistPath) {
+            try await Self.runAsAdministrator(
+                "/bin/launchctl bootout system/\(Self.label) 2>/dev/null; /bin/rm -f \(Self.legacyPlistPath)")
+        }
+        do {
+            try service.register()
+        } catch {
+            guard service.status == .enabled || service.status == .requiresApproval else {
+                throw ServiceInstallError.failed(error.localizedDescription)
+            }
+        }
+        if service.status == .requiresApproval { Self.openLoginItems() }
+    }
+
     func remove() async throws {
-        try await Self.runAsAdministrator(
-            "/bin/launchctl bootout system/\(Self.label) 2>/dev/null; /bin/rm -f \(Self.plistPath)")
+        if service.status == .enabled || service.status == .requiresApproval {
+            try await service.unregister()
+        }
+        if FileManager.default.fileExists(atPath: Self.legacyPlistPath) {
+            try await Self.runAsAdministrator(
+                "/bin/launchctl bootout system/\(Self.label) 2>/dev/null; /bin/rm -f \(Self.legacyPlistPath)")
+        }
+    }
+
+    static func openLoginItems() {
+        SMAppService.openSystemSettingsLoginItems()
     }
 
     /// Everything the helper leaves outside the user's home folder: its launchd job and plist,
@@ -65,7 +81,7 @@ struct ServiceInstaller {
                 "/bin/launchctl bootout system/\(Self.label) 2>/dev/null",
                 // Reconnect wall power and restore the macOS charge limit before the files go.
                 "'\(helper)' --restore 2>/dev/null",
-                "/bin/rm -f \(Self.plistPath)",
+                "/bin/rm -f \(Self.legacyPlistPath)",
                 "/bin/rm -rf '\(Self.dataPath)'",
                 rootFolders,
                 "true",
@@ -76,15 +92,8 @@ struct ServiceInstaller {
 
     /// Whether anything of the helper is still on disk.
     var leavesFiles: Bool {
-        FileManager.default.fileExists(atPath: Self.plistPath) || FileManager.default.fileExists(atPath: Self.dataPath)
-    }
-
-    /// Removes an SMAppService registration of the helper, if there is one. Unregistering also
-    /// disables the label in launchd, so it is skipped when nothing is registered.
-    static func unregisterAppService() async {
-        let service = SMAppService.daemon(plistName: DaemonIdentity.plistName)
-        guard service.status == .enabled || service.status == .requiresApproval else { return }
-        try? await service.unregister()
+        FileManager.default.fileExists(atPath: Self.legacyPlistPath)
+            || FileManager.default.fileExists(atPath: Self.dataPath)
     }
 
     /// Removes the Login Items entries an SMAppService registration or the login item created,
@@ -92,20 +101,6 @@ struct ServiceInstaller {
     static func unregisterAll() {
         try? SMAppService.daemon(plistName: DaemonIdentity.plistName).unregister()
         try? SMAppService.mainApp.unregister()
-    }
-
-    static func launchdPlist(program: String) -> Data {
-        let plist: [String: Any] = [
-            "Label": label,
-            "Program": program,
-            "AssociatedBundleIdentifiers": [DaemonIdentity.appIdentifier],
-            "MachServices": [label: true],
-            "RunAtLoad": true,
-            "KeepAlive": true,
-            "ProcessType": "Background",
-        ]
-        // A dictionary of plist types always serializes.
-        return (try? PropertyListSerialization.data(fromPropertyList: plist, format: .xml, options: 0)) ?? Data()
     }
 
     /// Runs a shell command as root after macOS's administrator password dialog.

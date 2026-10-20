@@ -24,16 +24,16 @@ cd chargectl
 
 The script builds the app and copies it to `/Applications`. Open Chargectl from
 Applications: a short welcome walks you through installing the helper (the small
-root service that controls charging; macOS asks for your password once) and
-choosing the first limit, which starts from the one set in System Settings >
-Battery. Until setup is finished, it opens again each time you open the app.
-Afterwards Chargectl lives in the menu bar; click the ring and drag the white limit
-marker to change the limit.
+root service that controls charging) and choosing the first limit, which starts
+from the one set in System Settings > Battery. After **Install Helper**, macOS
+lists Chargectl under System Settings > General > Login Items & Extensions; turn
+it on there once. Until setup is finished, the welcome opens again each time you
+open the app. Afterwards Chargectl lives in the menu bar; click the ring and drag
+the white limit marker to change the limit.
 
-Login Items lists the helper as "Chargectl Service". To list it under Chargectl's
-name and icon, sign the build with a team: add your Apple ID in Xcode > Settings >
-Accounts and create a free "Apple Development" certificate. `install.sh` finds it
-and signs with it.
+Builds are signed ad hoc unless you have a signing certificate (see
+`scripts/signing.sh`), so macOS asks you to turn Chargectl on again after each
+update.
 
 Quit any other charge limiter first. Two of them fight over the same settings.
 
@@ -103,6 +103,7 @@ privileges.
 
 Run `install.sh` again after pulling changes. An installed helper notices the new
 app and restarts into it; if Chargectl.app is deleted, the helper removes itself.
+With an ad-hoc build, turn Chargectl on again in Login Items after updating.
 **Settings > Uninstall Chargectl** in the app does the same as `uninstall.sh`: it
 reconnects wall power, restores your macOS charge limit and removes the helper,
 its data, preferences and caches. If the helper is not running, it asks for your
@@ -114,8 +115,7 @@ password and does the same as an administrator.
   PowerUIAgent preferences). A macOS or firmware update can change them.
 - The control service runs as root. Read [SECURITY.md](SECURITY.md) for what it
   can do and who can talk to it.
-- Builds are not notarized. Without a signing certificate they are signed ad hoc,
-  and Login Items shows the helper as "Chargectl Service" with a generic icon.
+- Builds are not notarized. Without a signing certificate they are signed ad hoc.
 - Only Apple silicon MacBooks on macOS 27 are supported and tested.
 
 ## Development

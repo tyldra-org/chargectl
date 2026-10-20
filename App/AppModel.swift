@@ -6,12 +6,15 @@ enum ServiceState: Equatable {
     case checking
     case running
     case notInstalled
+    /// Registered, waiting to be turned on in System Settings › Login Items.
+    case needsApproval
     case notResponding(String)
 }
 
 struct Notice: Identifiable, Equatable {
     enum Action: Equatable {
         case installService
+        case openLoginItems
         case openBatterySettings
     }
 
@@ -109,6 +112,11 @@ final class AppModel {
                 Notice(
                     text: "Charge control needs its helper. Install it once; macOS asks for your password.",
                     isService: true, action: .installService, actionTitle: "Install Helper"))
+        case .needsApproval:
+            notices.append(
+                Notice(
+                    text: "Turn on Chargectl in System Settings › Login Items to start charge control.",
+                    isService: true, action: .openLoginItems, actionTitle: "Open Login Items"))
         case .notResponding(let reason):
             notices.append(
                 Notice(
@@ -168,7 +176,8 @@ final class AppModel {
             unreachableSince = nil
         } catch {
             status = nil
-            if installer.isInstalled {
+            switch installer.registration {
+            case .enabled:
                 // The helper restarts after an install or an app update; give it a moment before
                 // calling it unresponsive.
                 let since = unreachableSince ?? .now
@@ -176,7 +185,10 @@ final class AppModel {
                 service =
                     Date.now.timeIntervalSince(since) < Self.helperStartGrace
                     ? .checking : .notResponding(error.localizedDescription)
-            } else {
+            case .needsApproval:
+                unreachableSince = nil
+                service = .needsApproval
+            case .notRegistered:
                 unreachableSince = nil
                 service = .notInstalled
             }
@@ -223,6 +235,7 @@ final class AppModel {
     func handle(_ action: Notice.Action) {
         switch action {
         case .installService: installService()
+        case .openLoginItems: ServiceInstaller.openLoginItems()
         case .openBatterySettings:
             NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.Battery-Settings.extension")!)
         }
@@ -255,11 +268,9 @@ final class AppModel {
     func uninstallService() {
         Task {
             do {
-                if service == .running {
-                    try await client.perform(.removeService)
-                } else if installer.isInstalled {
-                    try await installer.remove()
-                }
+                // The running helper reconnects wall power and restores the macOS limit first.
+                if service == .running { try? await client.perform(.removeService) }
+                try await installer.remove()
                 message = nil
             } catch ServiceInstallError.cancelled {
                 message = nil

@@ -87,7 +87,7 @@ struct WelcomeView: View {
             VStack(spacing: 6) {
                 Text("Install the helper").font(.title.weight(.semibold))
                 Text(
-                    "Charging is controlled by a small helper that runs as an administrator, also while Chargectl is closed. macOS asks for your password once."
+                    "Charging is controlled by a small helper that runs as an administrator, also while Chargectl is closed. After you install it, macOS lists Chargectl under Login Items; turn it on there once."
                 )
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
@@ -109,28 +109,40 @@ struct WelcomeView: View {
     }
 
     @ViewBuilder private var helperStatus: some View {
-        if model.service == .running {
+        switch model.service {
+        case .running:
             Label("Helper installed and running", systemImage: "checkmark.circle.fill")
                 .font(.headline)
                 .foregroundStyle(Theme.green)
-        } else if model.isInstallingService {
-            HStack(spacing: 10) {
-                ProgressView().controlSize(.small)
-                Text("Waiting for your password…").foregroundStyle(.secondary)
+        case .needsApproval:
+            VStack(spacing: 12) {
+                Text(
+                    "Turn on **Chargectl** under Allow in the Background in System Settings › General › Login Items & Extensions."
+                )
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+                Button {
+                    ServiceInstaller.openLoginItems()
+                } label: {
+                    Text("Open Login Items").frame(minWidth: 160)
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.large)
             }
-        } else if model.service == .checking, ServiceInstaller().isInstalled {
+        case .checking where ServiceInstaller().isInstalled:
             HStack(spacing: 10) {
                 ProgressView().controlSize(.small)
                 Text("Starting the helper…").foregroundStyle(.secondary)
             }
-        } else {
+        default:
             Button {
                 model.installService()
             } label: {
-                Text(ServiceInstaller().isInstalled ? "Install Again…" : "Install Helper…").frame(minWidth: 160)
+                Text(ServiceInstaller().isInstalled ? "Install Again" : "Install Helper").frame(minWidth: 160)
             }
             .buttonStyle(.borderedProminent)
             .controlSize(.large)
+            .disabled(model.isInstallingService)
         }
     }
 

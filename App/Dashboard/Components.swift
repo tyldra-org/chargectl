@@ -182,8 +182,10 @@ struct ServiceRequired: View {
         } actions: {
             switch model.service {
             case .notInstalled:
-                Button(model.isInstallingService ? "Installing…" : "Install Helper…") { model.installService() }
+                Button(model.isInstallingService ? "Installing…" : "Install Helper") { model.installService() }
                     .disabled(model.isInstallingService)
+            case .needsApproval:
+                Button("Open Login Items") { ServiceInstaller.openLoginItems() }
             default:
                 EmptyView()
             }

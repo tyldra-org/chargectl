@@ -52,7 +52,7 @@ struct SettingsPage: View {
                 Text("Helper")
             } footer: {
                 Text(
-                    "A small helper runs as root, switches wall power and keeps your limit while Chargectl is closed. Installing it asks for your password once. Removing it reconnects wall power."
+                    "A small helper runs as root, switches wall power and keeps your limit while Chargectl is closed. After installing, turn on Chargectl in System Settings › Login Items. Removing it reconnects wall power."
                 )
             }
 
@@ -85,6 +85,7 @@ struct SettingsPage: View {
         case .running: "Running"
         case .checking: "Checking…"
         case .notInstalled: "Not installed"
+        case .needsApproval: "Waiting to be turned on in Login Items"
         case .notResponding: "Not responding"
         }
     }
@@ -99,8 +100,10 @@ struct SettingsPage: View {
                 Button("Remove Helper…", role: .destructive) { model.uninstallService() }
             }
         case .notInstalled:
-            Button(model.isInstallingService ? "Installing…" : "Install Helper…") { model.installService() }
+            Button(model.isInstallingService ? "Installing…" : "Install Helper") { model.installService() }
                 .disabled(model.isInstallingService)
+        case .needsApproval:
+            Button("Open Login Items") { ServiceInstaller.openLoginItems() }
         case .checking:
             EmptyView()
         }
