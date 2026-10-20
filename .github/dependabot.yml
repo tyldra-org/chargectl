@@ -1,0 +1,17 @@
+# Dependabot version updates for GitHub Actions. The app has no package
+# dependencies. Security updates are enabled in repository settings.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: ci
+      include: scope
+    labels:
+      - dependencies
+    groups:
+      github-actions:
+        patterns:
+          - "*"

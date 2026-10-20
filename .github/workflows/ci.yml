@@ -1,0 +1,74 @@
+# Continuous integration. Every job calls scripts/check.sh, the same entry
+# point developers run locally. Branch protection requires only the aggregate
+# job "ci", so jobs can be added or renamed without editing the ruleset.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+
+# Read-only by default; no job needs more. No secrets are used, so fork pull
+# requests run with the same workflow safely.
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  # Cancel superseded pull request runs only; every default-branch run completes.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  static:
+    name: Shell and workflows
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install actionlint
+        run: |
+          go install github.com/rhysd/actionlint/cmd/actionlint@v1.7.12
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+      - name: Check
+        run: ./scripts/check.sh --all shell workflows
+
+  macos:
+    name: Format, build and test
+    # macOS 27 with Xcode 27 (public preview image).
+    runs-on: xcode-27
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Select Xcode 27.1
+        run: sudo xcode-select --switch /Applications/Xcode_27.1.app
+      - name: Install XcodeGen
+        run: brew install xcodegen
+      - name: Check
+        run: ./scripts/check.sh --all format build test
+
+  required:
+    # The single required status check. It succeeds only if every needed job
+    # succeeded or was intentionally skipped.
+    name: ci
+    if: always()
+    needs: [static, macos]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions: {}
+    steps:
+      - name: Require all jobs to pass
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          for result in $RESULTS; do
+            case "$result" in
+              success | skipped) ;;
+              *) echo "::error::A required job finished with: $result"; exit 1 ;;
+            esac
+          done
+          echo "All required jobs passed: $RESULTS"
