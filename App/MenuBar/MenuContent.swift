@@ -146,7 +146,7 @@ struct MenuContent: View {
             .padding(.horizontal, 8)
             .padding(.vertical, 5)
             Divider().padding(.vertical, 4)
-            FooterRow(title: "Quit Chargectl", symbol: "power", shortcut: "Q") { Dashboard.quit() }
+            FooterRow(title: "Quit Chargectl", symbol: "power") { Dashboard.quit() }
         }
         .onChange(of: opensAtLogin) { _, enabled in setOpensAtLogin(enabled) }
     }
@@ -175,7 +175,7 @@ struct MenuContent: View {
 private struct FooterRow: View {
     let title: String
     let symbol: String
-    let shortcut: String
+    var shortcut: String?
     let action: () -> Void
     @State private var isHovered = false
 
@@ -184,7 +184,9 @@ private struct FooterRow: View {
             HStack {
                 Label(title, systemImage: symbol)
                 Spacer()
-                Text("⌘\(shortcut)").foregroundStyle(.secondary).font(.callout)
+                if let shortcut {
+                    Text("⌘\(shortcut)").foregroundStyle(.secondary).font(.callout)
+                }
             }
             .padding(.horizontal, 8)
             .padding(.vertical, 5)
@@ -192,8 +194,20 @@ private struct FooterRow: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .keyboardShortcut(KeyEquivalent(Character(shortcut.lowercased())), modifiers: .command)
+        .modifier(OptionalShortcut(key: shortcut))
         .onHover { isHovered = $0 }
+    }
+}
+
+private struct OptionalShortcut: ViewModifier {
+    let key: String?
+
+    func body(content: Content) -> some View {
+        if let key {
+            content.keyboardShortcut(KeyEquivalent(Character(key.lowercased())), modifiers: .command)
+        } else {
+            content
+        }
     }
 }
 
