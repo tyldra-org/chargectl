@@ -159,7 +159,11 @@ jobs:
 
           Nothing. It merges by itself when CI passes.
           BODY
-          if ! gh pr view "$branch" --json number > /dev/null 2>&1; then
-            gh pr create --base main --head "$branch" --title "$title" --body-file "$RUNNER_TEMP/body.md"
+          # Only an open pull request counts: earlier releases left merged
+          # ones behind on reused branch names.
+          url=$(gh pr list --head "$branch" --state open --json url --jq '.[0].url // empty')
+          if [[ -z "$url" ]]; then
+            url=$(gh pr create --base main --head "$branch" --title "$title" --body-file "$RUNNER_TEMP/body.md")
           fi
-          gh pr merge "$branch" --auto --rebase
+          gh pr merge "$url" --auto --rebase
+          echo "Pull request: $url"
