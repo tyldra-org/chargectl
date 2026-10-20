@@ -4,6 +4,7 @@ import SwiftUI
 struct MenuBarLabel: View {
     let model: AppModel
     @AppStorage(PreferenceKey.showPercentage) private var showPercentage = true
+    @Environment(\.openWindow) private var openWindow
 
     var body: some View {
         let percent = model.battery?.percent
@@ -14,6 +15,7 @@ struct MenuBarLabel: View {
             }
         }
         .accessibilityLabel(percent.map { "Battery \($0) percent, \(model.activitySummary)" } ?? "Chargectl")
+        .onAppear { Dashboard.openWindow = openWindow }
     }
 }
 

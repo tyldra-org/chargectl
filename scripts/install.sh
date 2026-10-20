@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
-# Builds Chargectl, installs it in /Applications and opens it. Run it again after any change;
+# Builds Chargectl and installs it in /Applications. Run it again after any change;
 # a helper that is already installed restarts into the new version by itself.
 #
 #   ./scripts/install.sh            Release build
 #   ./scripts/install.sh --debug    Debug build
 #   ./scripts/install.sh --logs     then follow the helper's log
 #
-# The helper (the root service that controls charging) is installed from the app: click
-# Install Helper and enter your password once. See scripts/signing.sh for signing.
+# Open Chargectl from Applications afterwards: its welcome window installs the helper (the root
+# service that controls charging) and sets the first limit. See scripts/signing.sh for signing.
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/env.sh"
 source "$CHARGECTL_ROOT/scripts/signing.sh"
@@ -49,11 +49,10 @@ for product in "$CHARGECTL_DERIVED_DATA"/Build/Products/*/Chargectl.app; do
 done
 "$lsregister" -f "$app"
 
-/usr/bin/open "$app"
 if [[ -f /Library/LaunchDaemons/com.tyldra.chargectl.daemon.plist ]]; then
   echo "Chargectl $configuration installed; the helper restarts into the new version."
 else
-  echo "Chargectl $configuration installed. Click Install Helper in Chargectl to control charging."
+  echo "Chargectl $configuration installed. Open it from Applications to finish setup."
 fi
 echo "Remove everything with ./scripts/uninstall.sh or Settings > Uninstall Chargectl."
 if [[ "$follow_logs" == 1 ]]; then

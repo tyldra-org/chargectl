@@ -6,6 +6,7 @@ enum PreferenceKey {
     static let showPercentage = "showPercentage"
     static let temperatureUnit = "temperatureUnit"
     static let appearance = "appearance"
+    static let setupComplete = "setupComplete"
 }
 
 enum AppearanceMode: String, CaseIterable, Identifiable {

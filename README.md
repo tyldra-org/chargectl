@@ -22,11 +22,13 @@ cd chargectl
 ./scripts/install.sh
 ```
 
-The script builds the app, copies it to `/Applications` and opens it. Click
-**Install Helper** in Chargectl and enter your password: the helper is the small
-root service that controls charging. It is on straight away and starts with the
-Mac. Chargectl starts with the limit set in System Settings > Battery; click the
-ring in the menu bar and drag the white limit marker to change it.
+The script builds the app and copies it to `/Applications`. Open Chargectl from
+Applications: a short welcome walks you through installing the helper (the small
+root service that controls charging; macOS asks for your password once) and
+choosing the first limit, which starts from the one set in System Settings >
+Battery. Until setup is finished, it opens again each time you open the app.
+Afterwards Chargectl lives in the menu bar; click the ring and drag the white limit
+marker to change the limit.
 
 Login Items lists the helper as "Chargectl Service". To list it under Chargectl's
 name and icon, sign the build with a team: add your Apple ID in Xcode > Settings >
@@ -94,7 +96,7 @@ privileges.
 ## Install and uninstall
 
 ```sh
-./scripts/install.sh           # build, install the app, open it
+./scripts/install.sh           # build and install the app
 ./scripts/install.sh --logs    # same, then follow the helper's log
 ./scripts/uninstall.sh         # remove everything Chargectl added
 ```
