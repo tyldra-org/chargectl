@@ -262,6 +262,15 @@ import Testing
         #expect(decision.macOSLimit == 80)
     }
 
+    @Test func macOSLimitFollowsTheSettingOnBattery() {
+        let decision = ChargePolicy.decide(
+            PolicyInput(percent: 78, isPluggedIn: false, temperature: 30, canSetMacOSLimit: true, macOSLimitFloor: 20),
+            settings: .limit(85, sailing: 5), state: ControlState(), now: now)
+        #expect(decision.activity == .onBattery)
+        #expect(decision.macOSLimit == 85)
+        #expect(decision.state.adapterEnabled)
+    }
+
     @Test func autoDischargeIsOffByDefault() {
         #expect(!ChargeSettings().autoDischarge)
     }

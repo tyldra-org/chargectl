@@ -16,6 +16,9 @@ final class ChargeController {
     private let macOSLimit = MacOSChargeLimit()
     /// The user's own macOS charge limit, restored when Chargectl stops controlling it.
     private var savedMacOSLimit: MacOSChargeLimit.Setting?
+    /// The macOS limit Chargectl last set. A different value means someone changed it in System
+    /// Settings, and Chargectl adopts it as its own limit.
+    private var appliedMacOSLimit: MacOSChargeLimit.Setting?
     /// Lowered once PowerUIAgent refuses a limit below 80%; wall power is switched instead.
     private var macOSLimitFloor = ChargeSettings.limitRange.lowerBound
     private let logger = Logger(subsystem: "com.tyldra.chargectl", category: "daemon")
@@ -65,7 +68,9 @@ final class ChargeController {
         if macOSLimit == nil {
             log("macOS charge limit is not available; holding the limit by switching wall power", level: .warning)
         } else {
-            log("PowerUIAgent preferences: \(MacOSChargeLimit.preferencesSummary())")
+            log(
+                "PowerUIAgent preferences: \(MacOSChargeLimit.preferencesSummary(keys: ["mclLimitValue", "MCLFeatureState"]))"
+            )
         }
         adoptMacOSLimitOnFirstRun()
         sleepWatcher = SleepWatcher(
@@ -90,6 +95,7 @@ final class ChargeController {
         }
         lastBattery = battery
         observe(battery)
+        adoptMacOSLimitChangedInSettings()
         let input = PolicyInput(
             percent: battery.percent, isPluggedIn: battery.isPluggedIn, temperature: battery.temperature,
             canSetMacOSLimit: macOSLimit != nil, macOSLimitFloor: macOSLimitFloor)
@@ -127,6 +133,24 @@ final class ChargeController {
             current.isEnabled
                 ? "starting with the macOS charge limit, \(settings.limit)%"
                 : "macOS charge limit is off; starting at 100%", source: .chargectl)
+    }
+
+    /// Keeps Chargectl and System Settings › Battery in step: a limit chosen there becomes
+    /// Chargectl's limit. Turning macOS's limit off there means charging to 100%.
+    private func adoptMacOSLimitChangedInSettings() {
+        guard settings.isEnabled, let applied = appliedMacOSLimit, let current = try? macOSLimit?.current(),
+            current != applied
+        else { return }
+        appliedMacOSLimit = current
+        let limit = current.isEnabled ? current.limit : 100
+        guard limit != settings.limit else { return }
+        let previous = settings.limit
+        settings.limit = limit
+        settings = settings.normalized()
+        save(settings, to: .settings)
+        state.holdLevel = nil
+        state.isSailing = false
+        log("limit changed in System Settings: \(previous)% → \(settings.limit)%", source: .chargectl)
     }
 
     // MARK: Client requests
@@ -267,9 +291,16 @@ final class ChargeController {
                 savedMacOSLimit = current
                 save(current, to: .macOSLimit)
             }
-            guard current != MacOSChargeLimit.Setting(isEnabled: true, limit: limit) else { return }
+            let target = MacOSChargeLimit.Setting(isEnabled: true, limit: limit)
+            guard current != target else {
+                appliedMacOSLimit = target
+                return
+            }
             try macOSLimit.set(limit: limit)
+            appliedMacOSLimit = target
         } catch {
+            // Whatever macOS kept is Chargectl's doing, not a change made in System Settings.
+            appliedMacOSLimit = try? macOSLimit.current()
             report("setting the macOS charge limit to \(limit)% failed: \(error)")
             if limit < ChargePolicy.macOSLimitAPIFloor, macOSLimitFloor < ChargePolicy.macOSLimitAPIFloor {
                 macOSLimitFloor = ChargePolicy.macOSLimitAPIFloor
@@ -285,6 +316,7 @@ final class ChargeController {
         do {
             try macOSLimit.apply(saved)
             savedMacOSLimit = nil
+            appliedMacOSLimit = nil
             store.remove(.macOSLimit)
             log(
                 saved.isEnabled

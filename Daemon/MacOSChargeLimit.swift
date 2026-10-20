@@ -105,12 +105,12 @@ final class MacOSChargeLimit {
     }
 
     /// PowerUIAgent's preferences as they are, for the log.
-    static func preferencesSummary() -> String {
+    static func preferencesSummary(keys wanted: Set<String>) -> String {
         var parts: [String] = []
         for (name, host) in [("any host", kCFPreferencesAnyHost), ("this host", kCFPreferencesCurrentHost)] {
             guard let keys = CFPreferencesCopyKeyList(preferencesDomain, kCFPreferencesCurrentUser, host) as? [String]
             else { continue }
-            let values = keys.sorted().map { key -> String in
+            let values = keys.filter(wanted.contains).sorted().map { key -> String in
                 let value = CFPreferencesCopyValue(key as CFString, preferencesDomain, kCFPreferencesCurrentUser, host)
                 let text = value.map { "\($0)" } ?? "nil"
                 let type = value.map { String(describing: Swift.type(of: $0)) } ?? "-"

@@ -56,10 +56,13 @@ nonisolated enum ChargePolicy {
             state.adapterEnabled = true
             state.holdLevel = nil
             state.isSailing = false
+            // Set macOS's limit even on battery, so System Settings shows it and charging
+            // stops at the right point the moment the charger is connected.
+            let limit = unpluggedMacOSLimit(settings: settings, mode: state.mode, input: input)
             if case .calibrate(let phase, _) = state.mode {
-                return ChargeDecision(state: state, activity: .calibrating(phase), event: event)
+                return ChargeDecision(state: state, activity: .calibrating(phase), event: event, macOSLimit: limit)
             }
-            return ChargeDecision(state: state, activity: .onBattery, event: event)
+            return ChargeDecision(state: state, activity: .onBattery, event: event, macOSLimit: limit)
         }
 
         if state.mode == .automatic, !settings.autoDischarge, input.percent > settings.limit, settings.limit < 100 {
@@ -83,6 +86,18 @@ nonisolated enum ChargePolicy {
             input.percent, settings: settings, state: state, native: native, floor: input.macOSLimitFloor)
         state.adapterEnabled = result.adapterEnabled
         return ChargeDecision(state: state, activity: result.activity, event: event, macOSLimit: result.macOSLimit)
+    }
+
+    private static func unpluggedMacOSLimit(settings: ChargeSettings, mode: ChargeMode, input: PolicyInput) -> Int? {
+        guard input.canSetMacOSLimit else { return nil }
+        let floor = min(max(input.macOSLimitFloor, ChargeSettings.limitRange.lowerBound), macOSLimitAPIFloor)
+        let target: Int
+        switch mode {
+        case .topUp, .calibrate: target = 100
+        case .discharge: return nil
+        case .automatic: target = settings.limit
+        }
+        return min(max(target, floor), macOSLimitRange.upperBound)
     }
 
     private static func heatPaused(_ temperature: Double?, settings: ChargeSettings, wasPaused: Bool) -> Bool {
