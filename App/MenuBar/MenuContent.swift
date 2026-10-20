@@ -1,5 +1,4 @@
 import AppKit
-import ServiceManagement
 import SwiftUI
 
 /// The panel under the menu bar ring: charge at a glance, the limit, a few switches and jobs.
@@ -7,7 +6,6 @@ struct MenuContent: View {
     let model: AppModel
     @Environment(\.openWindow) private var openWindow
     @AppStorage(PreferenceKey.temperatureUnit) private var unit = TemperatureUnit.systemDefault
-    @State private var opensAtLogin = SMAppService.mainApp.status == .enabled
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -139,29 +137,9 @@ struct MenuContent: View {
         VStack(alignment: .leading, spacing: 2) {
             FooterRow(title: "Open Chargectl", symbol: "macwindow", shortcut: "O") { openDashboard(.overview) }
             FooterRow(title: "Settings…", symbol: "gearshape", shortcut: ",") { openDashboard(.settings) }
-            Toggle(isOn: $opensAtLogin) {
-                Label("Open at Login", systemImage: "person.crop.circle.badge.checkmark")
-            }
-            .toggleStyle(.checkbox)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 5)
             Divider().padding(.vertical, 4)
             FooterRow(title: "Quit Chargectl", symbol: "power") { Dashboard.quit() }
         }
-        .onChange(of: opensAtLogin) { _, enabled in setOpensAtLogin(enabled) }
-    }
-
-    private func setOpensAtLogin(_ enabled: Bool) {
-        do {
-            if enabled {
-                try SMAppService.mainApp.register()
-            } else {
-                try SMAppService.mainApp.unregister()
-            }
-        } catch {
-            model.message = "Open at login could not be changed: \(error.localizedDescription)"
-        }
-        opensAtLogin = SMAppService.mainApp.status == .enabled
     }
 
     private func openDashboard(_ page: DashboardPage) {
