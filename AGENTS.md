@@ -21,6 +21,8 @@ macOS 27 and Xcode 27 only.
 | Test | `./scripts/test.sh` |
 | Format check | `xcrun swift-format lint --strict --recursive App Daemon Shared Tests` |
 | Everything CI runs | `./scripts/check.sh` |
+| Package a release zip | `./scripts/package.sh` |
+| Print the Homebrew cask | `./scripts/cask.sh <version> <sha256>` |
 
 ## Never run
 
@@ -43,7 +45,7 @@ macOS 27 and Xcode 27 only.
 | `Tests/` | Swift Testing suites for the policy and shared models |
 | `scripts/` | Build, test, install, uninstall and `check.sh` |
 | `project.yml` | XcodeGen spec; the `.xcodeproj` is generated and not committed |
-| `.github/` | Workflows and templates |
+| `.github/` | Workflows (CI and tag-triggered release) and templates |
 
 ## Conventions
 

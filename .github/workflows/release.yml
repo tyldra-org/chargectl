@@ -1,0 +1,165 @@
+# Publishes a release when a version tag is pushed:
+#
+#   git tag -a v0.1.0 -m "Chargectl 0.1.0" && git push origin v0.1.0
+#
+# The tag must match MARKETING_VERSION in project.yml, and CHANGELOG.md must
+# have a section for that version. Two jobs:
+#   release   checks, builds and attests Chargectl-<version>.zip, then
+#             publishes it with its checksum and Homebrew cask
+#   homebrew  opens a pull request with the new cask in
+#             tyldra-org/homebrew-tools, which merges itself once the tap's
+#             CI passes
+# A failed homebrew job can be rerun on its own; the release stays published.
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+# One release at a time; never cancel one halfway through publishing.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Build and publish
+    runs-on: xcode-27
+    timeout-minutes: 45
+    permissions:
+      contents: write # create the GitHub release
+      id-token: write # sign the build provenance attestation
+      attestations: write
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      sha256: ${{ steps.package.outputs.sha256 }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Select Xcode 27.1
+        run: sudo xcode-select --switch /Applications/Xcode_27.1.app
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Check the tag against project.yml and CHANGELOG.md
+        id: version
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          version=$(./scripts/version.sh)
+          if [[ "$TAG" != "v$version" ]]; then
+            echo "::error::Tag $TAG does not match MARKETING_VERSION $version in project.yml."
+            exit 1
+          fi
+          ./scripts/release-notes.sh "$version" > "$RUNNER_TEMP/notes.md"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Format and test
+        run: ./scripts/check.sh --all format test
+
+      - name: Build and package
+        id: package
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          zip=$(./scripts/package.sh "$RUNNER_TEMP/dist")
+          sha256=$(awk '{ print $1 }' "$zip.sha256")
+          ./scripts/cask.sh "$VERSION" "$sha256" > "$RUNNER_TEMP/dist/chargectl.rb"
+          {
+            echo "zip=$zip"
+            echo "sha256=$sha256"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: ${{ steps.package.outputs.zip }}
+
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+          VERSION: ${{ steps.version.outputs.version }}
+          ZIP: ${{ steps.package.outputs.zip }}
+        run: |
+          gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --verify-tag \
+            --title "Chargectl $VERSION" --notes-file "$RUNNER_TEMP/notes.md" \
+            "$ZIP" "$ZIP.sha256" "$RUNNER_TEMP/dist/chargectl.rb"
+
+  homebrew:
+    name: Update the Homebrew tap
+    needs: release
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # The tyldra-release GitHub App can write to the tap and open pull
+      # requests there; nothing else.
+      - name: Get a token for the tap
+        id: token
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          client-id: ${{ vars.TAP_APP_CLIENT_ID }}
+          private-key: ${{ secrets.TAP_APP_PRIVATE_KEY }}
+          owner: tyldra-org
+          repositories: homebrew-tools
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: tyldra-org/homebrew-tools
+          token: ${{ steps.token.outputs.token }}
+          path: tap
+
+      - name: Open a pull request with the new cask
+        working-directory: tap
+        env:
+          GH_TOKEN: ${{ steps.token.outputs.token }}
+          VERSION: ${{ needs.release.outputs.version }}
+          SHA256: ${{ needs.release.outputs.sha256 }}
+          BOT: ${{ steps.token.outputs.app-slug }}[bot]
+        run: |
+          branch="chargectl-$VERSION"
+          title="feat(chargectl): update to $VERSION"
+          git switch -c "$branch"
+          mkdir -p Casks
+          ../scripts/cask.sh "$VERSION" "$SHA256" > Casks/chargectl.rb
+          git add Casks/chargectl.rb
+          if git diff --cached --quiet; then
+            echo "The tap already has Chargectl $VERSION."
+            exit 0
+          fi
+          user_id=$(gh api "/users/$BOT" --jq .id)
+          git config user.name "$BOT"
+          git config user.email "$user_id+$BOT@users.noreply.github.com"
+          git commit -q -m "$title"
+          git push --force origin "$branch"
+          cat > "$RUNNER_TEMP/body.md" <<BODY
+          ## What changed
+
+          \`Casks/chargectl.rb\` at $VERSION, from the [v$VERSION release](https://github.com/$GITHUB_REPOSITORY/releases/tag/v$VERSION).
+
+          ## Why
+
+          A new Chargectl release.
+
+          ## Evidence
+
+          - tested: the release workflow built, attested and checksummed \`Chargectl-$VERSION.zip\`; this cask pins that checksum. This pull request's CI audits it.
+
+          ## What's left
+
+          Nothing. It merges by itself when CI passes.
+          BODY
+          if ! gh pr view "$branch" --json number > /dev/null 2>&1; then
+            gh pr create --base main --head "$branch" --title "$title" --body-file "$RUNNER_TEMP/body.md"
+          fi
+          gh pr merge "$branch" --auto --rebase
