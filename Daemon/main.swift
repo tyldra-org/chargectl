@@ -4,6 +4,10 @@ import Foundation
 // app is closed. The app talks to it over XPC.
 
 let controller = ChargeController(store: .system)
+if CommandLine.arguments.contains("--restore") {
+    controller.restoreForUninstall()
+    exit(0)
+}
 let service = DaemonService(controller: controller)
 let listener = NSXPCListener(machServiceName: DaemonIdentity.machService)
 listener.setConnectionCodeSigningRequirement(DaemonIdentity.clientRequirement(team: CodeSigning.ownTeam()))

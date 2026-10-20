@@ -315,6 +315,14 @@ final class ChargeController {
         if appliedLED == .off { try? smc?.write(SMCKey.magSafeLED, bytes: [0]) }
     }
 
+    /// `Chargectl Service --restore`, run as root by Uninstall when the helper is not running:
+    /// reconnects wall power, gives the MagSafe LED back to macOS and restores the user's macOS
+    /// charge limit, without starting the control loop.
+    func restoreForUninstall() {
+        appliedLED = .off
+        restoreSystemDefaults()
+    }
+
     // MARK: Applying decisions
 
     /// Reports the adapter as missing when this Mac cannot be controlled, so the policy turns off.

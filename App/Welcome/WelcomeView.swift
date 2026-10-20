@@ -14,6 +14,7 @@ struct WelcomeView: View {
 
     let model: AppModel
     @Environment(\.dismissWindow) private var dismissWindow
+    @Environment(\.openWindow) private var openWindow
     @State private var step: Step =
         UserDefaults.standard.bool(forKey: PreferenceKey.setupComplete) ? .helper : .welcome
     @State private var draftLimit: Double?
@@ -117,7 +118,7 @@ struct WelcomeView: View {
                 ProgressView().controlSize(.small)
                 Text("Waiting for your password…").foregroundStyle(.secondary)
             }
-        } else if ServiceInstaller().isInstalled {
+        } else if model.service == .checking, ServiceInstaller().isInstalled {
             HStack(spacing: 10) {
                 ProgressView().controlSize(.small)
                 Text("Starting the helper…").foregroundStyle(.secondary)
@@ -126,7 +127,7 @@ struct WelcomeView: View {
             Button {
                 model.installService()
             } label: {
-                Text("Install Helper…").frame(minWidth: 160)
+                Text(ServiceInstaller().isInstalled ? "Install Again…" : "Install Helper…").frame(minWidth: 160)
             }
             .buttonStyle(.borderedProminent)
             .controlSize(.large)
@@ -264,8 +265,11 @@ struct WelcomeView: View {
         step = Step(rawValue: step.rawValue + offset) ?? step
     }
 
+    /// Ends setup and opens the dashboard on Overview.
     private func finish() {
         Setup.finish()
+        Dashboard.show()
+        openWindow(id: WindowID.dashboard)
         dismissWindow(id: WindowID.welcome)
     }
 

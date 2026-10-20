@@ -110,7 +110,10 @@ final class AppModel {
                     text: "Charge control needs its helper. Install it once; macOS asks for your password.",
                     isService: true, action: .installService, actionTitle: "Install Helper"))
         case .notResponding(let reason):
-            notices.append(Notice(text: "The helper is not answering. \(reason)", isService: true))
+            notices.append(
+                Notice(
+                    text: "The helper is not answering. \(reason)", isService: true, action: .installService,
+                    actionTitle: "Install Again"))
         }
         if service == .running, status?.adapterKey == nil {
             notices.append(Notice(text: "This Mac exposes no wall-power key, so charging cannot be controlled."))
@@ -272,17 +275,23 @@ final class AppModel {
     /// the Login Items entries, preferences, caches, saved state and crash reports, then deletes
     /// the app itself and quits. Stops at the first step that fails, with a message.
     func uninstallEverything() async {
+        // The running helper reconnects wall power, restores the macOS charge limit and removes its
+        // own files. Whatever it could not remove, or a helper that is not running, is removed as
+        // an administrator.
         if service == .running {
+            try? await client.perform(.uninstall)
+            for _ in 0..<20 where installer.leavesFiles { try? await Task.sleep(for: .milliseconds(250)) }
+        }
+        if installer.leavesFiles {
             do {
-                try await client.perform(.uninstall)
+                try await installer.removeAll()
+            } catch ServiceInstallError.cancelled {
+                message = "Uninstall stopped. The helper's files are still installed."
+                return
             } catch {
                 message = "Uninstall stopped: \(error.localizedDescription)"
                 return
             }
-        } else if FileManager.default.fileExists(atPath: Self.daemonDataPath) {
-            message =
-                "Uninstall stopped: the helper is not running, so it cannot delete \(Self.daemonDataPath). Run ./scripts/uninstall.sh instead."
-            return
         }
         ServiceInstaller.unregisterAll()
         if let identifier = Bundle.main.bundleIdentifier { Self.removeUserData(identifier) }
@@ -327,5 +336,4 @@ final class AppModel {
         }
     }
 
-    private static let daemonDataPath = "/Library/Application Support/Chargectl"
 }

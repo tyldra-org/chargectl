@@ -91,8 +91,13 @@ struct SettingsPage: View {
 
     @ViewBuilder private var serviceButton: some View {
         switch model.service {
-        case .running, .notResponding:
+        case .running:
             Button("Remove Helper…", role: .destructive) { model.uninstallService() }
+        case .notResponding:
+            HStack {
+                Button("Install Again…") { model.installService() }
+                Button("Remove Helper…", role: .destructive) { model.uninstallService() }
+            }
         case .notInstalled:
             Button(model.isInstallingService ? "Installing…" : "Install Helper…") { model.installService() }
                 .disabled(model.isInstallingService)

@@ -16,6 +16,12 @@ for binary in "$app/Contents/MacOS/Chargectl" "$HOME"/.Trash/Chargectl*.app/Cont
 done
 
 sudo launchctl bootout "system/$label" 2>/dev/null || true
+# A helper that was not running could not reconnect wall power or restore the macOS charge
+# limit when it stopped; do it now, before its files go.
+helper="$app/Contents/MacOS/Chargectl Service"
+if [[ -x "$helper" ]]; then
+  sudo "$helper" --restore 2>/dev/null || true
+fi
 sudo rm -f "/Library/LaunchDaemons/$label.plist"
 sudo rm -rf "/Library/Application Support/Chargectl"
 rm -rf "$app" "$HOME"/.Trash/Chargectl*.app

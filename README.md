@@ -105,7 +105,8 @@ Run `install.sh` again after pulling changes. An installed helper notices the ne
 app and restarts into it; if Chargectl.app is deleted, the helper removes itself.
 **Settings > Uninstall Chargectl** in the app does the same as `uninstall.sh`: it
 reconnects wall power, restores your macOS charge limit and removes the helper,
-its data, preferences and caches.
+its data, preferences and caches. If the helper is not running, it asks for your
+password and does the same as an administrator.
 
 ## Limitations
 
