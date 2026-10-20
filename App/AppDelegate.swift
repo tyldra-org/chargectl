@@ -1,5 +1,4 @@
 import AppKit
-import ServiceManagement
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
     /// Set by the menu bar's Quit item. Anything else that asks the app to quit (⌘Q, the Dock's
@@ -8,19 +7,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationWillFinishLaunching(_ notification: Notification) {
         AppearanceMode.current.apply()
-    }
-
-    func applicationDidFinishLaunching(_ notification: Notification) {
-        openAtLoginOnFirstLaunch()
-    }
-
-    /// Like other menu bar utilities, Chargectl opens at login unless the user turns it off in
-    /// Settings. Only the first launch decides; later choices are left alone.
-    private func openAtLoginOnFirstLaunch() {
-        let key = "didSetUpOpenAtLogin"
-        guard !UserDefaults.standard.bool(forKey: key) else { return }
-        UserDefaults.standard.set(true, forKey: key)
-        if SMAppService.mainApp.status != .enabled { try? SMAppService.mainApp.register() }
     }
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
