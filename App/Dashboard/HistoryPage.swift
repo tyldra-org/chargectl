@@ -42,8 +42,9 @@ struct HistoryPage: View {
                         model: model, description: "History is recorded by the control service, once a minute.")
                 } else {
                     let now = Date.now
-                    let start = now.addingTimeInterval(-range.duration)
-                    let samples = model.history.filter { $0.date >= start }
+                    let samples = model.history.filter { $0.date >= now.addingTimeInterval(-range.duration) }
+                    // Start at the first recorded point, so a short history fills the width.
+                    let start = samples.first?.date ?? now.addingTimeInterval(-range.duration)
                     if samples.count < 2 {
                         ContentUnavailableView(
                             "Collecting History", systemImage: "chart.xyaxis.line",
@@ -54,6 +55,7 @@ struct HistoryPage: View {
                                 .padding(.horizontal, 24)
                                 .padding(.vertical, 16)
                         }
+                        .scrollBounceBehavior(.basedOnSize)
                     }
                 }
             }
@@ -94,24 +96,25 @@ struct HistoryPage: View {
                 name: "Battery", tint: Theme.amber,
                 points: samples.compactMap { s in s.batteryPower.map { Point(date: s.date, value: $0) } }),
         ]
-        return VStack(spacing: 16) {
+        return VStack(spacing: 12) {
             MetricChart(
                 title: "Charge", series: charge, domain: domain, yDomain: 0...100, hovered: $hovered,
-                reading: reading.map { "\($0.percent)%" } ?? "–", limit: model.settings.map { Double($0.limit) },
-                format: { "\(Int($0))%" })
+                reading: timed(shown, reading.map { "\($0.percent)%" } ?? "–"),
+                limit: model.settings.map { Double($0.limit) }, unit: "%")
             MetricChart(
                 title: "Temperature", series: temperature, domain: domain, hovered: $hovered,
-                reading: unit.format(reading?.temperature), format: { String(format: "%.0f", $0) })
+                reading: timed(shown, unit.format(reading?.temperature)))
             MetricChart(
                 title: "Power", series: power, domain: domain, hovered: $hovered,
-                reading: reading.map { powerReading($0) } ?? "–", showsLegend: true, includesZero: true,
-                format: { String(format: "%.0f W", $0) })
-            if let shown {
-                Text(shown.date, format: .dateTime.hour().minute())
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
+                reading: timed(shown, reading.map { powerReading($0) } ?? "–"), showsLegend: true,
+                includesZero: true, unit: " W")
         }
+    }
+
+    /// Prefixes the hovered time, so the readout changes instead of the layout.
+    private func timed(_ sample: HistorySample?, _ text: String) -> String {
+        guard let sample else { return text }
+        return sample.date.formatted(.dateTime.hour().minute()) + "  ·  " + text
     }
 
     private func powerReading(_ sample: HistorySample) -> String {
@@ -146,7 +149,7 @@ private struct MetricChart: View {
     var limit: Double?
     var showsLegend = false
     var includesZero = false
-    let format: (Double) -> String
+    var unit = ""
 
     var body: some View {
         let yDomain = yDomain ?? autoDomain
@@ -163,7 +166,9 @@ private struct MetricChart: View {
                     }
                 }
                 Spacer()
-                Text(reading).monospacedDigit()
+                Text(reading)
+                    .monospacedDigit()
+                    .lineLimit(1)
             }
             Chart {
                 ForEach(series) { item in
@@ -192,12 +197,12 @@ private struct MetricChart: View {
                 if let limit {
                     RuleMark(y: .value("Limit", limit))
                         .lineStyle(StrokeStyle(lineWidth: 1, dash: [3, 3]))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.primary.opacity(0.35))
                 }
                 if let hovered {
                     RuleMark(x: .value("Time", hovered))
                         .lineStyle(StrokeStyle(lineWidth: 1))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.primary.opacity(0.4))
                 }
             }
             .chartXScale(domain: domain)
@@ -213,11 +218,18 @@ private struct MetricChart: View {
             .chartYAxis {
                 AxisMarks(values: .automatic(desiredCount: 3)) { value in
                     AxisGridLine().foregroundStyle(Theme.chipFill)
-                    AxisValueLabel { Text(format(value.as(Double.self) ?? 0)) }
+                    AxisValueLabel {
+                        Text(label(value.as(Double.self) ?? 0, span: yDomain.upperBound - yDomain.lowerBound))
+                    }
                 }
             }
-            .frame(height: 130)
+            .frame(height: 112)
         }
+    }
+
+    /// Whole numbers, or one decimal when the range is narrow enough that whole numbers repeat.
+    private func label(_ value: Double, span: Double) -> String {
+        String(format: span < 6 ? "%.1f" : "%.0f", value) + unit
     }
 
     private var autoDomain: ClosedRange<Double> {
