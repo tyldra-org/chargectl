@@ -1,0 +1,311 @@
+import AppKit
+import Observation
+import ServiceManagement
+
+enum ServiceState: Equatable {
+    case checking
+    case running
+    case notInstalled
+    case needsApproval
+    case notResponding(String)
+}
+
+struct Notice: Identifiable, Equatable {
+    enum Action: Equatable {
+        case installService
+        case openLoginItems
+        case openBatterySettings
+    }
+
+    var id: String { text }
+    var text: String
+    /// About the control service itself; pages that already explain it can skip these.
+    var isService = false
+    var action: Action?
+    var actionTitle: String?
+}
+
+/// App-wide state: local battery readings plus the daemon's status, refreshed every few seconds.
+@Observable
+final class AppModel {
+    /// Battery readings come from the SMC and refresh every second; the service is asked every
+    /// third second.
+    private static let refreshInterval = Duration.seconds(1)
+    private static let serviceEvery = 3
+    private static let conflictingApps = [
+        "com.apphousekitchen.aldente-pro": "AlDente",
+        "com.apphousekitchen.aldente": "AlDente",
+    ]
+
+    private(set) var battery: BatterySnapshot?
+    private(set) var batteryError: String?
+    private(set) var status: DaemonStatus?
+    private(set) var service = ServiceState.checking
+    private(set) var history: [HistorySample] = []
+    private(set) var logs: [LogEntry] = []
+    private(set) var macOSLimit: Int?
+    private(set) var macOSDrains = false
+    private(set) var conflictingApp: String?
+    var message: String?
+
+    @ObservationIgnored private let reader = BatteryReader(smc: try? SMC())
+    @ObservationIgnored private let client = DaemonClient()
+    @ObservationIgnored private let installer = ServiceInstaller()
+    @ObservationIgnored private var refreshTask: Task<Void, Never>?
+
+    init() {
+        refreshTask = Task { [weak self] in
+            var tick = 0
+            while !Task.isCancelled {
+                if tick % Self.serviceEvery == 0 {
+                    await self?.refresh()
+                } else {
+                    self?.readBattery()
+                }
+                tick += 1
+                try? await Task.sleep(for: Self.refreshInterval)
+            }
+        }
+    }
+
+    var settings: ChargeSettings? { status?.settings }
+    var isControllable: Bool { service == .running && status?.adapterKey != nil }
+
+    /// macOS's own charge limit is running the Mac on battery while Chargectl has the charger
+    /// connected. Chargectl cannot override it; only turning that limit off can.
+    var macOSIsDischarging: Bool {
+        guard service != .running, macOSDrains, let macOSLimit, let battery, battery.isPluggedIn,
+            battery.percent > macOSLimit,
+            battery.current < -0.05
+        else { return false }
+        return status?.adapterEnabled ?? true
+    }
+
+    /// The daemon's view when it runs, otherwise what the registry says.
+    var activitySummary: String {
+        // With the service running, Chargectl sets macOS's limit itself.
+        if service != .running, macOSIsDischarging, let macOSLimit {
+            return "macOS is discharging to its \(macOSLimit)% limit"
+        }
+        if let status { return status.activity.summary }
+        guard let battery else { return "reading the battery" }
+        if !battery.isPluggedIn { return "on battery" }
+        return battery.isCharging ? "charging" : "plugged in, not charging"
+    }
+
+    var isDraining: Bool {
+        if macOSIsDischarging { return true }
+        if let status { return status.activity.isDraining }
+        return battery.map { !$0.isPluggedIn } ?? false
+    }
+
+    var notices: [Notice] {
+        var notices: [Notice] = []
+        switch service {
+        case .checking, .running:
+            break
+        case .notInstalled:
+            notices.append(
+                Notice(
+                    text: "Charge control runs in a background service. Readings work without it.",
+                    isService: true, action: .installService, actionTitle: "Install"))
+        case .needsApproval:
+            notices.append(
+                Notice(
+                    text: "Allow Chargectl under Login Items to start charge control.",
+                    isService: true, action: .openLoginItems, actionTitle: "Open Settings"))
+        case .notResponding(let reason):
+            notices.append(Notice(text: "The control service is not answering. \(reason)", isService: true))
+        }
+        if service == .running, status?.adapterKey == nil {
+            notices.append(Notice(text: "This Mac exposes no wall-power key, so charging cannot be controlled."))
+        }
+        if let conflictingApp {
+            notices.append(Notice(text: "\(conflictingApp) is also running. Quit it so the two don't fight."))
+        }
+        if macOSIsDischarging, let macOSLimit {
+            notices.append(
+                Notice(
+                    text:
+                        "macOS's own \(macOSLimit)% charge limit is running the Mac on battery. Turn it off in Battery settings so Chargectl can keep you on the charger.",
+                    action: .openBatterySettings, actionTitle: "Open Battery"))
+        } else if service != .running, let macOSLimit, let settings, settings.isEnabled, settings.limit > macOSLimit {
+            notices.append(
+                Notice(
+                    text: "macOS stops charging at \(macOSLimit)%. Turn its limit off in Battery settings."))
+        }
+        if let error = status?.lastError { notices.append(Notice(text: error)) }
+        if let message { notices.append(Notice(text: message)) }
+        return notices
+    }
+
+    func readBattery() {
+        do {
+            battery = try reader.read()
+            batteryError = nil
+        } catch {
+            batteryError = "\(error)"
+        }
+    }
+
+    func refresh() async {
+        readBattery()
+        macOSLimit = NativeChargeLimit.current()
+        macOSDrains = macOSLimit != nil && NativeChargeLimit.currentDrains()
+        conflictingApp =
+            Self.conflictingApps.first { id, _ in
+                !NSRunningApplication.runningApplications(withBundleIdentifier: id).isEmpty
+            }?.value
+        do {
+            status = try await client.status()
+            service = .running
+        } catch {
+            status = nil
+            service =
+                switch installer.registration {
+                case .enabled: .notResponding(error.localizedDescription)
+                case .requiresApproval: .needsApproval
+                case .notRegistered, .notFound: .notInstalled
+                }
+        }
+    }
+
+    func loadHistory() async {
+        history = (try? await client.history()) ?? []
+    }
+
+    func loadLogs() async {
+        logs = (try? await client.logs()) ?? []
+    }
+
+    func update(_ change: (inout ChargeSettings) -> Void) {
+        guard var settings = status?.settings else { return }
+        change(&settings)
+        settings = settings.normalized()
+        guard settings != status?.settings else { return }
+        status?.settings = settings
+        Task {
+            do {
+                try await client.update(settings)
+                message = nil
+            } catch {
+                message = error.localizedDescription
+            }
+            await refresh()
+        }
+    }
+
+    func perform(_ command: DaemonCommand) {
+        Task {
+            do {
+                try await client.perform(command)
+                message = nil
+            } catch {
+                message = error.localizedDescription
+            }
+            await refresh()
+        }
+    }
+
+    func handle(_ action: Notice.Action) {
+        switch action {
+        case .installService: installService()
+        case .openLoginItems: installer.openLoginItems()
+        case .openBatterySettings:
+            NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.Battery-Settings.extension")!)
+        }
+    }
+
+    func installService() {
+        do {
+            try installer.register()
+            message = nil
+        } catch {
+            message = "Could not install the control service: \(error.localizedDescription)"
+        }
+        if installer.registration == .requiresApproval { installer.openLoginItems() }
+        Task { await refresh() }
+    }
+
+    /// launchd stops the daemon, which reconnects wall power before exiting. A daemon installed by
+    /// scripts/install.sh is not known to SMAppService, so it is asked to remove itself.
+    func uninstallService() {
+        Task {
+            do {
+                switch installer.registration {
+                case .enabled, .requiresApproval: try await installer.unregister()
+                case .notRegistered, .notFound: try await client.perform(.removeService)
+                }
+                message = nil
+            } catch {
+                message = "Could not remove the control service: \(error.localizedDescription)"
+            }
+            await refresh()
+        }
+    }
+
+    func openLoginItems() {
+        installer.openLoginItems()
+    }
+
+    /// Removes everything Chargectl added: restores charging, deletes the daemon and its data,
+    /// the Login Items entries, preferences, caches, saved state and crash reports, then deletes
+    /// the app itself and quits. Stops at the first step that fails, with a message.
+    func uninstallEverything() async {
+        if service == .running {
+            do {
+                try await client.perform(.uninstall)
+            } catch {
+                message = "Uninstall stopped: \(error.localizedDescription)"
+                return
+            }
+        } else if FileManager.default.fileExists(atPath: Self.daemonDataPath) {
+            message =
+                "Uninstall stopped: the control service is not running, so it cannot delete \(Self.daemonDataPath). Run ./scripts/uninstall.sh instead."
+            return
+        }
+        ServiceInstaller.unregisterAll()
+        if let identifier = Bundle.main.bundleIdentifier { Self.removeUserData(identifier) }
+        // Development builds outside /Applications are left alone; only installed copies go.
+        let bundle = Bundle.main.bundleURL
+        if bundle.path.hasPrefix("/Applications/") { try? FileManager.default.removeItem(at: bundle) }
+        exit(0)
+    }
+
+    private static func removeUserData(_ identifier: String) {
+        UserDefaults.standard.removePersistentDomain(forName: identifier)
+        CFPreferencesAppSynchronize(identifier as CFString)
+        // Goes through cfprefsd, so its cached copy cannot write the file back after it is deleted.
+        let defaults = Process()
+        defaults.executableURL = URL(fileURLWithPath: "/usr/bin/defaults")
+        defaults.arguments = ["delete", identifier]
+        defaults.standardError = FileHandle.nullDevice
+        try? defaults.run()
+        defaults.waitUntilExit()
+        DarwinDirectories.removeEntries(withPrefix: identifier)
+        let files = FileManager.default
+        let library = files.homeDirectoryForCurrentUser.appendingPathComponent("Library")
+        let paths = [
+            "Preferences/\(identifier).plist",
+            "Caches/\(identifier)",
+            "HTTPStorages/\(identifier)",
+            "HTTPStorages/\(identifier).binarycookies",
+            "Saved Application State/\(identifier).savedState",
+            "Application Support/\(identifier)",
+            "WebKit/\(identifier)",
+        ]
+        for path in paths { try? files.removeItem(at: library.appendingPathComponent(path)) }
+        let reports = library.appendingPathComponent("Logs/DiagnosticReports")
+        for name in (try? files.contentsOfDirectory(atPath: reports.path)) ?? []
+        where name.hasPrefix("Chargectl") || name.hasPrefix("chargectld") {
+            try? files.removeItem(at: reports.appendingPathComponent(name))
+        }
+        let trash = files.homeDirectoryForCurrentUser.appendingPathComponent(".Trash")
+        for name in (try? files.contentsOfDirectory(atPath: trash.path)) ?? []
+        where name.hasPrefix("Chargectl") && name.hasSuffix(".app") {
+            try? files.removeItem(at: trash.appendingPathComponent(name))
+        }
+    }
+
+    private static let daemonDataPath = "/Library/Application Support/Chargectl"
+}
