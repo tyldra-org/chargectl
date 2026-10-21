@@ -49,6 +49,8 @@ final class AppModel {
     private(set) var macOSLimit: Int?
     private(set) var macOSDrains = false
     private(set) var conflictingApp: String?
+    /// Battery current smoothed over about ten seconds, so time estimates do not jump.
+    private(set) var smoothedCurrent: Double?
     var message: String?
 
     @ObservationIgnored private let reader = BatteryReader(smc: try? SMC())
@@ -156,8 +158,26 @@ final class AppModel {
         do {
             battery = try reader.read()
             batteryError = nil
+            if let current = battery?.current { smoothCurrent(current) }
         } catch {
             batteryError = "\(error)"
+        }
+    }
+
+    /// Follows a steady current slowly and a change of direction or a large step at once.
+    private func smoothCurrent(_ current: Double) {
+        guard let smoothed = smoothedCurrent, (smoothed > 0) == (current > 0), abs(current - smoothed) < 0.5
+        else {
+            smoothedCurrent = current
+            return
+        }
+        smoothedCurrent = smoothed + (current - smoothed) * 0.15
+    }
+
+    /// Time until the charge reaches where Chargectl is taking it.
+    var estimate: ChargeEstimate? {
+        battery.map {
+            ChargeEstimate.make(battery: $0, activity: status?.activity, current: smoothedCurrent ?? $0.current)
         }
     }
 

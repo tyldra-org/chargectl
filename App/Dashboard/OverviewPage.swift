@@ -5,6 +5,7 @@ struct OverviewPage: View {
     let model: AppModel
     @AppStorage(PreferenceKey.temperatureUnit) private var unit = TemperatureUnit.systemDefault
     @State private var confirmingCalibration = false
+    @State private var energy = EnergyMonitor()
 
     var body: some View {
         if let battery = model.battery {
@@ -14,12 +15,13 @@ struct OverviewPage: View {
                     HStack(alignment: .top, spacing: 16) {
                         powerFlow(battery)
                         charger(battery)
-                        estimate(battery)
+                        estimate
                     }
                     .fixedSize(horizontal: false, vertical: true)
                     HStack(alignment: .top, spacing: 16) {
                         health(battery)
                         control
+                        energyUse
                     }
                     .fixedSize(horizontal: false, vertical: true)
                     HStack(alignment: .top, spacing: 16) {
@@ -37,6 +39,7 @@ struct OverviewPage: View {
                     try? await Task.sleep(for: .seconds(15))
                 }
             }
+            .task { await energy.run() }
         } else {
             ContentUnavailableView(
                 "Battery Unavailable", systemImage: "battery.0percent",
@@ -225,30 +228,56 @@ struct OverviewPage: View {
         model.status.map { $0.adapterEnabled ? nil : Theme.amber } ?? nil
     }
 
-    private func estimate(_ battery: BatterySnapshot) -> some View {
+    private var estimate: some View {
         Card(title: "Estimate", symbol: "clock") {
-            VStack(alignment: .leading, spacing: 6) {
-                Text(estimateValue(battery))
-                    .font(.system(size: 26, weight: .light))
-                    .monospacedDigit()
-                    .contentTransition(.numericText())
-                Text(estimateLabel(battery))
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
+            if let estimate = model.estimate {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(estimate.minutes.map(TimeText.minutes) ?? estimate.headline ?? "–")
+                        .font(.system(size: 26, weight: .light))
+                        .monospacedDigit()
+                        .contentTransition(.numericText())
+                    Text(estimate.caption)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
         }
     }
 
-    private func estimateValue(_ battery: BatterySnapshot) -> String {
-        if battery.current > 0.05, let minutes = battery.minutesToFull { return TimeText.minutes(minutes) }
-        if battery.current < -0.05, let minutes = battery.minutesToEmpty { return TimeText.minutes(minutes) }
-        return "–"
-    }
+    // MARK: Energy
 
-    private func estimateLabel(_ battery: BatterySnapshot) -> String {
-        if battery.current > 0.05 { return battery.minutesToFull == nil ? "Charging" : "until full" }
-        if battery.current < -0.05 { return battery.minutesToEmpty == nil ? "Discharging" : "until empty at this rate" }
-        return battery.isPluggedIn ? "Holding steady; no time to estimate." : "Idle"
+    private var energyUse: some View {
+        Card(title: "Using Significant Energy", symbol: "flame") {
+            if energy.apps.isEmpty {
+                Text(energy.isMeasuring ? "Measuring…" : "No apps are using significant energy.")
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, minHeight: 60, alignment: .center)
+            } else {
+                let top = energy.apps.first?.watts ?? 1
+                VStack(alignment: .leading, spacing: 9) {
+                    ForEach(energy.apps) { app in
+                        HStack(spacing: 8) {
+                            Image(nsImage: energy.icon(for: app))
+                                .resizable()
+                                .frame(width: 18, height: 18)
+                            Text(app.name)
+                                .lineLimit(1)
+                                .truncationMode(.tail)
+                            Spacer(minLength: 8)
+                            PowerMeter(fraction: app.watts / top, tint: Theme.amber).frame(width: 40)
+                            Text(Format.watts(app.watts))
+                                .monospacedDigit()
+                                .contentTransition(.numericText())
+                                .frame(minWidth: 44, alignment: .trailing)
+                        }
+                    }
+                }
+            }
+            Spacer(minLength: 0)
+            Text("Average over the last minute.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
     }
 
     // MARK: Battery and control
