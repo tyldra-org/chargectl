@@ -44,7 +44,9 @@ cask "chargectl" do
         writable_base:  :appdir
   end
 
-  uninstall quit: "com.tyldra.chargectl"
+  # Chargectl turns Quit into closing its window, so it is stopped with a signal. Its helper
+  # reopens the new version after an upgrade.
+  uninstall signal: [["TERM", "com.tyldra.chargectl"]]
 
   zap trash: [
     "/Library/Application Support/Chargectl",

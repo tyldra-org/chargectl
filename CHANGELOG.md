@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.4] - 2026-10-21
+
+Updates now restart the helper and reopen Chargectl by themselves.
+
+### Added
+
+- **Reopen after an update.** When Chargectl was running, the helper stops any
+  copy still running old code and reopens the new version once an update
+  replaces the app, whether through Homebrew, `scripts/install.sh` or by hand.
+  (#9)
+- **Old helper notice.** If the helper keeps running an older version, the app
+  says so and opens Login Items, where turning Chargectl off and on restarts
+  it. (#9)
+
+### Fixed
+
+- **The helper follows the app again.** It never restarted into a new version
+  and did not remove itself when the app was deleted, because it looked for its
+  own executable at a relative path. Updating from 0.1.3 or earlier needs one
+  restart of the helper; the app shows how. (#9)
+- **Version in Settings.** It always showed 0.1.0. (#9)
+- **Homebrew stops the app before an upgrade.** Chargectl turns Quit into
+  closing its window, so the cask now stops it with a signal. (#9)
+
 ## [0.1.3] - 2026-10-20
 
 The Estimate shows time to your limit, and a new card lists the apps using
@@ -76,7 +100,8 @@ MacBooks, from the menu bar.
   hands charging back to macOS and removes every file Chargectl added.
 - **Homebrew.** `brew install --cask tyldra-org/tools/chargectl`.
 
-[Unreleased]: https://github.com/tyldra-org/chargectl/compare/v0.1.3...HEAD
+[Unreleased]: https://github.com/tyldra-org/chargectl/compare/v0.1.4...HEAD
+[0.1.4]: https://github.com/tyldra-org/chargectl/compare/v0.1.3...v0.1.4
 [0.1.3]: https://github.com/tyldra-org/chargectl/compare/v0.1.2...v0.1.3
 [0.1.2]: https://github.com/tyldra-org/chargectl/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/tyldra-org/chargectl/compare/v0.1.0...v0.1.1

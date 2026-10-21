@@ -63,7 +63,7 @@ cat <<NOTES
 brew install --cask tyldra-org/tools/chargectl
 \`\`\`
 
-Already installed with Homebrew? Run \`brew upgrade --cask chargectl\`. To install by hand,
+Already installed with Homebrew? Run \`brew update && brew upgrade --cask chargectl\`. To install by hand,
 download [\`$zip\`]($repo/releases/download/v$version/$zip), unzip it and move Chargectl to
 Applications.
 

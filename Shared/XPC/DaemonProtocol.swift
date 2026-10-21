@@ -3,7 +3,8 @@ import Foundation
 nonisolated enum DaemonIdentity {
     static let machService = "com.tyldra.chargectl.daemon"
     static let plistName = "com.tyldra.chargectl.daemon.plist"
-    static let version = "0.1.0"
+    /// MARKETING_VERSION, from the app's Info.plist or the one embedded in the service's binary.
+    static let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "unknown"
     static let appIdentifier = "com.tyldra.chargectl"
 
     /// Clients must be the Chargectl app. When the service is signed with a team (Apple
