@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.3] - 2026-10-20
+
+The Estimate shows time to your limit, and a new card lists the apps using
+significant energy.
+
+### Added
+
+- **Using Significant Energy.** A card on the Overview lists the apps using the
+  most power, averaged over the last minute. A browser's helpers count for the
+  browser, and commands count for the terminal that started them. (#8)
+
+### Changed
+
+- **Time to where the charge is going.** The Estimate counts to your limit while
+  charging to it ("until 70%"), to the lower bound while sailing, to the target
+  while discharging, and to empty on battery, instead of always to full. While
+  holding, it says so. (#8)
+
 ## [0.1.2] - 2026-10-20
 
 Reinstalling with Homebrew works after uninstalling from Settings.
@@ -58,7 +76,8 @@ MacBooks, from the menu bar.
   hands charging back to macOS and removes every file Chargectl added.
 - **Homebrew.** `brew install --cask tyldra-org/tools/chargectl`.
 
-[Unreleased]: https://github.com/tyldra-org/chargectl/compare/v0.1.2...HEAD
+[Unreleased]: https://github.com/tyldra-org/chargectl/compare/v0.1.3...HEAD
+[0.1.3]: https://github.com/tyldra-org/chargectl/compare/v0.1.2...v0.1.3
 [0.1.2]: https://github.com/tyldra-org/chargectl/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/tyldra-org/chargectl/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/tyldra-org/chargectl/releases/tag/v0.1.0

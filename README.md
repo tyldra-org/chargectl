@@ -79,7 +79,9 @@ switch options and drag the white marker to change the limit.
 | **Two-way sync** | Chargectl's limit shows in System Settings › Battery, and a limit chosen there becomes Chargectl's limit. |
 | **Jobs** | Top up to 100% once, discharge to the limit, or calibrate the battery gauge. |
 | **Heat protection** | Pause charging while the battery is warm. |
-| **Live readings** | Charger, Mac and battery power each second, battery health, cycles, temperature and time to full or empty. |
+| **Live readings** | Charger, Mac and battery power each second, battery health, cycles and temperature. |
+| **Time to the limit** | How long until the charge reaches your limit, the end of sailing or a discharge target, or empty on battery. |
+| **Energy by app** | The apps using significant energy, averaged over the last minute, with each app's helpers and commands counted for it. |
 | **History and logs** | 24 hours of charge, temperature and power, and a log of what the battery and Chargectl did. |
 | **Clean removal** | Uninstall restores normal charging and your macOS limit, and removes every file Chargectl added. |
 
