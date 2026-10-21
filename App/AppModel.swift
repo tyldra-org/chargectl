@@ -51,6 +51,8 @@ final class AppModel {
     private(set) var conflictingApp: String?
     /// Battery current smoothed over about ten seconds, so time estimates do not jump.
     private(set) var smoothedCurrent: Double?
+    /// When the helper was first seen reporting a version other than the app's.
+    private var versionMismatchSince: Date?
     var message: String?
 
     @ObservationIgnored private let reader = BatteryReader(smc: try? SMC())
@@ -125,6 +127,15 @@ final class AppModel {
                     text: "The helper is not answering. \(reason)", isService: true, action: .installService,
                     actionTitle: "Install Again"))
         }
+        if service == .running, let helperVersion = status?.version, helperVersion != DaemonIdentity.version,
+            let since = versionMismatchSince, Date.now.timeIntervalSince(since) > Self.helperStartGrace
+        {
+            notices.append(
+                Notice(
+                    text:
+                        "The helper is still running an older version (\(helperVersion)). Turn Chargectl off and on again in Login Items to update it.",
+                    isService: true, action: .openLoginItems, actionTitle: "Open Login Items"))
+        }
         if service == .running, status?.adapterKey == nil {
             notices.append(Notice(text: "This Mac exposes no wall-power key, so charging cannot be controlled."))
         }
@@ -191,6 +202,13 @@ final class AppModel {
             }?.value
         do {
             status = try await client.status()
+            // A new helper takes a few seconds to restart after an update; only a lasting
+            // difference is shown.
+            if status?.version == DaemonIdentity.version {
+                versionMismatchSince = nil
+            } else if versionMismatchSince == nil {
+                versionMismatchSince = .now
+            }
             if service != .running { message = nil }
             service = .running
             unreachableSince = nil

@@ -170,7 +170,7 @@ Readings come from the `AppleSmartBattery` registry entry and live SMC keys
 
 ```sh
 brew install --cask tyldra-org/tools/chargectl   # install
-brew upgrade --cask chargectl                    # update
+brew update && brew upgrade --cask chargectl     # update
 brew uninstall --zap --cask chargectl            # remove the app and its settings
 ```
 

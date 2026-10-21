@@ -36,9 +36,14 @@ final class ChargeController {
     private var observer = PowerObserver()
     /// The service's own executable inside Chargectl.app and its date when this process started.
     /// Installing a new app replaces it; the service then restarts into the new version.
-    private let executablePath = CommandLine.arguments[0]
+    /// Absolute: launchd starts an SMAppService daemon with a path relative to the app bundle in
+    /// argv[0], which does not resolve from the service's working directory.
+    private let executablePath = ChargeController.ownExecutablePath()
     private let launchedExecutableDate: Date?
     private var pendingExecutableChange: ExecutableChange?
+    /// When the app was last seen running; an update within reopenWindow of it reopens the app.
+    private var appLastSeen: Date?
+    private static let reopenWindow: TimeInterval = 120
     /// No settings were saved yet; the first limit is taken from macOS's own setting.
     private var isFirstRun: Bool
     /// Set once the app uninstalls Chargectl: nothing is written to disk after that.
@@ -57,7 +62,7 @@ final class ChargeController {
         history = store.load([HistorySample].self, from: .history) ?? []
         logs = store.load([LogEntry].self, from: .logs) ?? []
         savedMacOSLimit = store.load(MacOSChargeLimit.Setting.self, from: .macOSLimit)
-        launchedExecutableDate = Self.modificationDate(CommandLine.arguments[0])
+        launchedExecutableDate = Self.modificationDate(executablePath)
     }
 
     func start() {
@@ -133,6 +138,7 @@ final class ChargeController {
         let date = Self.modificationDate(executablePath)
         guard date != launchedExecutableDate else {
             pendingExecutableChange = nil
+            if !AppProcesses.running().isEmpty { appLastSeen = .now }
             return false
         }
         let change: ExecutableChange = date.map { .replaced($0) } ?? .removed
@@ -150,6 +156,7 @@ final class ChargeController {
             return true
         case .replaced:
             log("Chargectl was updated; restarting the helper", source: .chargectl)
+            reopenUpdatedApp()
             shutdown()
             // launchd starts the new executable again (KeepAlive).
             exit(0)
@@ -159,6 +166,28 @@ final class ChargeController {
     private enum ExecutableChange: Equatable {
         case replaced(Date)
         case removed
+    }
+
+    /// Stops every copy of the app still running old code, and opens the new version for the
+    /// signed-in user when the app was running shortly before the update: an installer such as
+    /// Homebrew stops the app before it replaces it.
+    private func reopenUpdatedApp() {
+        let running = AppProcesses.running()
+        let wasRunning =
+            !running.isEmpty || appLastSeen.map { Date.now.timeIntervalSince($0) < Self.reopenWindow } == true
+        for pid in running { kill(pid, SIGTERM) }
+        guard wasRunning else { return }
+        let app = URL(fileURLWithPath: executablePath).deletingLastPathComponent()  // MacOS
+            .deletingLastPathComponent().deletingLastPathComponent().path  // Contents, Chargectl.app
+        if AppProcesses.openForConsoleUser(app) {
+            log("reopened Chargectl after the update", source: .chargectl)
+        }
+    }
+
+    private static func ownExecutablePath() -> String {
+        var buffer = [CChar](repeating: 0, count: Int(MAXPATHLEN) * 4)
+        guard proc_pidpath(getpid(), &buffer, UInt32(buffer.count)) > 0 else { return CommandLine.arguments[0] }
+        return String(cString: buffer)
     }
 
     private static func modificationDate(_ path: String) -> Date? {
