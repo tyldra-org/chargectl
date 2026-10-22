@@ -114,6 +114,7 @@ struct ServiceInstaller {
                 "/bin/rm -f \(Self.plistPath)",
                 "/bin/rm -rf '\(Self.dataPath)'",
                 rootFolders,
+                "/bin/rm -f /Library/Logs/DiagnosticReports/Chargectl* /Library/Logs/DiagnosticReports/Retired/Chargectl* /Library/Logs/DiagnosticReports/chargectld* /Library/Logs/DiagnosticReports/Retired/chargectld*",
                 "true",
             ].joined(separator: "; "), prompt: "Chargectl needs to remove its helper.")
     }
