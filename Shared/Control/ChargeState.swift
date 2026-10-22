@@ -71,6 +71,8 @@ nonisolated struct ControlState: Codable, Equatable, Sendable {
 
 /// What the battery is doing and why, for status lines and logs.
 nonisolated enum ChargeActivity: Codable, Equatable, Sendable {
+    /// The helper is loading macOS's charge limit; nothing is decided yet.
+    case starting
     case off
     case onBattery
     case charging(to: Int)
@@ -95,6 +97,7 @@ nonisolated enum ChargeActivity: Codable, Equatable, Sendable {
 
     var summary: String {
         switch self {
+        case .starting: "starting charge control"
         case .off: "charge control off"
         case .onBattery: "on battery"
         case .charging(let target): "charging to \(target)%"

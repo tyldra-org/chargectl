@@ -50,6 +50,7 @@ cask "chargectl" do
 
   zap trash: [
     "/Library/Application Support/Chargectl",
+    "/Library/LaunchDaemons/com.tyldra.chargectl.daemon.plist",
     "~/Library/Application Support/com.tyldra.chargectl",
     "~/Library/Caches/com.tyldra.chargectl",
     "~/Library/HTTPStorages/com.tyldra.chargectl",

@@ -7,6 +7,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.5] - 2026-10-21
+
+The helper keeps working across updates and restarts, and holds the charge
+above the limit as it should.
+
+### Changed
+
+- **Helper installed with your password.** Install Helper now adds the helper as
+  a launchd daemon after asking for your administrator password, instead of
+  through Login Items. macOS ties a Login Items approval to the exact build when
+  an app has no Team ID, so after every update it refused to start the helper
+  ("Launch Constraint Violation") and the app said the helper had stopped. Builds
+  signed with a team still use Login Items. (#10)
+- **macOS's limit stays during restarts.** Shutting down, restarting or updating
+  reconnects wall power but leaves macOS's charge limit at yours, so it holds
+  until the helper runs again. Turning charge control off, removing the helper
+  and uninstalling still restore your own limit. (#10)
+
+### Fixed
+
+- **"The helper stopped" after a restart.** Right after the Mac starts,
+  PowerUI can take a minute to answer, and the helper did not accept the app's
+  connection until it had. It now answers at once and finishes starting in the
+  background. (#10)
+- **Discharging above the limit with automatic discharge off.** After a
+  restart, or when macOS stopped charging a percent past the limit, Chargectl
+  cut wall power and discharged to the limit. It now holds the charge on the
+  charger; only charging past the limit cuts wall power. (#10)
+- **Misleading macOS limit notice.** "macOS's own charge limit is running the Mac
+  on battery" appeared while the helper was starting. It now appears only when
+  no helper is installed. (#10)
+- **Deleting the app removes the helper.** The helper now hands charging back to
+  macOS and deletes its launchd job and data once Chargectl.app has been gone
+  for 30 seconds, and `brew uninstall --zap` also removes the launchd job. (#10)
+
 ## [0.1.4] - 2026-10-21
 
 Updates now restart the helper and reopen Chargectl by themselves.
@@ -100,7 +135,8 @@ MacBooks, from the menu bar.
   hands charging back to macOS and removes every file Chargectl added.
 - **Homebrew.** `brew install --cask tyldra-org/tools/chargectl`.
 
-[Unreleased]: https://github.com/tyldra-org/chargectl/compare/v0.1.4...HEAD
+[Unreleased]: https://github.com/tyldra-org/chargectl/compare/v0.1.5...HEAD
+[0.1.5]: https://github.com/tyldra-org/chargectl/compare/v0.1.4...v0.1.5
 [0.1.4]: https://github.com/tyldra-org/chargectl/compare/v0.1.3...v0.1.4
 [0.1.3]: https://github.com/tyldra-org/chargectl/compare/v0.1.2...v0.1.3
 [0.1.2]: https://github.com/tyldra-org/chargectl/compare/v0.1.1...v0.1.2

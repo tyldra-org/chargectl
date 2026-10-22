@@ -81,7 +81,8 @@ final class AppModel {
     /// macOS's own charge limit is running the Mac on battery while Chargectl has the charger
     /// connected. Chargectl cannot override it; only turning that limit off can.
     var macOSIsDischarging: Bool {
-        guard service != .running, macOSDrains, let macOSLimit, let battery, battery.isPluggedIn,
+        // Only without a helper: an installed helper sets macOS's limit itself, also while it starts.
+        guard service == .notInstalled, macOSDrains, let macOSLimit, let battery, battery.isPluggedIn,
             battery.percent > macOSLimit,
             battery.current < -0.05
         else { return false }
@@ -114,18 +115,20 @@ final class AppModel {
         case .notInstalled:
             notices.append(
                 Notice(
-                    text: "Charge control needs its helper. Install it once; macOS asks for your password.",
+                    text: ServiceInstaller.method == .launchdPlist
+                        ? "Charge control needs its helper. Install it once; macOS asks for your password."
+                        : "Charge control needs its helper. Install it once, then turn it on in Login Items.",
                     isService: true, action: .installService, actionTitle: "Install Helper"))
         case .needsApproval:
             notices.append(
                 Notice(
                     text: "Turn on Chargectl in System Settings › Login Items to start charge control.",
                     isService: true, action: .openLoginItems, actionTitle: "Open Login Items"))
-        case .notResponding(let reason):
+        case .notResponding:
             notices.append(
                 Notice(
-                    text: "The helper is not answering. \(reason)", isService: true, action: .installService,
-                    actionTitle: "Install Again"))
+                    text: "The helper stopped. Install it again to restart charge control.", isService: true,
+                    action: .installService, actionTitle: "Install Again"))
         }
         if service == .running, let helperVersion = status?.version, helperVersion != DaemonIdentity.version,
             let since = versionMismatchSince, Date.now.timeIntervalSince(since) > Self.helperStartGrace
@@ -133,8 +136,8 @@ final class AppModel {
             notices.append(
                 Notice(
                     text:
-                        "The helper is still running an older version (\(helperVersion)). Turn Chargectl off and on again in Login Items to update it.",
-                    isService: true, action: .openLoginItems, actionTitle: "Open Login Items"))
+                        "The helper is still version \(helperVersion). Install it again to update it to \(DaemonIdentity.version).",
+                    isService: true, action: .installService, actionTitle: "Install Again"))
         }
         if service == .running, status?.adapterKey == nil {
             notices.append(Notice(text: "This Mac exposes no wall-power key, so charging cannot be controlled."))
@@ -231,6 +234,7 @@ final class AppModel {
                 service = .notInstalled
             }
         }
+        repairHelperIfNeeded()
     }
 
     func loadHistory() async {
@@ -281,6 +285,19 @@ final class AppModel {
 
     private(set) var isInstallingService = false
     @ObservationIgnored private var unreachableSince: Date?
+    @ObservationIgnored private var didRepairHelper = false
+
+    /// With SMAppService, an update or a stale registration can leave the helper registered but not
+    /// running, or running an old build. Registering it again fixes that without a password, so it
+    /// happens by itself, once per launch. A plist-installed helper restarts into updates itself.
+    private func repairHelperIfNeeded() {
+        guard ServiceInstaller.method == .appService, !didRepairHelper, !isInstallingService else { return }
+        let stopped = unreachableSince.map { Date.now.timeIntervalSince($0) > Self.helperStartGrace } ?? false
+        let outdated = versionMismatchSince.map { Date.now.timeIntervalSince($0) > Self.helperStartGrace } ?? false
+        guard installer.registration == .enabled, stopped || outdated else { return }
+        didRepairHelper = true
+        installService()
+    }
 
     func installService() {
         guard !isInstallingService else { return }
