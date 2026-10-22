@@ -55,9 +55,9 @@ You can also download `Chargectl-<version>.zip` from
 
 Then open **Chargectl** from Applications. A short welcome walks you through:
 
-1. **Installing the helper**, the small root service that controls charging. macOS
-   lists it under Chargectl in System Settings › General › Login Items &
-   Extensions; turn it on there once.
+1. **Installing the helper**, the small root service that controls charging.
+   macOS asks for your password once. Updates restart the helper and reopen
+   Chargectl by themselves.
 2. **Choosing a limit.** It starts from the limit already set in System Settings ›
    Battery, so nothing changes until you pick another one.
 
@@ -216,10 +216,17 @@ asks for your password and does the same as an administrator.
 
 `install.sh` signs with a Developer ID or Apple Development certificate when one
 is in your keychain (see [`scripts/signing.sh`](scripts/signing.sh)); otherwise
-the build is signed ad hoc. With a team signature, the helper only accepts the
-Chargectl app signed by the same team, and macOS keeps the helper turned on
-across updates. With an ad-hoc build, turn Chargectl on again in Login Items
-after each update.
+the build is signed ad hoc, as releases are.
+
+- **Ad hoc:** Install Helper writes a launchd job to `/Library/LaunchDaemons`
+  with your administrator password. macOS ties a background item's approval to
+  an ad-hoc build, so the Login Items route would stop the helper after every
+  update; a launchd job keeps working. Login Items lists it as "Chargectl
+  Service".
+- **With a team:** Install Helper registers the helper with SMAppService. It is
+  listed under Chargectl in Login Items, you turn it on once, and the approval
+  carries over to updates. The helper only accepts the Chargectl app signed by
+  the same team.
 
 ## Limitations
 

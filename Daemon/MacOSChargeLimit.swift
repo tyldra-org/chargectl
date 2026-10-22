@@ -5,7 +5,8 @@ import ObjectiveC
 /// PowerUISmartChargeClient. PowerUIAgent holds the entitlement that stops charging while the
 /// Mac keeps running on the charger. Its API accepts 80% to 100%; lower limits go through its
 /// preferences.
-final class MacOSChargeLimit {
+/// Created on a background queue at startup, then used only on the main actor.
+nonisolated final class MacOSChargeLimit: @unchecked Sendable {
     nonisolated struct Setting: Codable, Equatable, Sendable {
         var isEnabled: Bool
         var limit: Int
@@ -30,8 +31,8 @@ final class MacOSChargeLimit {
 
     /// PowerUIAgent's preferences (root's domain). Apple's API refuses limits below 80%, but
     /// PowerUIAgent applies whatever this key holds when it reloads them.
-    private static let preferencesDomain = "com.apple.smartcharging.topoffprotection" as CFString
-    private static let limitKey = "mclLimitValue" as CFString
+    nonisolated(unsafe) private static let preferencesDomain = "com.apple.smartcharging.topoffprotection" as CFString
+    nonisolated(unsafe) private static let limitKey = "mclLimitValue" as CFString
     private static let reloadNotification = "com.apple.smartcharging.defaultschanged"
 
     private typealias InitFunction = @convention(c) (AnyObject, Selector, NSString) -> AnyObject?

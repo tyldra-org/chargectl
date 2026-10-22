@@ -41,6 +41,8 @@ nonisolated struct ChargeEstimate: Equatable, Sendable {
             return ChargeEstimate(headline: "Resting", caption: "at 100% for an hour")
         case .full?:
             return ChargeEstimate(headline: "Full", caption: "running on the charger")
+        case .starting?:
+            return ChargeEstimate(headline: "Starting", caption: "charge control")
         case .heatPaused?:
             return ChargeEstimate(headline: "Paused", caption: "until the battery cools")
         case .onBattery?, .off?, nil:

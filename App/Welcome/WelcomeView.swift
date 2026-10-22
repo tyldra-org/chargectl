@@ -90,16 +90,19 @@ struct WelcomeView: View {
             )
             VStack(spacing: 0) {
                 ChecklistRow(
-                    number: 1, title: "Install the helper", detail: "Adds it to Login Items.",
+                    number: 1, title: "Install the helper",
+                    detail: needsApproval ? "Adds it to Login Items." : "macOS asks for your password once.",
                     state: helperInstalled ? .done : model.isInstallingService ? .working : .current)
                 Divider().padding(.leading, 44)
+                if needsApproval {
+                    ChecklistRow(
+                        number: 2, title: "Turn on Chargectl",
+                        detail: "System Settings › General › Login Items & Extensions › Allow in the Background.",
+                        state: !helperInstalled ? .waiting : model.service == .needsApproval ? .current : .done)
+                    Divider().padding(.leading, 44)
+                }
                 ChecklistRow(
-                    number: 2, title: "Turn on Chargectl",
-                    detail: "System Settings › General › Login Items & Extensions › Allow in the Background.",
-                    state: !helperInstalled ? .waiting : model.service == .needsApproval ? .current : .done)
-                Divider().padding(.leading, 44)
-                ChecklistRow(
-                    number: 3, title: "Helper running", detail: "Charge control is active.",
+                    number: needsApproval ? 3 : 2, title: "Helper running", detail: "Charge control is active.",
                     state: model.service == .running ? .done : helperApproved ? .working : .waiting)
             }
             .padding(.vertical, 4)
@@ -116,6 +119,9 @@ struct WelcomeView: View {
             Spacer(minLength: 0)
         }
     }
+
+    /// Only an SMAppService helper waits to be turned on in Login Items.
+    private var needsApproval: Bool { ServiceInstaller.method == .appService }
 
     private var helperInstalled: Bool { model.service == .running || ServiceInstaller().isInstalled }
     private var helperApproved: Bool { ServiceInstaller().registration == .enabled }

@@ -333,6 +333,31 @@ import Testing
         #expect(!back.state.overchargeCut)
     }
 
+    /// After a restart the saved state says plugged in, and the charge is 61% with a 60% limit:
+    /// hold at 61% instead of cutting wall power.
+    @Test func helperStartAboveTheLimitHolds() {
+        var settings = ChargeSettings.limit(60, sailing: 5)
+        settings.autoDischarge = false
+        var saved = ControlState()
+        saved.wasPluggedIn = false
+        saved.lastLimit = 60
+        saved.lastAutoDischarge = false
+        let decision = plugged(61, charging: false, settings: settings, state: saved)
+        #expect(decision.state.holdLevel == 61)
+        #expect(decision.state.adapterEnabled)
+        #expect(decision.activity == .holdingAbove(61))
+    }
+
+    /// macOS stopped charging a percent past the limit: not an overshoot to discharge from.
+    @Test func restingPastTheLimitHolds() {
+        var settings = ChargeSettings.limit(60, sailing: 5)
+        settings.autoDischarge = false
+        let atLimit = plugged(60, charging: true, settings: settings, state: ControlState())
+        let past = plugged(61, charging: false, settings: settings, state: atLimit.state)
+        #expect(past.state.holdLevel == 61)
+        #expect(past.state.adapterEnabled)
+    }
+
     @Test func plugInAboveTheLimitStillHolds() {
         var settings = ChargeSettings.limit(80, sailing: 5)
         settings.autoDischarge = false

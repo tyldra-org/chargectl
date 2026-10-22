@@ -40,8 +40,9 @@ disclosure. Maintainers will agree a disclosure date with you.
 ## What the helper can do
 
 The helper, `Chargectl Service` (built from the `chargectld` target), lives inside
-`Chargectl.app`. Install Helper registers it with SMAppService; once you turn it on
-in Login Items, launchd runs it as root. It can:
+`Chargectl.app`. Install Helper installs it as a launchd daemon with your
+administrator password, or registers it with SMAppService for builds signed with
+a team; either way launchd runs it as root. It can:
 
 - switch wall power on and off and set the MagSafe LED through SMC keys;
 - set macOS's charge limit, including writing PowerUIAgent's preferences;

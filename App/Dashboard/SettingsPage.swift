@@ -52,7 +52,9 @@ struct SettingsPage: View {
                 Text("Helper")
             } footer: {
                 Text(
-                    "A small helper runs as root, switches wall power and keeps your limit while Chargectl is closed. After installing, turn on Chargectl in System Settings › Login Items. Removing it reconnects wall power."
+                    ServiceInstaller.method == .launchdPlist
+                        ? "A small helper runs as root, switches wall power and keeps your limit while Chargectl is closed. Installing it asks for your password once; updates keep it running. Removing it reconnects wall power."
+                        : "A small helper runs as root, switches wall power and keeps your limit while Chargectl is closed. After installing, turn on Chargectl in System Settings › Login Items. Removing it reconnects wall power."
                 )
             }
 

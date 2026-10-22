@@ -13,7 +13,11 @@ final class ChargeController {
     private let smc: SMC?
     private let reader: BatteryReader
     private let adapter: AdapterSwitch?
-    private let macOSLimit = MacOSChargeLimit()
+    /// Loaded in the background by start(): PowerUI and PowerUIAgent can take a minute to answer
+    /// right after the Mac starts, and the app must reach the helper meanwhile.
+    private var macOSLimit: MacOSChargeLimit?
+    /// False until macOSLimit is loaded; no decisions are made before that.
+    private var isReady = false
     /// The user's own macOS charge limit, restored when Chargectl stops controlling it.
     private var savedMacOSLimit: MacOSChargeLimit.Setting?
     /// The macOS limit Chargectl last set. A different value means someone changed it in System
@@ -25,7 +29,7 @@ final class ChargeController {
 
     private var settings: ChargeSettings
     private var state: ControlState
-    private var activity = ChargeActivity.off
+    private var activity = ChargeActivity.starting
     private var history: [HistorySample]
     private var logs: [LogEntry]
     private var lastBattery: BatterySnapshot?
@@ -41,6 +45,8 @@ final class ChargeController {
     private let executablePath = ChargeController.ownExecutablePath()
     private let launchedExecutableDate: Date?
     private var pendingExecutableChange: ExecutableChange?
+    private var pendingExecutableChangeSince: Date?
+    private static let removalGrace: TimeInterval = 30
     /// When the app was last seen running; an update within reopenWindow of it reopens the app.
     private var appLastSeen: Date?
     private static let reopenWindow: TimeInterval = 120
@@ -59,6 +65,9 @@ final class ChargeController {
         settings = stored ?? ChargeSettings()
         isFirstRun = stored == nil
         state = store.load(ControlState.self, from: .state) ?? ControlState()
+        // A starting helper cannot know whether the charger was connected meanwhile; above the
+        // limit with automatic discharge off, it holds the charge as if just plugged in.
+        state.wasPluggedIn = false
         history = store.load([HistorySample].self, from: .history) ?? []
         logs = store.load([LogEntry].self, from: .logs) ?? []
         savedMacOSLimit = store.load(MacOSChargeLimit.Setting.self, from: .macOSLimit)
@@ -75,14 +84,6 @@ final class ChargeController {
         } else {
             log("no wall-power key on this Mac; charge control is off", level: .warning)
         }
-        if macOSLimit == nil {
-            log("macOS charge limit is not available; holding the limit by switching wall power", level: .warning)
-        } else {
-            log(
-                "PowerUIAgent preferences: \(MacOSChargeLimit.preferencesSummary(keys: ["mclLimitValue", "MCLFeatureState"]))"
-            )
-        }
-        adoptMacOSLimitOnFirstRun()
         sleepWatcher = SleepWatcher(
             willSleep: { [weak self] in self?.prepareForSleep() },
             didWake: { [weak self] in self?.tick() })
@@ -91,11 +92,30 @@ final class ChargeController {
         }
         RunLoop.main.add(timer, forMode: .common)
         self.timer = timer
+        DispatchQueue.global(qos: .userInitiated).async {
+            let limit = MacOSChargeLimit()
+            DispatchQueue.main.async {
+                MainActor.assumeIsolated { self.finishStarting(macOSLimit: limit) }
+            }
+        }
+    }
+
+    private func finishStarting(macOSLimit limit: MacOSChargeLimit?) {
+        macOSLimit = limit
+        if limit == nil {
+            log("macOS charge limit is not available; holding the limit by switching wall power", level: .warning)
+        } else {
+            log(
+                "PowerUIAgent preferences: \(MacOSChargeLimit.preferencesSummary(keys: ["mclLimitValue", "MCLFeatureState"]))"
+            )
+        }
+        adoptMacOSLimitOnFirstRun()
+        isReady = true
         tick()
     }
 
     func tick(now: Date = .now) {
-        guard !isRemoved else { return }
+        guard isReady, !isRemoved else { return }
         if followAppUpdates() { return }
         let battery: BatterySnapshot
         do {
@@ -142,16 +162,20 @@ final class ChargeController {
             return false
         }
         let change: ExecutableChange = date.map { .replaced($0) } ?? .removed
-        guard pendingExecutableChange == change else {
+        guard pendingExecutableChange == change, let since = pendingExecutableChangeSince else {
             pendingExecutableChange = change
+            pendingExecutableChangeSince = .now
             return false
         }
+        // An installer moves the old app away before the new one arrives; only an app that stays
+        // gone counts as deleted.
+        if change == .removed, Date.now.timeIntervalSince(since) < Self.removalGrace { return false }
         switch change {
         case .removed:
-            log("Chargectl.app was removed; removing the helper", source: .chargectl)
-            _ = removeService()
-            // A helper registered through SMAppService has no plist of its own to delete; without
-            // the app, launchd would keep trying to start a missing program.
+            // Deleting the app is an uninstall: hand charging back to macOS and remove the helper's
+            // plist, data and caches. A helper registered through SMAppService has no plist of its
+            // own; without the app, launchd would keep trying to start a missing program.
+            _ = removeEverything()
             bootOutSoon()
             return true
         case .replaced:
@@ -289,10 +313,14 @@ final class ChargeController {
         return nil
     }
 
-    /// Leaves the Mac charging normally. Runs on SIGTERM.
+    /// Runs on SIGTERM: shutdown, restart and updates. Reconnects wall power but keeps macOS's
+    /// charge limit, so the limit holds until the helper runs again. Turning charge control off,
+    /// removing the helper and uninstalling restore the user's own macOS limit.
     func shutdown() {
-        restoreSystemDefaults()
-        if !isRemoved { log("stopped; wall power reconnected and macOS limit restored", source: .chargectl) }
+        timer?.invalidate()
+        if let adapter, (try? adapter.isConnected()) == false { try? adapter.set(connected: true) }
+        if appliedLED == .off { try? smc?.write(SMCKey.magSafeLED, bytes: [0]) }
+        if !isRemoved { log("stopped; wall power reconnected", source: .chargectl) }
     }
 
     /// Hands charging back to macOS and deletes every file the daemon wrote. The app then
