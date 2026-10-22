@@ -169,10 +169,13 @@ Readings come from the `AppleSmartBattery` registry entry and live SMC keys
 ### Homebrew
 
 ```sh
-brew install --cask tyldra-org/tools/chargectl   # install
-brew update && brew upgrade --cask chargectl     # update
-brew uninstall --zap --cask chargectl            # remove the app and its settings
+brew install --cask tyldra-org/tools/chargectl                  # install
+brew update && brew upgrade --cask tyldra-org/tools/chargectl   # update
+brew uninstall --zap --cask tyldra-org/tools/chargectl          # remove everything
 ```
+
+Use the full name `tyldra-org/tools/chargectl`: Homebrew only loads casks from
+other taps when you name them, or after `brew trust tyldra-org/tools`.
 
 ### Download
 
@@ -207,10 +210,17 @@ restarts into it. If `Chargectl.app` is deleted, the helper removes itself.
 ### Uninstall
 
 **Settings › Uninstall Chargectl** works for every install method and does the
-same as `uninstall.sh`: it reconnects
-wall power, restores your macOS charge limit and removes the helper, its data,
-the Login Items entries, preferences and caches. If the helper is not running, it
-asks for your password and does the same as an administrator.
+same as `uninstall.sh`. It reconnects wall power, restores your macOS charge
+limit, and removes:
+
+- the helper, its launchd job, data, caches and crash reports;
+- the Login Items entries, preferences, caches and saved state;
+- Chargectl's tile in the Dock, pinned or under recent apps;
+- Homebrew's record of the cask, its cached download, and the
+  `tyldra-org/tools` tap when nothing else from it is installed.
+
+If the helper is not running, it asks for your password and does the same as an
+administrator.
 
 ### Signing
 

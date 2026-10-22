@@ -364,18 +364,20 @@ final class AppModel {
         // Development builds outside /Applications are left alone; only installed copies go.
         let bundle = Bundle.main.bundleURL
         if bundle.path.hasPrefix("/Applications/") { try? FileManager.default.removeItem(at: bundle) }
-        if let brew = Self.homebrewInstall { Self.forgetHomebrewInstall(brew) }
+        Self.cleanUpAfterQuitting(brew: Self.homebrewInstall)
         exit(0)
     }
 
-    /// Homebrew's `brew`, when Homebrew installed Chargectl as the `chargectl` cask. Homebrew keeps
-    /// its own record of the install, and its next install or upgrade fails when the app it
-    /// recorded is gone.
+    /// Homebrew's `brew`, when Homebrew installed Chargectl as the `chargectl` cask or its tap is
+    /// still added. Homebrew keeps its own record of the install, a cached download and the tap,
+    /// and its next install or upgrade fails when the app it recorded is gone.
     private static var homebrewInstall: URL? {
         for prefix in ["/opt/homebrew", "/usr/local"] {
             let brew = URL(fileURLWithPath: "\(prefix)/bin/brew")
-            if FileManager.default.isExecutableFile(atPath: brew.path),
-                FileManager.default.fileExists(atPath: "\(prefix)/Caskroom/chargectl")
+            let files = FileManager.default
+            if files.isExecutableFile(atPath: brew.path),
+                files.fileExists(atPath: "\(prefix)/Caskroom/chargectl")
+                    || files.fileExists(atPath: "\(prefix)/Library/Taps/tyldra-org/homebrew-tools")
             {
                 return brew
             }
@@ -383,19 +385,11 @@ final class AppModel {
         return nil
     }
 
-    /// Drops Homebrew's record with `brew uninstall --cask --force chargectl` once Chargectl has quit:
-    /// the cask's uninstall step quits the app, so it cannot run while the app waits for it.
-    /// `--force` succeeds although the app is already deleted.
-    private static func forgetHomebrewInstall(_ brew: URL) {
+    /// Starts UninstallCleanup, which outlives the app: the Dock tile and Homebrew's record.
+    private static func cleanUpAfterQuitting(brew: URL?) {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/bin/sh")
-        process.arguments = [
-            "-c", "sleep 2; exec \"$0\" uninstall --cask --force chargectl", brew.path,
-        ]
-        var environment = ProcessInfo.processInfo.environment
-        environment["HOMEBREW_NO_AUTO_UPDATE"] = "1"
-        environment["HOMEBREW_NO_ENV_HINTS"] = "1"
-        process.environment = environment
+        process.arguments = ["-c", UninstallCleanup.script, "chargectl-cleanup", brew?.path ?? ""]
         process.standardOutput = FileHandle.nullDevice
         process.standardError = FileHandle.nullDevice
         try? process.run()

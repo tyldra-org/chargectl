@@ -208,6 +208,17 @@ final class ChargeController {
         }
     }
 
+    /// Crash reports macOS wrote for the helper, which only root can delete.
+    private static func removeCrashReports() {
+        let files = FileManager.default
+        for folder in ["/Library/Logs/DiagnosticReports", "/Library/Logs/DiagnosticReports/Retired"] {
+            for name in (try? files.contentsOfDirectory(atPath: folder)) ?? []
+            where name.hasPrefix("Chargectl") || name.hasPrefix("chargectld") {
+                try? files.removeItem(atPath: "\(folder)/\(name)")
+            }
+        }
+    }
+
     private static func ownExecutablePath() -> String {
         var buffer = [CChar](repeating: 0, count: Int(MAXPATHLEN) * 4)
         guard proc_pidpath(getpid(), &buffer, UInt32(buffer.count)) > 0 else { return CommandLine.arguments[0] }
@@ -330,6 +341,7 @@ final class ChargeController {
         isRemoved = true
         unloadIfInstalledByScript()
         DarwinDirectories.removeEntries(withPrefix: "com.tyldra.chargectl")
+        Self.removeCrashReports()
         do {
             try store.removeAll()
             return nil

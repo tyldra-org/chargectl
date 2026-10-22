@@ -24,13 +24,18 @@ if [[ -x "$helper" ]]; then
 fi
 sudo rm -f "/Library/LaunchDaemons/$label.plist"
 sudo rm -rf "/Library/Application Support/Chargectl"
+sudo sh -c 'rm -f /Library/Logs/DiagnosticReports/Chargectl* /Library/Logs/DiagnosticReports/Retired/Chargectl* /Library/Logs/DiagnosticReports/chargectld* /Library/Logs/DiagnosticReports/Retired/chargectld*'
 rm -rf "$app" "$HOME"/.Trash/Chargectl*.app
-# Homebrew keeps its own record of the cask; without the app, its next install or upgrade fails.
+# The Dock tile and what Homebrew keeps of the cask: the same script Uninstall runs, from
+# App/UninstallCleanup.swift, so the two cannot drift.
+brew=
 for prefix in /opt/homebrew /usr/local; do
-  if [[ -x "$prefix/bin/brew" && -d "$prefix/Caskroom/chargectl" ]]; then
-    HOMEBREW_NO_AUTO_UPDATE=1 "$prefix/bin/brew" uninstall --cask --force chargectl >/dev/null 2>&1 || true
+  if [[ -x "$prefix/bin/brew" && ( -d "$prefix/Caskroom/chargectl" || -d "$prefix/Library/Taps/tyldra-org/homebrew-tools" ) ]]; then
+    brew="$prefix/bin/brew"
   fi
 done
+cleanup=$(awk '/static let dock = """/{take=1; next} /static let homebrew = """/{take=1; next} take && /^        """/{take=0; next} take { sub(/^        /, ""); gsub(/\\\(bundleIdentifier\)/, "com.tyldra.chargectl"); gsub(/\\\(tap\)/, "tyldra-org/tools"); print }' "$(dirname "$0")/../App/UninstallCleanup.swift")
+sh -c "$cleanup" chargectl-cleanup "$brew" >/dev/null 2>&1 || true
 
 # Per-user cache and temp folders under /private/var/folders, for you and for the root service.
 user_dirs() { echo "$(getconf DARWIN_USER_CACHE_DIR)" "$(getconf DARWIN_USER_TEMP_DIR)"; }

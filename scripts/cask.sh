@@ -51,10 +51,13 @@ cask "chargectl" do
   zap trash: [
     "/Library/Application Support/Chargectl",
     "/Library/LaunchDaemons/com.tyldra.chargectl.daemon.plist",
+    "/Library/Logs/DiagnosticReports/Chargectl Service*",
+    "/Library/Logs/DiagnosticReports/Retired/Chargectl Service*",
     "~/Library/Application Support/com.tyldra.chargectl",
     "~/Library/Caches/com.tyldra.chargectl",
     "~/Library/HTTPStorages/com.tyldra.chargectl",
     "~/Library/HTTPStorages/com.tyldra.chargectl.binarycookies",
+    "~/Library/Logs/DiagnosticReports/Chargectl*",
     "~/Library/Preferences/com.tyldra.chargectl.plist",
     "~/Library/Saved Application State/com.tyldra.chargectl.savedState",
   ]
@@ -63,7 +66,7 @@ cask "chargectl" do
     Open Chargectl from Applications to install its helper and choose a limit.
     To hand charging back to macOS before removing it, use
     Settings > Uninstall Chargectl, or run:
-      brew uninstall --zap --cask chargectl
+      brew uninstall --zap --cask tyldra-org/tools/chargectl
   EOS
 end
 CASK

@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.6] - 2026-10-21
+
+Uninstall leaves nothing of Chargectl behind.
+
+### Fixed
+
+- **Dock tile.** Uninstall removes Chargectl from the Dock, whether pinned or
+  under recent apps, instead of leaving a question-mark icon. (#11)
+- **Homebrew leftovers.** Uninstall also removes the cached download and the
+  `tyldra-org/tools` tap when nothing else from it is installed, along with
+  Homebrew's record of the cask. (#11)
+- **Crash reports.** Uninstall, `scripts/uninstall.sh` and `brew uninstall
+  --zap` remove the crash reports macOS wrote for the helper. (#11)
+- **Homebrew commands.** Homebrew now loads casks from other taps only when they
+  are named in full, so the docs and the cask use `tyldra-org/tools/chargectl`.
+  (#11)
+
 ## [0.1.5] - 2026-10-21
 
 The helper keeps working across updates and restarts, and holds the charge
@@ -135,7 +152,8 @@ MacBooks, from the menu bar.
   hands charging back to macOS and removes every file Chargectl added.
 - **Homebrew.** `brew install --cask tyldra-org/tools/chargectl`.
 
-[Unreleased]: https://github.com/tyldra-org/chargectl/compare/v0.1.5...HEAD
+[Unreleased]: https://github.com/tyldra-org/chargectl/compare/v0.1.6...HEAD
+[0.1.6]: https://github.com/tyldra-org/chargectl/compare/v0.1.5...v0.1.6
 [0.1.5]: https://github.com/tyldra-org/chargectl/compare/v0.1.4...v0.1.5
 [0.1.4]: https://github.com/tyldra-org/chargectl/compare/v0.1.3...v0.1.4
 [0.1.3]: https://github.com/tyldra-org/chargectl/compare/v0.1.2...v0.1.3
