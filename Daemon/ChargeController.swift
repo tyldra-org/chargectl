@@ -49,6 +49,9 @@ final class ChargeController {
     private static let removalGrace: TimeInterval = 30
     /// When the app was last seen running; an update within reopenWindow of it reopens the app.
     private var appLastSeen: Date?
+    /// The last tick that saw this executable in place. App processes started before it run old
+    /// code; a later one is the new version, perhaps started by the app's own updater.
+    private var lastSeenUnchanged = Date.now
     private static let reopenWindow: TimeInterval = 120
     /// No settings were saved yet; the first limit is taken from macOS's own setting.
     private var isFirstRun: Bool
@@ -158,6 +161,7 @@ final class ChargeController {
         let date = Self.modificationDate(executablePath)
         guard date != launchedExecutableDate else {
             pendingExecutableChange = nil
+            lastSeenUnchanged = .now
             if !AppProcesses.running().isEmpty { appLastSeen = .now }
             return false
         }
@@ -196,11 +200,12 @@ final class ChargeController {
     /// signed-in user when the app was running shortly before the update: an installer such as
     /// Homebrew stops the app before it replaces it.
     private func reopenUpdatedApp() {
-        let running = AppProcesses.running()
+        let old = AppProcesses.running(startedBefore: lastSeenUnchanged)
         let wasRunning =
-            !running.isEmpty || appLastSeen.map { Date.now.timeIntervalSince($0) < Self.reopenWindow } == true
-        for pid in running { kill(pid, SIGTERM) }
-        guard wasRunning else { return }
+            !old.isEmpty || appLastSeen.map { Date.now.timeIntervalSince($0) < Self.reopenWindow } == true
+        for pid in old { kill(pid, SIGTERM) }
+        // The app's own updater may already have started the new version.
+        guard wasRunning, AppProcesses.running().allSatisfy(old.contains) else { return }
         let app = URL(fileURLWithPath: executablePath).deletingLastPathComponent()  // MacOS
             .deletingLastPathComponent().deletingLastPathComponent().path  // Contents, Chargectl.app
         if AppProcesses.openForConsoleUser(app) {
