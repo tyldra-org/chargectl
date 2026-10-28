@@ -370,6 +370,25 @@ import Testing
         #expect(pluggedIn.macOSLimit == 90)
     }
 
+    /// macOS has no 100% limit: asking for it switches the limit off, which is what Top Up,
+    /// Calibrate and a 100% limit need.
+    @Test func macOSLimitAtFullMeansOff() {
+        #expect(MacOSLimitTarget.isMet(by: false, at: 80, for: 100))
+        #expect(!MacOSLimitTarget.isMet(by: true, at: 80, for: 100))
+        #expect(!MacOSLimitTarget.isMet(by: true, at: 100, for: 100))
+        #expect(MacOSLimitTarget.isMet(by: true, at: 50, for: 50))
+        #expect(!MacOSLimitTarget.isMet(by: false, at: 50, for: 50))
+        #expect(!MacOSLimitTarget.isMet(by: true, at: 80, for: 50))
+    }
+
+    @Test func topUpAsksMacOSForFull() {
+        var settings = ChargeSettings.limit(50, sailing: 5)
+        settings.autoDischarge = false
+        let decision = plugged(44, charging: true, settings: settings, state: ControlState(mode: .topUp))
+        #expect(decision.macOSLimit == 100)
+        #expect(decision.activity == .toppingUp)
+    }
+
     @Test func autoDischargeIsOffByDefault() {
         #expect(!ChargeSettings().autoDischarge)
     }
