@@ -22,7 +22,7 @@ helper="$app/Contents/MacOS/Chargectl Service"
 if [[ -x "$helper" ]]; then
   sudo "$helper" --restore 2>/dev/null || true
 fi
-sudo rm -f "/Library/LaunchDaemons/$label.plist"
+sudo rm -f "/Library/LaunchDaemons/$label.plist" /private/etc/sudoers.d/chargectl
 sudo rm -rf "/Library/Application Support/Chargectl"
 sudo sh -c 'rm -f /Library/Logs/DiagnosticReports/Chargectl* /Library/Logs/DiagnosticReports/Retired/Chargectl* /Library/Logs/DiagnosticReports/chargectld* /Library/Logs/DiagnosticReports/Retired/chargectld*'
 rm -rf "$app" "$HOME"/.Trash/Chargectl*.app

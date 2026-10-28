@@ -56,6 +56,13 @@ and the expected version. Releases are signed ad hoc, so the signature proves th
 app is intact, not who built it; the checksum comes from the same GitHub
 release over HTTPS.
 
+While its launchd plist is installed, the helper keeps a sudoers rule in
+`/private/etc/sudoers.d/chargectl`, checked with `visudo` before it is moved in
+place. It lets members of `admin` run exactly `launchctl enable` for the
+helper's label and `launchctl bootstrap` for its root-owned plist without a
+password, so the app can start the helper after a macOS update has moved it
+aside. Removing the helper or uninstalling deletes the rule.
+
 It accepts XPC connections only from the Chargectl app. When the build is signed
 with a team, the app must carry the same team identifier. Ad-hoc builds can only
 require the identifier `com.tyldra.chargectl`, so any local process signed ad hoc

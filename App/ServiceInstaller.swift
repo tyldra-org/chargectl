@@ -95,6 +95,33 @@ struct ServiceInstaller {
         }
     }
 
+    /// Starts an installed helper whose launchd job is not loaded, through HelperStartRule. Blocks;
+    /// call off the main actor. Returns false when the job is loaded, there is no rule, or the user
+    /// is not an administrator.
+    nonisolated static func startWithoutPassword() -> Bool {
+        guard FileManager.default.fileExists(atPath: HelperStartRule.plistPath),
+            run("/bin/launchctl", ["print", "system/\(DaemonIdentity.machService)"]) != 0
+        else { return false }
+        _ = run("/usr/bin/sudo", ["-n"] + HelperStartRule.enable)
+        return run("/usr/bin/sudo", ["-n"] + HelperStartRule.bootstrap) == 0
+    }
+
+    nonisolated private static func run(_ tool: String, _ arguments: [String]) -> Int32 {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: tool)
+        process.arguments = arguments
+        process.standardOutput = FileHandle.nullDevice
+        process.standardError = FileHandle.nullDevice
+        process.standardInput = FileHandle.nullDevice
+        do {
+            try process.run()
+        } catch {
+            return -1
+        }
+        process.waitUntilExit()
+        return process.terminationStatus
+    }
+
     static func openLoginItems() {
         SMAppService.openSystemSettingsLoginItems()
     }
@@ -111,7 +138,7 @@ struct ServiceInstaller {
                 "/bin/launchctl bootout system/\(Self.label) 2>/dev/null",
                 // Reconnect wall power and restore the macOS charge limit before the files go.
                 "'\(helper)' --restore 2>/dev/null",
-                "/bin/rm -f \(Self.plistPath)",
+                "/bin/rm -f \(Self.plistPath) \(HelperStartRule.path)",
                 "/bin/rm -rf '\(Self.dataPath)'",
                 rootFolders,
                 "/bin/rm -f /Library/Logs/DiagnosticReports/Chargectl* /Library/Logs/DiagnosticReports/Retired/Chargectl* /Library/Logs/DiagnosticReports/chargectld* /Library/Logs/DiagnosticReports/Retired/chargectld*",

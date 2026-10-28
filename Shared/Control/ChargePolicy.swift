@@ -74,8 +74,12 @@ nonisolated enum ChargePolicy {
 
         if state.mode == .automatic, !settings.autoDischarge, input.percent > settings.limit, settings.limit < 100 {
             if let hold = state.holdLevel {
-                // Never raise the hold level: if the battery runs down on its own, it stays down.
-                state.holdLevel = min(hold, input.percent)
+                // The hold drops when the battery runs down on its own. With macOS's limit holding
+                // it, the hold also rises when the reading creeps up without charging, as it does
+                // after a restart: a macOS limit below the reading would discharge the battery.
+                // Charging past the hold is an overshoot, handled below.
+                let follows = input.canSetMacOSLimit && !input.isCharging
+                state.holdLevel = follows ? input.percent : min(hold, input.percent)
             } else if !state.wasPluggedIn || settingsChanged || !(input.isCharging || state.overchargeCut) {
                 // Above the limit with automatic discharge off, the charge is held where it is:
                 // after plugging in, after a settings change, after the helper starts, or when

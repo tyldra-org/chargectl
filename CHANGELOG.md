@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.10] - 2026-10-27
+
+The helper comes back by itself after a macOS update, and holding above the
+limit no longer discharges the battery.
+
+### Fixed
+
+- **"Install the helper" after a macOS update.** A macOS update moves
+  third-party files aside and puts them back after launchd has started the
+  system's daemons, so the helper's job was missing until the next restart. The
+  helper now keeps a narrow sudoers rule that lets the app start it again
+  without a password, and the app does so as soon as it sees the job missing.
+  Installs from 0.1.9 get the rule when the helper first runs 0.1.10. (#15)
+- **Discharging while holding above the limit.** After a restart the battery
+  gauge can read a percent higher than before. The hold stayed at the old
+  reading, so macOS's limit sat below the charge and discharged the battery at
+  over 20 W. With macOS's limit available, the hold now follows the reading
+  while the battery is not charging, and a starting helper forgets the old
+  hold. (#15)
+
 ## [0.1.9] - 2026-10-27
 
 Updates reopen Chargectl at once.
@@ -188,7 +208,8 @@ MacBooks, from the menu bar.
   hands charging back to macOS and removes every file Chargectl added.
 - **Homebrew.** `brew install --cask tyldra-org/tools/chargectl`.
 
-[Unreleased]: https://github.com/tyldra-org/chargectl/compare/v0.1.9...HEAD
+[Unreleased]: https://github.com/tyldra-org/chargectl/compare/v0.1.10...HEAD
+[0.1.10]: https://github.com/tyldra-org/chargectl/compare/v0.1.9...v0.1.10
 [0.1.9]: https://github.com/tyldra-org/chargectl/compare/v0.1.8...v0.1.9
 [0.1.8]: https://github.com/tyldra-org/chargectl/compare/v0.1.7...v0.1.8
 [0.1.7]: https://github.com/tyldra-org/chargectl/compare/v0.1.6...v0.1.7

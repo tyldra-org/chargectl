@@ -358,6 +358,24 @@ import Testing
         #expect(past.state.adapterEnabled)
     }
 
+    /// After a restart the gauge read 62% while the hold was 61%; macOS's limit at 61% discharged
+    /// the battery at 24 W. The hold follows the reading while the battery is not charging.
+    @Test func holdFollowsTheGaugeUpWhenNotCharging() {
+        var settings = ChargeSettings.limit(50, sailing: 5)
+        settings.autoDischarge = false
+        var held = ControlState(holdLevel: 61)
+        held.wasPluggedIn = true
+        held.lastLimit = 50
+        held.lastAutoDischarge = false
+        let drifted = plugged(62, charging: false, settings: settings, state: held)
+        #expect(drifted.state.holdLevel == 62)
+        #expect(drifted.macOSLimit == 62)
+        #expect(drifted.state.adapterEnabled)
+        let charging = plugged(63, charging: true, settings: settings, state: drifted.state)
+        #expect(charging.state.holdLevel == 62)
+        #expect(!charging.state.adapterEnabled)
+    }
+
     @Test func plugInAboveTheLimitStillHolds() {
         var settings = ChargeSettings.limit(80, sailing: 5)
         settings.autoDischarge = false
