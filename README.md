@@ -83,6 +83,7 @@ switch options and drag the white marker to change the limit.
 | **Time to the limit** | How long until the charge reaches your limit, the end of sailing or a discharge target, or empty on battery. |
 | **Energy by app** | The apps using significant energy, averaged over the last minute, with each app's helpers and commands counted for it. |
 | **History and logs** | 24 hours of charge, temperature and power, and a log of what the battery and Chargectl did. |
+| **Automatic updates** | New releases install themselves while Chargectl's windows are closed, checked against their checksum and code signature. On by default; Settings › Updates. |
 | **Clean removal** | Uninstall restores normal charging and your macOS limit, and removes every file Chargectl added. |
 
 ## Screenshots
@@ -174,7 +175,8 @@ brew update && brew upgrade --cask tyldra-org/tools/chargectl   # update
 brew uninstall --zap --cask tyldra-org/tools/chargectl          # remove everything
 ```
 
-Use the full name `tyldra-org/tools/chargectl`: Homebrew only loads casks from
+Chargectl updates itself, so `brew upgrade` without a name skips it. Use the
+full name `tyldra-org/tools/chargectl`: Homebrew only loads casks from
 other taps when you name them, or after `brew trust tyldra-org/tools`.
 
 ### Download

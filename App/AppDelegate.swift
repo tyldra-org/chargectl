@@ -67,9 +67,13 @@ enum Dashboard {
     /// Back to a menu bar–only app once no window of ours is open.
     static func didClose() {
         DispatchQueue.main.async {
-            let open = [WindowID.dashboard, WindowID.welcome].contains { window($0)?.isVisible == true }
-            if !open { NSApp.setActivationPolicy(.accessory) }
+            if !isShowingWindow { NSApp.setActivationPolicy(.accessory) }
         }
+    }
+
+    /// Whether the dashboard or the welcome window is on screen.
+    static var isShowingWindow: Bool {
+        [WindowID.dashboard, WindowID.welcome].contains { window($0)?.isVisible == true }
     }
 
     static func close() {

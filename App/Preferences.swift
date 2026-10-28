@@ -7,6 +7,8 @@ enum PreferenceKey {
     static let temperatureUnit = "temperatureUnit"
     static let appearance = "appearance"
     static let setupComplete = "setupComplete"
+    /// On unless turned off in Settings.
+    static let autoUpdate = "autoUpdate"
 }
 
 enum AppearanceMode: String, CaseIterable, Identifiable {

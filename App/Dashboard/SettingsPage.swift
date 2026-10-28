@@ -9,6 +9,8 @@ struct SettingsPage: View {
     @AppStorage(PreferenceKey.appearance) private var appearance = AppearanceMode.system
     @State private var opensAtLogin = SMAppService.mainApp.status == .enabled
     @State private var confirmingUninstall = false
+    @AppStorage(PreferenceKey.autoUpdate) private var autoUpdate = true
+    private let updater = Updater.shared
 
     var body: some View {
         Form {
@@ -59,7 +61,28 @@ struct SettingsPage: View {
             }
 
             Section {
+                Toggle("Update automatically", isOn: $autoUpdate)
                 LabeledContent("Version", value: DaemonIdentity.version)
+                LabeledContent("Status", value: updateStatus)
+                HStack {
+                    Button(updater.phase == .checking ? "Checking…" : "Check for Updates") {
+                        Task { await updater.check() }
+                    }
+                    if case .available(let version) = updater.phase {
+                        Button("Install \(version)") { Task { await updater.installAvailable() } }
+                            .buttonStyle(.borderedProminent)
+                    }
+                }
+                .disabled(updater.isBusy)
+            } header: {
+                Text("Updates")
+            } footer: {
+                Text(
+                    "Chargectl checks GitHub for a new release every few hours and, with automatic updates on, installs it while its windows are closed. Each download is checked against its published checksum and code signature."
+                )
+            }
+
+            Section {
                 Button("Uninstall Chargectl…", role: .destructive) { confirmingUninstall = true }
                     .tint(.red)
             } footer: {
@@ -80,6 +103,22 @@ struct SettingsPage: View {
         }
         .onChange(of: opensAtLogin) { _, enabled in setOpensAtLogin(enabled) }
         .onChange(of: appearance) { _, mode in mode.apply() }
+    }
+
+    private var updateStatus: String {
+        switch updater.phase {
+        case .idle: "Not checked yet"
+        case .checking: "Checking…"
+        case .upToDate:
+            if let date = updater.lastChecked {
+                "Up to date, checked \(date.formatted(.relative(presentation: .named)))"
+            } else {
+                "Up to date"
+            }
+        case .available(let version): "Version \(version) is available"
+        case .installing(let version): "Installing \(version)…"
+        case .failed(let reason): reason
+        }
     }
 
     private var serviceStatus: String {
