@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.9] - 2026-10-27
+
+Updates reopen Chargectl at once.
+
+### Fixed
+
+- **Slow reopen after an automatic update.** The updated app now starts right
+  away instead of after 30 seconds, and the helper no longer stops a copy that
+  started after the update. (#14)
+
 ## [0.1.8] - 2026-10-27
 
 Chargectl keeps itself up to date.
@@ -178,7 +188,8 @@ MacBooks, from the menu bar.
   hands charging back to macOS and removes every file Chargectl added.
 - **Homebrew.** `brew install --cask tyldra-org/tools/chargectl`.
 
-[Unreleased]: https://github.com/tyldra-org/chargectl/compare/v0.1.8...HEAD
+[Unreleased]: https://github.com/tyldra-org/chargectl/compare/v0.1.9...HEAD
+[0.1.9]: https://github.com/tyldra-org/chargectl/compare/v0.1.8...v0.1.9
 [0.1.8]: https://github.com/tyldra-org/chargectl/compare/v0.1.7...v0.1.8
 [0.1.7]: https://github.com/tyldra-org/chargectl/compare/v0.1.6...v0.1.7
 [0.1.6]: https://github.com/tyldra-org/chargectl/compare/v0.1.5...v0.1.6

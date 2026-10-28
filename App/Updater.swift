@@ -24,8 +24,6 @@ final class Updater {
 
     private(set) var phase = Phase.idle
     private(set) var lastChecked: Date?
-    /// Set by AppModel: whether the helper is running, so it can reopen the app after an update.
-    @ObservationIgnored var helperIsRunning: () -> Bool = { false }
     @ObservationIgnored private var release: AppRelease?
     @ObservationIgnored private var loop: Task<Void, Never>?
 
@@ -93,10 +91,8 @@ final class Updater {
             phase = .failed("The update to \(release.version) failed: \(error.localizedDescription)")
             return
         }
-        // The helper stops this copy and opens the new one within seconds; without a helper, or
-        // if it does not, the app reopens itself.
-        let delay: Duration = helperIsRunning() ? .seconds(30) : .zero
-        try? await Task.sleep(for: delay)
+        // The new copy starts right away; the helper then restarts into its own new version and
+        // leaves an app started after the update alone.
         Self.relaunch(app)
     }
 

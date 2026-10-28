@@ -73,7 +73,6 @@ final class AppModel {
                 try? await Task.sleep(for: Self.refreshInterval)
             }
         }
-        Updater.shared.helperIsRunning = { [weak self] in self?.service == .running }
         Updater.shared.start()
     }
 

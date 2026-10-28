@@ -5,7 +5,8 @@ import Foundation
 enum AppProcesses {
     /// PIDs of every running copy of the app, wherever its bundle is now: an installer may have
     /// moved the old bundle aside while it still runs.
-    static func running() -> [pid_t] {
+    /// - Parameter date: only processes started before it, when given.
+    static func running(startedBefore date: Date? = nil) -> [pid_t] {
         let count = proc_listallpids(nil, 0)
         guard count > 0 else { return [] }
         var pids = [pid_t](repeating: 0, count: Int(count) + 64)
@@ -16,8 +17,17 @@ enum AppProcesses {
             guard pid > 0, proc_name(pid, &name, UInt32(name.count)) > 0, String(cString: name) == "Chargectl",
                 proc_pidpath(pid, &path, UInt32(path.count)) > 0
             else { return false }
-            return String(cString: path).hasSuffix(".app/Contents/MacOS/Chargectl")
+            guard String(cString: path).hasSuffix(".app/Contents/MacOS/Chargectl") else { return false }
+            guard let date else { return true }
+            return startDate(of: pid).map { $0 < date } ?? true
         }
+    }
+
+    private static func startDate(of pid: pid_t) -> Date? {
+        var info = proc_bsdinfo()
+        let size = Int32(MemoryLayout<proc_bsdinfo>.size)
+        guard proc_pidinfo(pid, PROC_PIDTBSDINFO, 0, &info, size) == size else { return nil }
+        return Date(timeIntervalSince1970: Double(info.pbi_start_tvsec) + Double(info.pbi_start_tvusec) / 1_000_000)
     }
 
     /// Opens the app in the background for whoever is signed in at the screen. Returns false at
