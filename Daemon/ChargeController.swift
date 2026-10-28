@@ -249,8 +249,10 @@ final class ChargeController {
     private func adoptMacOSLimitChangedInSettings() {
         // A limit macOS switched off itself (its occasional charge to 100%, "Charge to Full
         // Now") is not a new choice; Chargectl turns it back on.
-        guard settings.isEnabled, let applied = appliedMacOSLimit, let current = try? macOSLimit?.current(),
-            current.isEnabled, current != applied
+        // During Top Up, Discharge and Calibrate, Chargectl sets macOS's limit for the job; a change
+        // then is its own doing, not the user's.
+        guard settings.isEnabled, state.mode == .automatic, let applied = appliedMacOSLimit,
+            let current = try? macOSLimit?.current(), current.isEnabled, current != applied
         else { return }
         appliedMacOSLimit = current
         let limit = current.limit
@@ -416,13 +418,12 @@ final class ChargeController {
                 savedMacOSLimit = current
                 save(current, to: .macOSLimit)
             }
-            let target = MacOSChargeLimit.Setting(isEnabled: true, limit: limit)
-            guard current != target else {
-                appliedMacOSLimit = target
+            guard !MacOSLimitTarget.isMet(by: current.isEnabled, at: current.limit, for: limit) else {
+                appliedMacOSLimit = current
                 return
             }
             try macOSLimit.set(limit: limit)
-            appliedMacOSLimit = target
+            appliedMacOSLimit = try macOSLimit.current()
         } catch {
             // Whatever macOS kept is Chargectl's doing, not a change made in System Settings.
             appliedMacOSLimit = try? macOSLimit.current()

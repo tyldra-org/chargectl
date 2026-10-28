@@ -97,6 +97,11 @@ nonisolated final class MacOSChargeLimit: @unchecked Sendable {
     }
 
     func set(limit: Int) throws {
+        if limit >= ChargePolicy.macOSLimitRange.upperBound {
+            // Charging to 100% is macOS's limit switched off; see MacOSLimitTarget.
+            if try current().isEnabled { try call("disableMCL:") }
+            return
+        }
         guard limit < ChargePolicy.macOSLimitAPIFloor else { return try setThroughAPI(limit) }
         // Make an allowed 80% request so PowerUIAgent owns an enabled limit, then
         // write the lower value into its preferences and have it reload them.

@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.7] - 2026-10-27
+
+Top Up and Calibrate charge to 100% again and leave your limit alone.
+
+### Fixed
+
+- **Top Up stopped at 80% and changed the limit.** macOS has no 100% charge
+  limit: asking for 100% switches its limit off. Chargectl saw the limit off,
+  switched it back on, macOS restored its 80% default, and Chargectl took that
+  as a limit you had chosen in System Settings. Charging to 100% (Top Up,
+  Calibrate, or a 100% limit) now switches macOS's limit off, and changes made
+  while a job runs are no longer taken as yours. (#12)
+
 ## [0.1.6] - 2026-10-21
 
 Uninstall leaves nothing of Chargectl behind.
@@ -152,7 +165,8 @@ MacBooks, from the menu bar.
   hands charging back to macOS and removes every file Chargectl added.
 - **Homebrew.** `brew install --cask tyldra-org/tools/chargectl`.
 
-[Unreleased]: https://github.com/tyldra-org/chargectl/compare/v0.1.6...HEAD
+[Unreleased]: https://github.com/tyldra-org/chargectl/compare/v0.1.7...HEAD
+[0.1.7]: https://github.com/tyldra-org/chargectl/compare/v0.1.6...v0.1.7
 [0.1.6]: https://github.com/tyldra-org/chargectl/compare/v0.1.5...v0.1.6
 [0.1.5]: https://github.com/tyldra-org/chargectl/compare/v0.1.4...v0.1.5
 [0.1.4]: https://github.com/tyldra-org/chargectl/compare/v0.1.3...v0.1.4
