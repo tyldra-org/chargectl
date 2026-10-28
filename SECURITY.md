@@ -49,6 +49,13 @@ a team; either way launchd runs it as root. It can:
 - keep the Mac awake with a power assertion;
 - read and write its own files in `/Library/Application Support/Chargectl`.
 
+The app checks `api.github.com` for new releases every few hours. Before
+installing one, it checks the zip against the release's SHA-256 file, verifies
+its code signature, and requires the bundle identifier `com.tyldra.chargectl`
+and the expected version. Releases are signed ad hoc, so the signature proves the
+app is intact, not who built it; the checksum comes from the same GitHub
+release over HTTPS.
+
 It accepts XPC connections only from the Chargectl app. When the build is signed
 with a team, the app must carry the same team identifier. Ad-hoc builds can only
 require the identifier `com.tyldra.chargectl`, so any local process signed ad hoc

@@ -30,6 +30,8 @@ cask "chargectl" do
     strategy :github_latest
   end
 
+  # Chargectl updates itself from GitHub releases (Settings › Updates).
+  auto_updates true
   depends_on arch: :arm64
   depends_on macos: :golden_gate
 

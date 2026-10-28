@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.8] - 2026-10-27
+
+Chargectl keeps itself up to date.
+
+### Added
+
+- **Automatic updates.** Chargectl checks GitHub for a new release a minute
+  after it starts and every six hours, and installs it while its windows are
+  closed. The helper restarts into the new version and reopens the app. Each
+  download is checked against its published SHA-256 and code signature. On by
+  default; turn it off, check now or install a waiting version in Settings ›
+  Updates. The Homebrew cask is marked as updating itself. (#13)
+
 ## [0.1.7] - 2026-10-27
 
 Top Up and Calibrate charge to 100% again and leave your limit alone.
@@ -165,7 +178,8 @@ MacBooks, from the menu bar.
   hands charging back to macOS and removes every file Chargectl added.
 - **Homebrew.** `brew install --cask tyldra-org/tools/chargectl`.
 
-[Unreleased]: https://github.com/tyldra-org/chargectl/compare/v0.1.7...HEAD
+[Unreleased]: https://github.com/tyldra-org/chargectl/compare/v0.1.8...HEAD
+[0.1.8]: https://github.com/tyldra-org/chargectl/compare/v0.1.7...v0.1.8
 [0.1.7]: https://github.com/tyldra-org/chargectl/compare/v0.1.6...v0.1.7
 [0.1.6]: https://github.com/tyldra-org/chargectl/compare/v0.1.5...v0.1.6
 [0.1.5]: https://github.com/tyldra-org/chargectl/compare/v0.1.4...v0.1.5
