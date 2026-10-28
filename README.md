@@ -215,7 +215,7 @@ restarts into it. If `Chargectl.app` is deleted, the helper removes itself.
 same as `uninstall.sh`. It reconnects wall power, restores your macOS charge
 limit, and removes:
 
-- the helper, its launchd job, data, caches and crash reports;
+- the helper, its launchd job, its sudoers rule, data, caches and crash reports;
 - the Login Items entries, preferences, caches and saved state;
 - Chargectl's tile in the Dock, pinned or under recent apps;
 - Homebrew's record of the cask, its cached download, and the

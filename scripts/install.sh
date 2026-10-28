@@ -32,6 +32,8 @@ echo "Building Chargectl ($configuration)…"
 "$CHARGECTL_ROOT/scripts/build.sh" "$configuration"
 built="$CHARGECTL_DERIVED_DATA/Build/Products/$configuration/Chargectl.app"
 
+was_running=0
+pgrep -x Chargectl >/dev/null && was_running=1
 pkill -x Chargectl 2>/dev/null || true
 rm -rf "$app"
 ditto "$built" "$app"
@@ -42,9 +44,11 @@ for product in "$CHARGECTL_DERIVED_DATA"/Build/Products/*/Chargectl.app; do
   "$lsregister" -u "$product" 2>/dev/null || true
 done
 "$lsregister" -f "$app"
+# The helper reopens the app only when its own executable changed.
+if [[ "$was_running" == 1 ]]; then open -g "$app"; fi
 
-echo "Chargectl $configuration installed. An installed helper restarts into the new version and"
-echo "reopens Chargectl if it was running; otherwise open it from Applications."
+echo "Chargectl $configuration installed. An installed helper restarts into the new version;"
+echo "open Chargectl from Applications if it was not running."
 echo "Remove everything with ./scripts/uninstall.sh or Settings > Uninstall Chargectl."
 if [[ "$follow_logs" == 1 ]]; then
   exec /usr/bin/log stream --info --style compact --predicate 'subsystem == "com.tyldra.chargectl"'

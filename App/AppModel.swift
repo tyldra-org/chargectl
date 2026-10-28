@@ -287,17 +287,41 @@ final class AppModel {
     private(set) var isInstallingService = false
     @ObservationIgnored private var unreachableSince: Date?
     @ObservationIgnored private var didRepairHelper = false
+    @ObservationIgnored private var isStartingHelper = false
+    @ObservationIgnored private var lastStartAttempt: Date?
+    private static let startRetryInterval: TimeInterval = 30
 
     /// With SMAppService, an update or a stale registration can leave the helper registered but not
     /// running, or running an old build. Registering it again fixes that without a password, so it
     /// happens by itself, once per launch. A plist-installed helper restarts into updates itself.
+    ///
+    /// A plist-installed helper whose job is not loaded, which happens on the first start after a
+    /// macOS update, is started again through HelperStartRule, without a password.
     private func repairHelperIfNeeded() {
-        guard ServiceInstaller.method == .appService, !didRepairHelper, !isInstallingService else { return }
-        let stopped = unreachableSince.map { Date.now.timeIntervalSince($0) > Self.helperStartGrace } ?? false
-        let outdated = versionMismatchSince.map { Date.now.timeIntervalSince($0) > Self.helperStartGrace } ?? false
-        guard installer.registration == .enabled, stopped || outdated else { return }
-        didRepairHelper = true
-        installService()
+        guard !isInstallingService, installer.registration == .enabled else { return }
+        switch ServiceInstaller.method {
+        case .launchdPlist:
+            guard unreachableSince != nil, !isStartingHelper,
+                lastStartAttempt.map({ Date.now.timeIntervalSince($0) > Self.startRetryInterval }) ?? true
+            else { return }
+            isStartingHelper = true
+            lastStartAttempt = .now
+            Task {
+                let started = await Task.detached { ServiceInstaller.startWithoutPassword() }.value
+                isStartingHelper = false
+                if started {
+                    unreachableSince = .now
+                    try? await Task.sleep(for: .seconds(2))
+                    await refresh()
+                }
+            }
+        case .appService:
+            let stopped = unreachableSince.map { Date.now.timeIntervalSince($0) > Self.helperStartGrace } ?? false
+            let outdated = versionMismatchSince.map { Date.now.timeIntervalSince($0) > Self.helperStartGrace } ?? false
+            guard !didRepairHelper, stopped || outdated else { return }
+            didRepairHelper = true
+            installService()
+        }
     }
 
     func installService() {

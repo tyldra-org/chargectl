@@ -71,6 +71,7 @@ final class ChargeController {
         // A starting helper cannot know whether the charger was connected meanwhile; above the
         // limit with automatic discharge off, it holds the charge as if just plugged in.
         state.wasPluggedIn = false
+        state.holdLevel = nil
         history = store.load([HistorySample].self, from: .history) ?? []
         logs = store.load([LogEntry].self, from: .logs) ?? []
         savedMacOSLimit = store.load(MacOSChargeLimit.Setting.self, from: .macOSLimit)
@@ -113,6 +114,7 @@ final class ChargeController {
             )
         }
         adoptMacOSLimitOnFirstRun()
+        installStartRule()
         isReady = true
         tick()
     }
@@ -210,6 +212,44 @@ final class ChargeController {
             .deletingLastPathComponent().deletingLastPathComponent().path  // Contents, Chargectl.app
         if AppProcesses.openForConsoleUser(app) {
             log("reopened Chargectl after the update", source: .chargectl)
+        }
+    }
+
+    /// Writes HelperStartRule while the helper runs from a launchd plist, so the app can start it
+    /// again after a macOS update without asking for a password. visudo checks the file before it
+    /// is moved into place; a broken sudoers file would lock the administrator out of sudo.
+    private func installStartRule() {
+        let files = FileManager.default
+        guard getuid() == 0, files.fileExists(atPath: HelperStartRule.plistPath) else { return }
+        let contents = Data(HelperStartRule.contents.utf8)
+        if files.contents(atPath: HelperStartRule.path) == contents { return }
+        let folder = (HelperStartRule.path as NSString).deletingLastPathComponent
+        let staging = "\(folder)/.chargectl.tmp"
+        do {
+            if !files.fileExists(atPath: folder) {
+                try files.createDirectory(
+                    atPath: folder, withIntermediateDirectories: false, attributes: [.posixPermissions: 0o755])
+            }
+            try contents.write(to: URL(fileURLWithPath: staging))
+            try files.setAttributes(
+                [.posixPermissions: 0o440, .ownerAccountID: 0, .groupOwnerAccountID: 0], ofItemAtPath: staging)
+            let visudo = Process()
+            visudo.executableURL = URL(fileURLWithPath: "/usr/sbin/visudo")
+            visudo.arguments = ["-c", "-q", "-f", staging]
+            visudo.standardOutput = FileHandle.nullDevice
+            visudo.standardError = FileHandle.nullDevice
+            try visudo.run()
+            visudo.waitUntilExit()
+            guard visudo.terminationStatus == 0 else {
+                try? files.removeItem(atPath: staging)
+                report("the start rule did not pass visudo; not installed")
+                return
+            }
+            guard rename(staging, HelperStartRule.path) == 0 else { throw POSIXError(.EIO) }
+            log("the app can now start the helper without a password", source: .chargectl)
+        } catch {
+            try? files.removeItem(atPath: staging)
+            report("could not write \(HelperStartRule.path): \(error.localizedDescription)")
         }
     }
 
@@ -370,7 +410,8 @@ final class ChargeController {
     /// SMAppService. Only root can undo that, so the daemon deletes the plist and unloads itself.
     /// SMAppService registrations are left to the app, which unregisters them.
     private func unloadIfInstalledByScript() {
-        let plist = "/Library/LaunchDaemons/\(DaemonIdentity.machService).plist"
+        try? FileManager.default.removeItem(atPath: HelperStartRule.path)
+        let plist = HelperStartRule.plistPath
         guard FileManager.default.fileExists(atPath: plist) else { return }
         do {
             try FileManager.default.removeItem(atPath: plist)

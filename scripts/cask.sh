@@ -55,6 +55,7 @@ cask "chargectl" do
     "/Library/LaunchDaemons/com.tyldra.chargectl.daemon.plist",
     "/Library/Logs/DiagnosticReports/Chargectl Service*",
     "/Library/Logs/DiagnosticReports/Retired/Chargectl Service*",
+    "/private/etc/sudoers.d/chargectl",
     "~/Library/Application Support/com.tyldra.chargectl",
     "~/Library/Caches/com.tyldra.chargectl",
     "~/Library/HTTPStorages/com.tyldra.chargectl",
