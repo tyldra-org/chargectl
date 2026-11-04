@@ -28,6 +28,22 @@ cd chargectl
 `./scripts/install.sh` installs your build with its root service, so you can
 try it on your own Mac. `./scripts/uninstall.sh` removes it again.
 
+### Signing
+
+`install.sh` signs with a Developer ID or Apple Development certificate when one
+is in your keychain (see [`scripts/signing.sh`](scripts/signing.sh)); otherwise
+the build is signed ad hoc, as releases are.
+
+- **Ad hoc:** Install Helper writes a launchd job to `/Library/LaunchDaemons`
+  with your administrator password. macOS ties a background item's approval to
+  an ad-hoc build, so the Login Items route would stop the helper after every
+  update; a launchd job keeps working. Login Items lists it as "Chargectl
+  Service".
+- **With a team:** Install Helper registers the helper with SMAppService. It is
+  listed under Chargectl in Login Items, you turn it on once, and the approval
+  carries over to updates. The helper only accepts the Chargectl app signed by
+  the same team.
+
 ## Make a change
 
 1. Fork the repository and create a branch from `main`.

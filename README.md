@@ -13,7 +13,6 @@
   <a href="LICENSE"><img alt="License: Apache-2.0" src="https://img.shields.io/badge/license-Apache--2.0-blue.svg"></a>
   <img alt="macOS 27" src="https://img.shields.io/badge/macOS-27-black.svg?logo=apple">
   <img alt="Apple silicon" src="https://img.shields.io/badge/Apple%20silicon-arm64-black.svg">
-  <img alt="Swift" src="https://img.shields.io/badge/Swift-SwiftUI-F05138.svg?logo=swift&logoColor=white">
 </p>
 
 <p align="center">
@@ -208,6 +207,8 @@ cd chargectl
 
 Run `install.sh` again after pulling changes. The helper notices the new app and
 restarts into it. If `Chargectl.app` is deleted, the helper removes itself.
+How local builds are signed, and what that changes for the helper, is in
+[CONTRIBUTING.md](CONTRIBUTING.md#signing).
 
 ### Uninstall
 
@@ -223,22 +224,6 @@ limit, and removes:
 
 If the helper is not running, it asks for your password and does the same as an
 administrator.
-
-### Signing
-
-`install.sh` signs with a Developer ID or Apple Development certificate when one
-is in your keychain (see [`scripts/signing.sh`](scripts/signing.sh)); otherwise
-the build is signed ad hoc, as releases are.
-
-- **Ad hoc:** Install Helper writes a launchd job to `/Library/LaunchDaemons`
-  with your administrator password. macOS ties a background item's approval to
-  an ad-hoc build, so the Login Items route would stop the helper after every
-  update; a launchd job keeps working. Login Items lists it as "Chargectl
-  Service".
-- **With a team:** Install Helper registers the helper with SMAppService. It is
-  listed under Chargectl in Login Items, you turn it on once, and the approval
-  carries over to updates. The helper only accepts the Chargectl app signed by
-  the same team.
 
 ## Limitations
 
