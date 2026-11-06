@@ -165,5 +165,5 @@ jobs:
           if [[ -z "$url" ]]; then
             url=$(gh pr create --base main --head "$branch" --title "$title" --body-file "$RUNNER_TEMP/body.md")
           fi
-          gh pr merge "$url" --auto --rebase
+          gh pr merge "$url" --auto --squash
           echo "Pull request: $url"
