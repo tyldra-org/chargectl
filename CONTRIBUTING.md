@@ -84,6 +84,21 @@ the build is signed ad hoc, as releases are.
 Changes to how charging is controlled must also be tried on a real MacBook.
 Say in the pull request which Mac and macOS version you used and what you saw.
 
+### Screenshots
+
+The README's pictures come from a Debug build with sample data, so they need no
+helper. Update them when the app's look changes:
+
+- **Pages and setup:** `./scripts/build.sh Debug`, then
+  `./scripts/screenshots.sh`. It writes every dashboard page and the first
+  setup step, in dark and light, to `docs/assets/screenshots`. Windows open on
+  your sharpest screen, so use a Retina display.
+- **Widgets:** `"$TMPDIR/Chargectl-DerivedData/Build/Products/Debug/Chargectl.app/Contents/MacOS/Chargectl" --render-design <folder> --only readme-widgets`,
+  then copy `readme-widgets-dark.png` and `readme-widgets-light.png` to
+  `docs/assets/screenshots/widgets-dark.png` and `widgets-light.png`.
+- **Menu bar panel:** run the Debug build with `--demo`, open the panel, press
+  ⌘⇧4 then Space, and click the panel. Save it as `menu-bar.png`.
+
 ## Commit messages and pull request titles
 
 This project uses [Conventional Commits](https://www.conventionalcommits.org/).

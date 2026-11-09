@@ -19,6 +19,7 @@
   <a href="#quickstart">Quickstart</a> ·
   <a href="#features">Features</a> ·
   <a href="#screenshots">Screenshots</a> ·
+  <a href="#widgets">Widgets</a> ·
   <a href="#how-it-works">How it works</a> ·
   <a href="#install-and-uninstall">Install</a> ·
   <a href="CONTRIBUTING.md">Contributing</a> ·
@@ -26,7 +27,10 @@
 </p>
 
 <p align="center">
-  <img alt="Chargectl's Overview page: the charge and limit, live power flow, the charger, battery health and the charge control state" src="docs/assets/screenshots/overview.png" width="880">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/screenshots/overview-dark.png">
+    <img alt="Chargectl's Overview page: the charge against the limit, power flowing from the charger to the Mac and the battery, battery health, the charge over the last 6 hours and recent activity" src="docs/assets/screenshots/overview-light.png" width="880">
+  </picture>
 </p>
 
 ---
@@ -92,40 +96,87 @@ switch options and drag the white marker to change the limit.
 
 ## Screenshots
 
-<table>
-  <tr>
-    <td align="center" valign="top">
-      <img alt="Menu bar panel with the charge, live power and quick switches" src="docs/assets/screenshots/menu-bar.png" width="280"><br>
-      <b>Menu bar</b><br>
-      <sub>Charge, live power and quick switches. Drag the white marker to change the limit.</sub>
-    </td>
-    <td align="center" valign="top">
-      <img alt="Control page with the charge limit slider, sailing range, heat and sleep options" src="docs/assets/screenshots/control.png" width="472"><br>
-      <b>Control</b><br>
-      <sub>Limit, sailing range, what happens above the limit, heat and sleep.</sub>
-    </td>
-  </tr>
-</table>
+Every page comes in light and dark; GitHub shows the one that matches your theme.
 
 <table>
   <tr>
     <td align="center" valign="top">
-      <img alt="History page with charge, temperature and power charts" src="docs/assets/screenshots/history.png" width="240"><br>
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="docs/assets/screenshots/control-dark.png">
+        <img alt="Control page: the charge limit on a slider with the sailing range, Full by, charge control, heat and the MagSafe light" src="docs/assets/screenshots/control-light.png" width="420">
+      </picture><br>
+      <b>Control</b><br>
+      <sub>The limit on a slider with the sailing range drawn in, Full by, heat and the MagSafe light.</sub>
+    </td>
+    <td align="center" valign="top">
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="docs/assets/screenshots/history-dark.png">
+        <img alt="History page: totals for the range, the charge chart, temperature, power and battery health over time" src="docs/assets/screenshots/history-light.png" width="420">
+      </picture><br>
       <b>History</b><br>
-      <sub>Charge, temperature and power for up to 24 hours.</sub>
+      <sub>Totals for the range, charge, temperature and power under one crosshair, and health over months.</sub>
     </td>
+  </tr>
+  <tr>
     <td align="center" valign="top">
-      <img alt="Logs page listing battery and Chargectl events" src="docs/assets/screenshots/logs.png" width="240"><br>
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="docs/assets/screenshots/logs-dark.png">
+        <img alt="Logs page: events grouped by day, with filters for battery, Chargectl and warnings, search and Copy" src="docs/assets/screenshots/logs-light.png" width="420">
+      </picture><br>
       <b>Logs</b><br>
-      <sub>Every battery change and every Chargectl action, filterable.</sub>
+      <sub>Every battery change and Chargectl action, by day, with filters, search (⌘F) and Copy.</sub>
     </td>
     <td align="center" valign="top">
-      <img alt="Settings page with menu bar, appearance, units and helper options" src="docs/assets/screenshots/settings.png" width="240"><br>
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="docs/assets/screenshots/settings-dark.png">
+        <img alt="Settings page: menu bar, appearance, notifications, the helper and updates" src="docs/assets/screenshots/settings-light.png" width="420">
+      </picture><br>
       <b>Settings</b><br>
-      <sub>Menu bar, appearance, units, the helper and uninstall.</sub>
+      <sub>Menu bar, appearance, notifications, the helper and automatic updates.</sub>
+    </td>
+  </tr>
+  <tr>
+    <td align="center" valign="top">
+      <img alt="Menu bar panel: the charge, the limit, health and live power, quick switches and jobs" src="docs/assets/screenshots/menu-bar.png" width="300"><br>
+      <b>Menu bar</b><br>
+      <sub>Charge, live power, quick switches and jobs. Drag the marker to change the limit.</sub>
+    </td>
+    <td align="center" valign="top">
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="docs/assets/screenshots/setup-dark.png">
+        <img alt="Setup window, first step: Welcome to Chargectl" src="docs/assets/screenshots/setup-light.png" width="380">
+      </picture><br>
+      <b>Setup</b><br>
+      <sub>Four short steps: welcome, install the helper, choose a limit, done.</sub>
     </td>
   </tr>
 </table>
+
+## Widgets
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/screenshots/widgets-dark.png">
+    <img alt="Chargectl widgets on the desktop: Charge in large and medium, Controls, Full by, Ring, Power, Health, Time left and Today" src="docs/assets/screenshots/widgets-light.png" width="880">
+  </picture>
+</p>
+
+Right-click the desktop, choose **Edit Widgets** and search for Chargectl. Each
+widget answers one question, and clicking one opens the matching page.
+
+| Widget | Sizes | Shows |
+| --- | --- | --- |
+| Charge | Small to Extra Large Portrait | The charge against your limit; larger sizes add the last hours, live power, and Top Up and Discharge |
+| Ring | Small | The charge as a ring that closes at your limit |
+| Power | Small, Medium | Watts from the charger, to the Mac and into the battery |
+| Health | Small, Medium | Battery health and cycles, and how health changed over months |
+| Today | Small, Medium | Time at 90% or more and on the charger, the lowest charge and the warmest moment |
+| Full by | Small, Medium | The next full charge and its days, with Skip and Change |
+| Controls | Small, Medium | The limit in 5% steps, Top Up and Discharge; Medium adds the charge control switch |
+| Time left | Small, Medium | How long until the limit, full or empty |
+
+Control Center has controls for charge control, Top Up, Discharge and Full by.
+Add them in Control Center › Edit Controls; each can also sit in the menu bar.
 
 ## How it works
 

@@ -104,6 +104,10 @@
                     AnyView(MenuContent(model: Sample.model(service: .notInstalled)))
                 })
             shots.append(Shot(name: "menu-bar-icons", size: CGSize(width: 520, height: 300)) { AnyView(IconSheet()) })
+            shots.append(
+                Shot(name: "readme-widgets", size: WidgetSheet.collageSize) {
+                    AnyView(WidgetSheet(entry: .sample(.charging), kinds: true, collage: true))
+                })
             for sample in BatteryEntry.Sample.allCases {
                 shots.append(
                     Shot(name: "widgets-charge-\(sample.rawValue)", size: CGSize(width: 1240, height: 860)) {
@@ -126,8 +130,13 @@
             ]
             for (name, step, service) in setup {
                 shots.append(
-                    Shot(name: name, size: WelcomeView.size) {
-                        AnyView(WelcomeView(model: Sample.model(service: service), initialStep: step))
+                    Shot(name: name, size: CGSize(width: WelcomeView.size.width, height: WelcomeView.size.height + 32))
+                    {
+                        // Below the real window's 32-point title bar, as in the app.
+                        AnyView(
+                            WelcomeView(model: Sample.model(service: service), initialStep: step)
+                                .padding(.top, 32)
+                                .background(Theme.window))
                     })
             }
             return shots
@@ -137,9 +146,9 @@
             let isPanel = shot.name.hasPrefix("panel")
             let window = NSWindow(
                 contentRect: NSRect(origin: CGPoint(x: -20000, y: -20000), size: shot.size),
-                styleMask: [.titled, .fullSizeContentView], backing: .buffered, defer: false)
-            window.titlebarAppearsTransparent = true
-            window.titleVisibility = .hidden
+                // No title bar, so the content is exactly the shot's size; the welcome shots add
+                // the title bar's space themselves.
+                styleMask: [.borderless], backing: .buffered, defer: false)
             window.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
             let root = shot.view()
                 .frame(width: shot.size.width, height: isPanel ? nil : shot.size.height, alignment: .top)
@@ -163,7 +172,14 @@
             RunLoop.main.run(until: Date.now.addingTimeInterval(shot.name.hasPrefix("welcome") ? 2.6 : 1.6))
             guard let view = window.contentView else { return }
             let bounds = view.bounds
-            guard let bitmap = view.bitmapImageRepForCachingDisplay(in: bounds) else { return }
+            // 2x whatever screen the window would be on, so the files are sharp on Retina displays.
+            guard
+                let bitmap = NSBitmapImageRep(
+                    bitmapDataPlanes: nil, pixelsWide: Int(bounds.width * 2), pixelsHigh: Int(bounds.height * 2),
+                    bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB,
+                    bytesPerRow: 0, bitsPerPixel: 0)
+            else { return }
+            bitmap.size = bounds.size
             view.cacheDisplay(in: bounds, to: bitmap)
             if let data = bitmap.representation(using: .png, properties: [:]) { try? data.write(to: file) }
             window.orderOut(nil)
@@ -175,7 +191,15 @@
         let entry: BatteryEntry
         let kinds: Bool
         var portrait = false
+        /// The README's picture: one of each kind, in the sizes that suit it.
+        var collage = false
         @Environment(\.colorScheme) private var scheme
+
+        /// macOS's desktop grid: a medium widget is two small ones and 24 points across, a large
+        /// one two small ones and 42 points down.
+        private static let across: CGFloat = 24
+        private static let down: CGFloat = 42
+        static let collageSize = CGSize(width: 364 * 3 + across * 2 + 96, height: 382 + down + 170 + 96)
 
         var body: some View {
             ZStack(alignment: .topLeading) {
@@ -184,7 +208,10 @@
                         ? [Color(red: 0.17, green: 0.16, blue: 0.3), Color(red: 0.36, green: 0.22, blue: 0.24)]
                         : [Color(red: 0.75, green: 0.84, blue: 0.96), Color(red: 0.97, green: 0.85, blue: 0.8)],
                     startPoint: .topLeading, endPoint: .bottomTrailing)
-                if portrait {
+                if collage {
+                    collageGrid.padding(48)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else if portrait {
                     tile(.charge, .systemExtraLargePortrait).padding(28)
                 } else if kinds {
                     kindsGrid.padding(28)
@@ -192,6 +219,7 @@
                     chargeSizes.padding(28)
                 }
             }
+            .clipShape(RoundedRectangle(cornerRadius: collage ? 28 : 0, style: .continuous))
         }
 
         private var chargeSizes: some View {
@@ -205,6 +233,33 @@
                     tile(.charge, .systemExtraLarge)
                 }
                 tile(.charge, .systemLarge)
+            }
+        }
+
+        private var collageGrid: some View {
+            VStack(alignment: .leading, spacing: Self.down) {
+                HStack(alignment: .top, spacing: Self.across) {
+                    tile(.charge, .systemLarge)
+                    VStack(spacing: Self.down) {
+                        tile(.controls, .systemMedium)
+                        tile(.fullBy, .systemMedium)
+                    }
+                    VStack(spacing: Self.down) {
+                        HStack(spacing: Self.across) {
+                            tile(.ring, .systemSmall)
+                            tile(.power, .systemSmall)
+                        }
+                        HStack(spacing: Self.across) {
+                            tile(.health, .systemSmall)
+                            tile(.timeLeft, .systemSmall)
+                        }
+                    }
+                }
+                HStack(spacing: Self.across) {
+                    tile(.today, .systemMedium)
+                    tile(.charge, .systemMedium)
+                    tile(.health, .systemMedium)
+                }
             }
         }
 
