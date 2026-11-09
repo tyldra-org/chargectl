@@ -39,7 +39,8 @@ newly matching skills before continuing. Human contributors do not need them.
 | --- | --- |
 | Generate the Xcode project | `./scripts/generate.sh` |
 | Build | `./scripts/build.sh Release` |
-| Test | `./scripts/test.sh` |
+| Test | `./scripts/test.sh` (some suites: `CHARGECTL_TEST_SUITES='ChargePolicyTests' ./scripts/test.sh`) |
+| The jobs and test suites CI picks for your branch | `./scripts/ci-scope.sh areas origin/main`, `./scripts/ci-scope.sh tests origin/main` |
 | Format check | `xcrun swift-format lint --strict --recursive App Daemon Shared Tests Widgets` |
 | Everything CI runs | `./scripts/check.sh` (`--list` shows stages; one stage: `./scripts/check.sh test`) |
 | Fix formatting | `xcrun swift-format format --in-place --recursive App Daemon Shared Tests Widgets` |
@@ -51,14 +52,11 @@ newly matching skills before continuing. Human contributors do not need them.
 The build and test scripts regenerate the Xcode project from `project.yml`
 first, so edit `project.yml`, never the generated `.xcodeproj`.
 
-While iterating, run one suite instead of the whole test run:
+While iterating, run only the suites your change reaches, as CI does for a pull
+request:
 
 ```sh
-./scripts/generate.sh
-xcodebuild -quiet -project Chargectl.xcodeproj -scheme Chargectl \
-  -destination 'platform=macOS' \
-  -derivedDataPath "${TMPDIR:-/tmp}/Chargectl-DerivedData" \
-  test -only-testing:ChargectlTests/ChargePolicyTests
+CHARGECTL_TEST_SUITES="$(./scripts/ci-scope.sh tests origin/main | cut -d= -f2)" ./scripts/test.sh
 ```
 
 Run `./scripts/check.sh` once before saying the work is done.

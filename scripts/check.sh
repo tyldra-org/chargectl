@@ -69,7 +69,7 @@ stage_command() {
     build) printf '%s' "$BUILD_CMD" ;;
     test) printf '%s' "$TEST_CMD" ;;
     shell) printf '%s' 'shellcheck <tracked *.sh files>' ;;
-    workflows) printf '%s' 'actionlint' ;;
+    workflows) printf '%s' 'actionlint, scripts/ci-scope.test.sh' ;;
     cask) printf '%s' 'scripts/check-cask.sh (brew style and audit, as the tap CI runs)' ;;
   esac
 }
@@ -175,7 +175,8 @@ run_workflows_stage() {
     skip_or_fail workflows "missing tool: actionlint"
     return
   fi
-  run_timed workflows actionlint actionlint
+  # The CI scope script decides which jobs run, so its tests run with the workflows.
+  run_timed workflows "actionlint, CI scope tests" bash -c 'actionlint && scripts/ci-scope.test.sh'
 }
 
 run_cask_stage() {
