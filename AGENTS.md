@@ -40,9 +40,9 @@ newly matching skills before continuing. Human contributors do not need them.
 | Generate the Xcode project | `./scripts/generate.sh` |
 | Build | `./scripts/build.sh Release` |
 | Test | `./scripts/test.sh` |
-| Format check | `xcrun swift-format lint --strict --recursive App Daemon Shared Tests` |
+| Format check | `xcrun swift-format lint --strict --recursive App Daemon Shared Tests Widgets` |
 | Everything CI runs | `./scripts/check.sh` (`--list` shows stages; one stage: `./scripts/check.sh test`) |
-| Fix formatting | `xcrun swift-format format --in-place --recursive App Daemon Shared Tests` |
+| Fix formatting | `xcrun swift-format format --in-place --recursive App Daemon Shared Tests Widgets` |
 | Package a release zip | `./scripts/package.sh` |
 | Print the Homebrew cask | `./scripts/cask.sh <version> <sha256>` |
 
@@ -78,6 +78,7 @@ Run `./scripts/check.sh` once before saying the work is done.
 | --- | --- |
 | `App/` | Menu bar app: dashboard pages, menu bar panel, XPC client |
 | `Daemon/` | `Chargectl Service` (target `chargectld`): control loop, SMC and macOS limit adapters, XPC service |
+| `Widgets/` | Widget extension: widgets for every size, Control Center controls; `Widgets/Views` is also drawn by the app for design renders |
 | `Shared/` | Code built into both: SMC access, battery readings, `ChargePolicy`, XPC models |
 | `Tests/` | Swift Testing suites (`ChargectlTests` target) for the policy, charge estimate, release and shared models |
 | `scripts/` | Build, test, install, uninstall and `check.sh` |

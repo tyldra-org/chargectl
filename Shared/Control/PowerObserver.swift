@@ -105,6 +105,9 @@ extension ChargeSettings {
             lines.append("discharge asleep \(onOff(old.holdAsleep)) → \(onOff(holdAsleep))")
         }
         if magSafeLED != old.magSafeLED { lines.append("MagSafe LED \(old.magSafeLED.title) → \(magSafeLED.title)") }
+        if fullBy != old.fullBy {
+            lines.append("full by \(old.fullBy?.summary ?? "off") → \(fullBy?.summary ?? "off")")
+        }
         return lines
     }
 }

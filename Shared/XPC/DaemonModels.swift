@@ -11,6 +11,8 @@ nonisolated struct DaemonStatus: Codable, Equatable, Sendable {
     var lastError: String?
     /// Optimized Battery Charging can hold or delay charging on its own.
     var optimizedChargingEnabled: Bool? = nil
+    /// Set when charge control is not having its effect (ControlCheck).
+    var controlProblem: String? = nil
 }
 
 nonisolated struct HistorySample: Codable, Equatable, Sendable {

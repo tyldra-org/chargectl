@@ -8,6 +8,9 @@ signing=()
 if [[ -n "${CHARGECTL_SIGN_IDENTITY:-}" && -n "${CHARGECTL_TEAM:-}" ]]; then
   signing=(CODE_SIGN_IDENTITY="$CHARGECTL_SIGN_IDENTITY" DEVELOPMENT_TEAM="$CHARGECTL_TEAM" CODE_SIGN_STYLE=Manual)
 fi
+# Built in so the helper and the updater know which certificate releases are signed with;
+# package.sh signs with it.
+signing+=(CHARGECTL_RELEASE_CERT="${CHARGECTL_RELEASE_CERT:-}")
 exec xcodebuild -quiet -project "$CHARGECTL_ROOT/Chargectl.xcodeproj" -scheme Chargectl \
   -configuration "$configuration" -destination 'generic/platform=macOS' \
   -derivedDataPath "$CHARGECTL_DERIVED_DATA" ${signing[@]+"${signing[@]}"} build

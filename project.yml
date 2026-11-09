@@ -16,9 +16,17 @@ settings:
     CODE_SIGN_STYLE: Manual
     DEVELOPMENT_TEAM: ''
     ENABLE_HARDENED_RUNTIME: YES
-    MARKETING_VERSION: '0.1.10'
-    CURRENT_PROJECT_VERSION: '11'
+    MARKETING_VERSION: '0.2.0'
+    CURRENT_PROJECT_VERSION: '12'
     SWIFT_OBJC_BRIDGING_HEADER: Shared/SMC/SMCBridge.h
+    # SHA-1 of the certificate releases are signed with when there is no Apple team; the helper
+    # and the updater then accept only code signed with it. Empty: ad hoc.
+    CHARGECTL_RELEASE_CERT: ''
+  configs:
+    Release:
+      # Xcode adds get-task-allow to every build signed to run locally, which lets any process of
+      # the same user attach to the app and speak to the root helper as it.
+      CODE_SIGN_INJECT_BASE_ENTITLEMENTS: NO
 targets:
   Chargectl:
     type: application
@@ -29,6 +37,8 @@ targets:
           - Resources/Info.plist
           - Resources/Chargectl.entitlements
       - path: Shared
+      # The widgets' views, also drawn by the app for design renders.
+      - path: Widgets/Views
       - path: Daemon/Resources/com.tyldra.chargectl.daemon.plist
         buildPhase:
           copyFiles:
@@ -39,6 +49,8 @@ targets:
         embed: true
         copy:
           destination: executables
+      - target: ChargectlWidgets
+        embed: true
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.tyldra.chargectl
@@ -63,12 +75,37 @@ targets:
         CREATE_INFOPLIST_SECTION_IN_BINARY: YES
         GENERATE_INFOPLIST_FILE: NO
         SKIP_INSTALL: YES
+  ChargectlWidgets:
+    type: app-extension
+    platform: macOS
+    sources:
+      - path: Widgets
+        excludes:
+          - Resources/**
+      - path: Shared
+      # The Shortcuts actions widget buttons and controls run, and the helper connection.
+      - path: App/Intents.swift
+      - path: App/DaemonClient.swift
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.tyldra.chargectl.widgets
+        PRODUCT_NAME: ChargectlWidgets
+        INFOPLIST_FILE: Widgets/Resources/Info.plist
+        CODE_SIGN_ENTITLEMENTS: Widgets/Resources/ChargectlWidgets.entitlements
+        GENERATE_INFOPLIST_FILE: NO
+        SKIP_INSTALL: YES
+        LD_RUNPATH_SEARCH_PATHS: "$(inherited) @executable_path/../Frameworks @executable_path/../../../../Frameworks"
   ChargectlTests:
     type: bundle.unit-test
     platform: macOS
     sources:
       - path: Tests
       - path: Shared
+      # The daemon's sources, so its control loop can be tested without starting it.
+      - path: Daemon
+        excludes:
+          - main.swift
+          - Resources/**
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.tyldra.chargectl.tests
@@ -84,5 +121,9 @@ schemes:
         - ChargectlTests
     run:
       config: Debug
+      # Run from Xcode with sample data and no helper, so a debug run never changes charging.
+      # Untick it in Edit Scheme › Arguments to run against the installed helper.
+      commandLineArguments:
+        "--demo": true
     archive:
       config: Release

@@ -63,6 +63,12 @@ jobs:
       - name: Format and test
         run: ./scripts/check.sh --all format test
 
+      - name: Import the release certificate
+        env:
+          CERTIFICATE: ${{ secrets.CHARGECTL_RELEASE_CERTIFICATE }}
+          PASSWORD: ${{ secrets.CHARGECTL_RELEASE_CERTIFICATE_PASSWORD }}
+        run: ./scripts/import-release-certificate.sh
+
       - name: Build and package
         id: package
         env:

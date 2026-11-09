@@ -7,15 +7,28 @@ final class ChargeController {
     private static let tickInterval: TimeInterval = 5
     private static let sampleInterval: TimeInterval = 60
     private static let historyWindow: TimeInterval = 24 * 60 * 60
-    private static let logLimit = 300
+    private static let logLimit = 2000
+    /// Trimmed entries a line file may still hold before it is rewritten: about an hour of
+    /// history, a quarter of the log.
+    private static let staleHistoryLines = 60
+    private static let staleLogLines = logLimit / 4
+    /// Battery reads that may fail in a row before wall power is reconnected.
+    private static let failedReadsBeforeReconnect = 3
+    /// Days kept in the long-term record: ten years.
+    private static let dailyLimit = 3650
+    /// The lowest charge the Mac may sleep at with wall power cut (see prepareForSleep).
+    static let sleepReserve = 30
+
+    /// What the app reads over XPC, published after every change.
+    let board = StatusBoard()
 
     private let store: Store
     private let smc: SMC?
-    private let reader: BatteryReader
-    private let adapter: AdapterSwitch?
+    private let reader: any BatterySource
+    private let adapter: (any WallPowerSwitch)?
     /// Loaded in the background by start(): PowerUI and PowerUIAgent can take a minute to answer
     /// right after the Mac starts, and the app must reach the helper meanwhile.
-    private var macOSLimit: MacOSChargeLimit?
+    private var macOSLimit: (any MacOSLimitControl)?
     /// False until macOSLimit is loaded; no decisions are made before that.
     private var isReady = false
     /// The user's own macOS charge limit, restored when Chargectl stops controlling it.
@@ -32,18 +45,34 @@ final class ChargeController {
     private var activity = ChargeActivity.starting
     private var history: [HistorySample]
     private var logs: [LogEntry]
+    /// Entries in the history and log files, including ones already trimmed from memory.
+    private var historyLines: Int
+    private var logLines: Int
     private var lastBattery: BatterySnapshot?
     private var lastError: String?
+    /// Optimized Battery Charging, read once per tick rather than for every status request.
+    private var optimizedCharging: Bool?
+    /// Battery reads that failed in a row.
+    private var failedReads = 0
+    private var controlCheck = ControlCheck()
+    /// One sample a day, oldest first.
+    private var daily: [DailySample]
     private var appliedLED: MagSafeLEDMode?
     private var timer: Timer?
     private var sleepWatcher: SleepWatcher?
     private var observer = PowerObserver()
-    /// The service's own executable inside Chargectl.app and its date when this process started.
-    /// Installing a new app replaces it; the service then restarts into the new version.
+    /// The service's own executable: inside Chargectl.app for SMAppService, a root-owned copy in
+    /// /Library/PrivilegedHelperTools for a plist install.
     /// Absolute: launchd starts an SMAppService daemon with a path relative to the app bundle in
     /// argv[0], which does not resolve from the service's working directory.
-    private let executablePath = ChargeController.ownExecutablePath()
-    private let launchedExecutableDate: Date?
+    private let executablePath: String
+    /// The app this helper belongs to: given by a plist install as --app, otherwise the bundle the
+    /// helper runs from.
+    private let appPath: String
+    /// The helper inside that app, and its date when last seen. Installing a new app replaces it;
+    /// deleting the app removes it.
+    private let bundledProgram: String
+    private var bundledProgramDate: Date?
     private var pendingExecutableChange: ExecutableChange?
     private var pendingExecutableChangeSince: Date?
     private static let removalGrace: TimeInterval = 30
@@ -58,12 +87,17 @@ final class ChargeController {
     /// Set once the app uninstalls Chargectl: nothing is written to disk after that.
     private var isRemoved = false
 
-    init(store: Store) {
-        self.store = store
+    convenience init(store: Store) {
         let smc = try? SMC()
+        self.init(
+            store: store, smc: smc, battery: BatteryReader(smc: smc), wallPower: smc.flatMap(AdapterSwitch.init(smc:)))
+    }
+
+    init(store: Store, smc: SMC?, battery: any BatterySource, wallPower: (any WallPowerSwitch)?) {
+        self.store = store
         self.smc = smc
-        reader = BatteryReader(smc: smc)
-        adapter = smc.flatMap(AdapterSwitch.init(smc:))
+        reader = battery
+        adapter = wallPower
         let stored = store.load(ChargeSettings.self, from: .settings)
         settings = stored ?? ChargeSettings()
         isFirstRun = stored == nil
@@ -71,11 +105,22 @@ final class ChargeController {
         // A starting helper cannot know whether the charger was connected meanwhile; above the
         // limit with automatic discharge off, it holds the charge as if just plugged in.
         state.wasPluggedIn = false
-        state.holdLevel = nil
-        history = store.load([HistorySample].self, from: .history) ?? []
-        logs = store.load([LogEntry].self, from: .logs) ?? []
+        if state.holdLevel != nil { state.phase = .sailing }
+        history = store.loadLines(HistorySample.self, from: .history)
+        daily = store.loadLines(DailySample.self, from: .daily)
+        logs = store.loadLines(LogEntry.self, from: .logs)
+        historyLines = history.count
+        logLines = logs.count
         savedMacOSLimit = store.load(MacOSChargeLimit.Setting.self, from: .macOSLimit)
-        launchedExecutableDate = Self.modificationDate(executablePath)
+        let executable = Self.ownExecutablePath()
+        let arguments = CommandLine.arguments
+        executablePath = executable
+        appPath =
+            arguments.firstIndex(of: "--app").flatMap { $0 + 1 < arguments.count ? arguments[$0 + 1] : nil }
+            ?? HelperInstall.app(containing: executable)
+        bundledProgram = HelperInstall.bundledProgram(app: appPath)
+        bundledProgramDate = Self.modificationDate(bundledProgram)
+        publish()
     }
 
     func start() {
@@ -104,7 +149,10 @@ final class ChargeController {
         }
     }
 
-    private func finishStarting(macOSLimit limit: MacOSChargeLimit?) {
+    /// Called by start() once macOS's limit is loaded; tests call it directly.
+    func finishStarting(macOSLimit limit: (any MacOSLimitControl)?) {
+        compactStoredLines()
+        moveOutOfApp()
         macOSLimit = limit
         if limit == nil {
             log("macOS charge limit is not available; holding the limit by switching wall power", level: .warning)
@@ -121,31 +169,46 @@ final class ChargeController {
 
     func tick(now: Date = .now) {
         guard isReady, !isRemoved else { return }
+        defer { publish() }
         if followAppUpdates() { return }
         let battery: BatterySnapshot
         do {
             battery = try reader.read(now: now)
+            failedReads = 0
         } catch {
-            report("battery read failed: \(error)")
+            report("battery read failed: (error)")
+            failedReads += 1
+            // Nothing can be decided without a reading; never leave the Mac running down its
+            // battery because of it.
+            if failedReads >= Self.failedReadsBeforeReconnect, let adapter, (try? adapter.isConnected()) == false {
+                connectWallPower(true)
+                state.adapterEnabled = true
+                save(state, to: .state)
+                log("wall power reconnected: the battery cannot be read", level: .warning)
+            }
             return
         }
         lastBattery = battery
-        observe(battery)
-        adoptMacOSLimitChangedInSettings()
-        let input = PolicyInput(
-            percent: battery.percent, isPluggedIn: battery.isPluggedIn, temperature: battery.temperature,
-            canSetMacOSLimit: macOSLimit != nil, isCharging: battery.current > ObservedPower.flowThreshold,
-            macOSLimitFloor: macOSLimitFloor)
-        let decision = ChargePolicy.decide(input, settings: effectiveSettings, state: state, now: now)
+        // One read of macOS's limit per tick: each is a call to PowerUIAgent.
+        let macOSSetting = macOSLimit.flatMap { try? $0.current() }
+        optimizedCharging = macOSLimit?.isOptimizedChargingEnabled()
+        observe(battery, macOSLimit: macOSSetting)
+        adoptMacOSLimitChangedInSettings(current: macOSSetting)
+        expireFullBy(now: now)
+        var decision = decide(battery, now: now)
+        if effectiveSettings.isEnabled {
+            if let target = decision.macOSLimit, !applyMacOSLimit(target, current: macOSSetting) {
+                // macOS refused a limit below 80%: decide again, now holding it with wall power.
+                decision = decide(battery, now: now)
+                if let target = decision.macOSLimit { applyMacOSLimit(target) }
+            }
+        } else {
+            restoreMacOSLimit()
+        }
         if let event = decision.event { log(event, source: .chargectl) }
         if decision.activity != activity {
             activity = decision.activity
             log(activity.summary, source: .chargectl)
-        }
-        if effectiveSettings.isEnabled {
-            if let target = decision.macOSLimit { applyMacOSLimit(target) }
-        } else {
-            restoreMacOSLimit()
         }
         connectWallPower(decision.state.adapterEnabled)
         if decision.state != state {
@@ -154,14 +217,74 @@ final class ChargeController {
         }
         applyLED()
         record(battery, now: now)
+        recordDay(battery, now: now)
+        checkControl(battery)
     }
+
+    /// Clears a one-off Full by once its time has passed.
+    private func expireFullBy(now: Date) {
+        guard let schedule = settings.fullBy, schedule.once != nil, schedule.nextDeadline(after: now) == nil else {
+            return
+        }
+        if case .fullBy = state.mode { return }
+        settings.fullBy = nil
+        save(settings, to: .settings)
+    }
+
+    /// The next Full by time, unless it is the one the user stopped.
+    private func nextFullBy(now: Date) -> Date? {
+        guard let deadline = settings.fullBy?.nextDeadline(after: now), deadline != state.skippedDeadline else {
+            return nil
+        }
+        return deadline
+    }
+
+    /// At the first reading of a day, sums up the day before from its minute samples.
+    private func recordDay(_ battery: BatterySnapshot, now: Date) {
+        let calendar = Calendar.current
+        guard let yesterday = calendar.date(byAdding: .day, value: -1, to: calendar.startOfDay(for: now)),
+            daily.last.map({ $0.day < yesterday }) ?? true,
+            let sample = DailySample.summarize(day: yesterday, samples: history, battery: battery, calendar: calendar)
+        else { return }
+        daily.append(sample)
+        append(sample, to: .daily)
+        if daily.count > Self.dailyLimit + 30 {
+            daily.removeFirst(daily.count - Self.dailyLimit)
+            if !isRemoved { store.replaceLines(daily, in: .daily) }
+        }
+    }
+
+    /// Reports when cutting wall power stops having an effect, and when it works again.
+    private func checkControl(_ battery: BatterySnapshot) {
+        guard let adapter, let connected = try? adapter.isConnected() else { return }
+        let before = controlCheck.problem
+        controlCheck.observe(wallPowerCut: !connected, pluggedIn: battery.isPluggedIn, current: battery.current)
+        guard controlCheck.problem != before else { return }
+        if let problem = controlCheck.problem {
+            log(problem, level: .warning)
+        } else {
+            log("cutting wall power works again", source: .chargectl)
+        }
+    }
+
+    private func decide(_ battery: BatterySnapshot, now: Date) -> ChargeDecision {
+        let input = PolicyInput(
+            percent: battery.percent, isPluggedIn: battery.isPluggedIn, temperature: battery.temperature,
+            canSetMacOSLimit: macOSLimit != nil, isCharging: battery.current > ObservedPower.flowThreshold,
+            macOSLimitFloor: macOSLimitFloor, fullBy: nextFullBy(now: now))
+        return ChargePolicy.decide(input, settings: effectiveSettings, state: state, now: now)
+    }
+
+    /// Whether launchd runs the helper straight from the app: SMAppService, or a plist install
+    /// from before 0.1.11 until the Mac restarts.
+    private var runsFromApp: Bool { executablePath == bundledProgram }
 
     /// Restarts into a new app version, and removes itself when Chargectl.app is gone, so a
     /// deleted app never leaves a root service behind. A change must be seen on two ticks in a
     /// row, because installing replaces the app in steps. Returns true when the process is ending.
     private func followAppUpdates() -> Bool {
-        let date = Self.modificationDate(executablePath)
-        guard date != launchedExecutableDate else {
+        let date = Self.modificationDate(bundledProgram)
+        guard date != bundledProgramDate else {
             pendingExecutableChange = nil
             lastSeenUnchanged = .now
             if !AppProcesses.running().isEmpty { appLastSeen = .now }
@@ -184,12 +307,62 @@ final class ChargeController {
             _ = removeEverything()
             bootOutSoon()
             return true
-        case .replaced:
-            log("Chargectl was updated; restarting the helper", source: .chargectl)
+        case .replaced(let date):
             reopenUpdatedApp()
+            pendingExecutableChange = nil
+            bundledProgramDate = date
+            guard runsFromApp || installUpdatedProgram() else { return false }
+            log("Chargectl was updated; restarting the helper", source: .chargectl)
             shutdown()
             // launchd starts the new executable again (KeepAlive).
             exit(0)
+        }
+    }
+
+    /// Copies the updated app's helper over the root-owned one, when the new helper is signed with
+    /// Chargectl's release certificate. Otherwise this helper keeps running and the app asks to
+    /// install it again, with the administrator password.
+    private func installUpdatedProgram() -> Bool {
+        guard let requirement = DaemonIdentity.requirement(identifier: DaemonIdentity.serviceIdentifier) else {
+            log(
+                "Chargectl was updated; the helper stays at \(DaemonIdentity.version) until it is installed again",
+                source: .chargectl)
+            return false
+        }
+        do {
+            try ProgramUpdate.install(from: bundledProgram, to: executablePath, requirement: requirement)
+            return true
+        } catch {
+            report("the updated helper was not installed: \(error)")
+            return false
+        }
+    }
+
+    /// A plist install from before 0.1.11 runs the helper from inside Chargectl.app, which the user
+    /// can replace. Copies it to its root-owned place and points the plist there; launchd reads
+    /// the plist again when the Mac restarts.
+    private func moveOutOfApp() {
+        let plistURL = URL(fileURLWithPath: HelperInstall.plistPath)
+        guard getuid() == 0, runsFromApp, executablePath != HelperInstall.programPath,
+            let data = try? Data(contentsOf: plistURL),
+            let plist = try? PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any],
+            let program = plist["Program"] as? String,
+            URL(fileURLWithPath: program).resolvingSymlinksInPath().path
+                == URL(fileURLWithPath: executablePath).resolvingSymlinksInPath().path
+        else { return }
+        do {
+            // Taken as is: this is the code already running as root.
+            try ProgramUpdate.install(from: executablePath, to: HelperInstall.programPath, requirement: nil)
+            let moved = try PropertyListSerialization.data(
+                fromPropertyList: HelperInstall.plist(app: appPath), format: .xml, options: 0)
+            try moved.write(to: plistURL, options: .atomic)
+            try FileManager.default.setAttributes(
+                [.posixPermissions: 0o644, .ownerAccountID: 0, .groupOwnerAccountID: 0], ofItemAtPath: plistURL.path)
+            log(
+                "the helper now runs from \(HelperInstall.programPath), outside the app, from the next restart",
+                source: .chargectl)
+        } catch {
+            report("could not move the helper out of the app: \(error)")
         }
     }
 
@@ -208,9 +381,7 @@ final class ChargeController {
         for pid in old { kill(pid, SIGTERM) }
         // The app's own updater may already have started the new version.
         guard wasRunning, AppProcesses.running().allSatisfy(old.contains) else { return }
-        let app = URL(fileURLWithPath: executablePath).deletingLastPathComponent()  // MacOS
-            .deletingLastPathComponent().deletingLastPathComponent().path  // Contents, Chargectl.app
-        if AppProcesses.openForConsoleUser(app) {
+        if AppProcesses.openForConsoleUser(appPath) {
             log("reopened Chargectl after the update", source: .chargectl)
         }
     }
@@ -291,13 +462,13 @@ final class ChargeController {
 
     /// Keeps Chargectl and System Settings › Battery in step: a limit chosen there becomes
     /// Chargectl's limit.
-    private func adoptMacOSLimitChangedInSettings() {
+    private func adoptMacOSLimitChangedInSettings(current: MacOSChargeLimit.Setting?) {
         // A limit macOS switched off itself (its occasional charge to 100%, "Charge to Full
         // Now") is not a new choice; Chargectl turns it back on.
         // During Top Up, Discharge and Calibrate, Chargectl sets macOS's limit for the job; a change
         // then is its own doing, not the user's.
-        guard settings.isEnabled, state.mode == .automatic, let applied = appliedMacOSLimit,
-            let current = try? macOSLimit?.current(), current.isEnabled, current != applied
+        guard settings.isEnabled, state.mode == .automatic, let applied = appliedMacOSLimit, let current,
+            current.isEnabled, current != applied
         else { return }
         appliedMacOSLimit = current
         let limit = current.limit
@@ -306,8 +477,7 @@ final class ChargeController {
         settings.limit = limit
         settings = settings.normalized()
         save(settings, to: .settings)
-        state.holdLevel = nil
-        state.isSailing = false
+        state.phase = .charging
         log("limit changed in System Settings: \(previous)% → \(settings.limit)%", source: .chargectl)
     }
 
@@ -317,7 +487,12 @@ final class ChargeController {
         DaemonStatus(
             version: DaemonIdentity.version, settings: settings, mode: state.mode, activity: activity,
             adapterEnabled: state.adapterEnabled, adapterKey: adapter?.key, lastError: lastError,
-            optimizedChargingEnabled: macOSLimit?.isOptimizedChargingEnabled())
+            optimizedChargingEnabled: optimizedCharging, controlProblem: controlCheck.problem)
+    }
+
+    /// Hands the app's view of the helper to the XPC service.
+    private func publish() {
+        board.publish(status: status(), history: history, logs: logs, daily: daily)
     }
 
     func historySamples() -> [HistorySample] { history }
@@ -357,7 +532,21 @@ final class ChargeController {
         case .stop:
             guard state.mode != .automatic else { return nil }
             log("\(state.mode.title) stopped", source: .chargectl)
+            // A stopped Full by charge must not start again for the same time.
+            if case .fullBy(let deadline) = state.mode { state.skippedDeadline = deadline }
             state.mode = .automatic
+        case .skipFullBy:
+            if case .fullBy(let deadline) = state.mode {
+                state.skippedDeadline = deadline
+                state.mode = .automatic
+            } else if let next = settings.fullBy?.nextDeadline(after: .now) {
+                state.skippedDeadline = next
+            } else {
+                return "There is no full charge to skip."
+            }
+            log(
+                "full charge for \(state.skippedDeadline.map { $0.formatted(date: .abbreviated, time: .shortened) } ?? "") skipped",
+                source: .chargectl)
         case .reset:
             settings = ChargeSettings()
             state.mode = .automatic
@@ -411,6 +600,11 @@ final class ChargeController {
     /// SMAppService registrations are left to the app, which unregisters them.
     private func unloadIfInstalledByScript() {
         try? FileManager.default.removeItem(atPath: HelperStartRule.path)
+        if getuid() == 0 {
+            try? FileManager.default.removeItem(atPath: HelperInstall.stagingPath)
+            // The running process keeps its copy open; launchd stops it moments later.
+            try? FileManager.default.removeItem(atPath: HelperInstall.programPath)
+        }
         let plist = HelperStartRule.plistPath
         guard FileManager.default.fileExists(atPath: plist) else { return }
         do {
@@ -449,6 +643,13 @@ final class ChargeController {
 
     // MARK: Applying decisions
 
+    /// The limit is kept by switching wall power rather than by macOS's own limit, which does not
+    /// go this low on this Mac or is not available.
+    private var holdsLimitWithWallPower: Bool {
+        effectiveSettings.isEnabled && state.mode == .automatic && settings.limit < 100
+            && (macOSLimit == nil || settings.limit < macOSLimitFloor)
+    }
+
     /// Reports the adapter as missing when this Mac cannot be controlled, so the policy turns off.
     private var effectiveSettings: ChargeSettings {
         var settings = settings
@@ -456,17 +657,21 @@ final class ChargeController {
         return settings
     }
 
-    private func applyMacOSLimit(_ limit: Int) {
-        guard let macOSLimit else { return }
+    /// Returns false when macOS refused a limit below 80% for the first time: from then on such
+    /// limits are held by switching wall power, so the decision has to be made again.
+    @discardableResult
+    /// - Parameter cached: macOS's limit as read earlier in this tick; nil reads it again.
+    private func applyMacOSLimit(_ limit: Int, current cached: MacOSChargeLimit.Setting? = nil) -> Bool {
+        guard let macOSLimit else { return true }
         do {
-            let current = try macOSLimit.current()
+            let current = try cached ?? macOSLimit.current()
             if savedMacOSLimit == nil {
                 savedMacOSLimit = current
                 save(current, to: .macOSLimit)
             }
             guard !MacOSLimitTarget.isMet(by: current.isEnabled, at: current.limit, for: limit) else {
                 appliedMacOSLimit = current
-                return
+                return true
             }
             try macOSLimit.set(limit: limit)
             appliedMacOSLimit = try macOSLimit.current()
@@ -477,9 +682,10 @@ final class ChargeController {
             if limit < ChargePolicy.macOSLimitAPIFloor, macOSLimitFloor < ChargePolicy.macOSLimitAPIFloor {
                 macOSLimitFloor = ChargePolicy.macOSLimitAPIFloor
                 log("limits below 80% will be held by switching wall power", level: .warning)
-                tick()
+                return false
             }
         }
+        return true
     }
 
     /// Puts back the limit the user had before Chargectl took it over.
@@ -509,8 +715,24 @@ final class ChargeController {
         }
     }
 
-    private func prepareForSleep() {
-        guard let adapter, (try? adapter.isConnected()) == false else { return }
+    func prepareForSleep() {
+        guard let adapter else { return }
+        let connected = (try? adapter.isConnected()) ?? true
+        if holdsLimitWithWallPower, let battery = lastBattery, battery.isPluggedIn,
+            battery.percent >= max(settings.lowerBound, Self.sleepReserve)
+        {
+            // macOS's own limit cannot hold this one while the Mac sleeps, so with the charger's
+            // power on it would charge to macOS's limit or full. Cut, the battery only drifts down
+            // a little; charging resumes on wake if it fell below the lower bound.
+            if connected {
+                connectWallPower(false)
+                state.adapterEnabled = false
+                save(state, to: .state)
+            }
+            log("sleeping with wall power cut to keep the \(settings.limit)% limit", source: .chargectl)
+            return
+        }
+        guard !connected else { return }
         if settings.holdAsleep {
             log("sleeping with wall power cut to keep discharging", source: .chargectl)
             return
@@ -532,13 +754,15 @@ final class ChargeController {
 
     private func record(_ battery: BatterySnapshot, now: Date) {
         if let last = history.last, now.timeIntervalSince(last.date) < Self.sampleInterval { return }
-        history.append(
-            HistorySample(
-                date: now, percent: battery.percent, temperature: battery.temperature,
-                systemPower: battery.systemPower, wallPower: battery.wallPower, batteryPower: battery.batteryPower))
+        let sample = HistorySample(
+            date: now, percent: battery.percent, temperature: battery.temperature,
+            systemPower: battery.systemPower, wallPower: battery.wallPower, batteryPower: battery.batteryPower)
+        history.append(sample)
         let cutoff = now.addingTimeInterval(-Self.historyWindow)
         history.removeAll { $0.date < cutoff }
-        save(history, to: .history)
+        append(sample, to: .history)
+        historyLines += 1
+        if historyLines > history.count + Self.staleHistoryLines { compactStoredLines() }
     }
 
     private func save<Value: Encodable>(_ value: Value, to file: Store.File) {
@@ -546,11 +770,27 @@ final class ChargeController {
         store.save(value, to: file)
     }
 
+    private func append<Value: Encodable>(_ value: Value, to file: Store.File) {
+        guard !isRemoved else { return }
+        store.append(value, to: file)
+    }
+
+    /// Rewrites the history and log files with only what is kept in memory.
+    private func compactStoredLines() {
+        guard !isRemoved else { return }
+        let cutoff = Date.now.addingTimeInterval(-Self.historyWindow)
+        history.removeAll { $0.date < cutoff }
+        if logs.count > Self.logLimit { logs.removeFirst(logs.count - Self.logLimit) }
+        store.replaceLines(history, in: .history)
+        store.replaceLines(logs, in: .logs)
+        historyLines = history.count
+        logLines = logs.count
+    }
+
     // MARK: Logging
 
     /// Logs what the hardware did since the last tick.
-    private func observe(_ battery: BatterySnapshot) {
-        let limit = macOSLimit.flatMap { try? $0.current() }
+    private func observe(_ battery: BatterySnapshot, macOSLimit limit: MacOSChargeLimit.Setting?) {
         let power = ObservedPower(
             percent: battery.percent, chargerAttached: battery.isPluggedIn,
             wallPowerConnected: adapter.flatMap { try? $0.isConnected() }, current: battery.current,
@@ -563,10 +803,13 @@ final class ChargeController {
         case .info: logger.info("\(message, privacy: .public)")
         case .warning: logger.warning("\(message, privacy: .public)")
         }
-        logs.append(
-            LogEntry(date: .now, level: level, message: message, percent: lastBattery?.percent, source: source))
+        let entry = LogEntry(date: .now, level: level, message: message, percent: lastBattery?.percent, source: source)
+        logs.append(entry)
         if logs.count > Self.logLimit { logs.removeFirst(logs.count - Self.logLimit) }
-        save(logs, to: .logs)
+        append(entry, to: .logs)
+        board.publish(logs: logs)
+        logLines += 1
+        if logLines > logs.count + Self.staleLogLines { compactStoredLines() }
     }
 
     /// Logs a failure once, not on every tick.

@@ -1,6 +1,7 @@
 import AppKit
 import Observation
 import ServiceManagement
+import WidgetKit
 
 enum ServiceState: Equatable {
     case checking
@@ -46,6 +47,10 @@ final class AppModel {
     private(set) var service = ServiceState.checking
     private(set) var history: [HistorySample] = []
     private(set) var logs: [LogEntry] = []
+    /// One point a day, for the long-term health chart.
+    private(set) var daily: [DailySample] = []
+    /// Plugged in, yet the battery runs down: the charger cannot run the Mac.
+    private(set) var isChargerWeak = false
     private(set) var macOSLimit: Int?
     private(set) var macOSDrains = false
     private(set) var conflictingApp: String?
@@ -59,8 +64,16 @@ final class AppModel {
     @ObservationIgnored private let client = DaemonClient()
     @ObservationIgnored private let installer = ServiceInstaller()
     @ObservationIgnored private var refreshTask: Task<Void, Never>?
+    @ObservationIgnored private var chargerCheck = ChargerCheck()
+    @ObservationIgnored private var notifier: Notifier?
+    @ObservationIgnored private var lastSnapshot: StatusSnapshot?
+    /// What the widgets and controls showed last; they reload when it changes.
+    @ObservationIgnored private var lastWidgetState: WidgetState?
+    /// A model built for rendering the design: never reloads or sends anything.
+    @ObservationIgnored private var isPreview = false
 
     init() {
+        notifier = Notifier()
         refreshTask = Task { [weak self] in
             var tick = 0
             while !Task.isCancelled {
@@ -75,6 +88,25 @@ final class AppModel {
         }
         Updater.shared.start()
     }
+
+    #if DEBUG
+        /// Fixed state for rendering the design without a helper. Starts no tasks and talks to
+        /// nothing.
+        init(
+            preview battery: BatterySnapshot?, status: DaemonStatus?, service: ServiceState, history: [HistorySample],
+            logs: [LogEntry], macOSLimit: Int?, daily: [DailySample] = []
+        ) {
+            self.battery = battery
+            self.status = status
+            self.service = service
+            self.history = history
+            self.logs = logs
+            self.daily = daily
+            self.macOSLimit = macOSLimit
+            smoothedCurrent = battery?.current
+            isPreview = true
+        }
+    #endif
 
     var settings: ChargeSettings? { status?.settings }
     var isControllable: Bool { service == .running && status?.adapterKey != nil }
@@ -164,6 +196,8 @@ final class AppModel {
                         "Optimized Battery Charging is on. It can hold or delay charging by itself; turn it off so Chargectl decides.",
                     action: .openBatterySettings, actionTitle: "Open Battery"))
         }
+        if let problem = status?.controlProblem { notices.append(Notice(text: problem)) }
+        if isChargerWeak { notices.append(Notice(text: StatusEvent.weakCharger(battery?.adapterWatts).body)) }
         if let error = status?.lastError { notices.append(Notice(text: error)) }
         if let message { notices.append(Notice(text: message)) }
         return notices
@@ -174,6 +208,11 @@ final class AppModel {
             battery = try reader.read()
             batteryError = nil
             if let current = battery?.current { smoothCurrent(current) }
+            if let battery {
+                chargerCheck.observe(
+                    battery, wallPowerCut: status?.adapterEnabled == false, drainsOnPurpose: isDraining, now: .now)
+                if chargerCheck.isWeak != isChargerWeak { isChargerWeak = chargerCheck.isWeak }
+            }
         } catch {
             batteryError = "\(error)"
         }
@@ -236,13 +275,62 @@ final class AppModel {
             }
         }
         repairHelperIfNeeded()
+        notifyChanges()
+    }
+
+    /// Posts what changed since the last refresh; nothing on the first one.
+    private func notifyChanges() {
+        guard let notifier else { return }
+        var helperProblem: String?
+        if case .notResponding = service {
+            helperProblem =
+                "The helper stopped answering, so charging is not controlled. Open Chargectl to install it again."
+        }
+        let snapshot = StatusSnapshot(
+            activity: status?.activity, mode: status?.mode, helperProblem: helperProblem, weakCharger: isChargerWeak,
+            adapterWatts: battery?.adapterWatts, controlProblem: status?.controlProblem != nil)
+        if let lastSnapshot { notifier.post(StatusSnapshot.events(from: lastSnapshot, to: snapshot)) }
+        lastSnapshot = snapshot
+        reloadWidgetsIfNeeded()
+    }
+
+    private struct WidgetState: Equatable {
+        var activity: ChargeActivity?
+        var mode: ChargeMode?
+        var settings: ChargeSettings?
+        var isPluggedIn: Bool?
+        /// The charge in 5% steps, so the ring follows without a reload every minute.
+        var charge: Int?
+    }
+
+    /// Widgets refresh every five minutes by themselves; a change made here or by the helper shows
+    /// at once.
+    private func reloadWidgetsIfNeeded() {
+        let state = WidgetState(
+            activity: status?.activity, mode: status?.mode, settings: status?.settings,
+            isPluggedIn: battery?.isPluggedIn, charge: battery.map { $0.percent / 5 })
+        guard state != lastWidgetState else { return }
+        let first = lastWidgetState == nil
+        lastWidgetState = state
+        guard !first else { return }
+        WidgetCenter.shared.reloadAllTimelines()
+        ControlCenter.shared.reloadAllControls()
+    }
+
+    /// Helpers before this version have no daily record; only ask one of the same version.
+    func loadDaily() async {
+        if isPreview { return }
+        guard status?.version == DaemonIdentity.version else { return }
+        if let samples = try? await client.daily() { daily = samples }
     }
 
     func loadHistory() async {
+        if isPreview { return }
         history = (try? await client.history()) ?? []
     }
 
     func loadLogs() async {
+        if isPreview { return }
         logs = (try? await client.logs()) ?? []
     }
 
@@ -252,6 +340,18 @@ final class AppModel {
         settings = settings.normalized()
         guard settings != status?.settings else { return }
         status?.settings = settings
+        if isPreview {
+            // No helper decides here, so follow the new settings the way it would.
+            if let battery {
+                status?.activity =
+                    !settings.isEnabled
+                    ? .off
+                    : !battery.isPluggedIn
+                        ? .onBattery
+                        : battery.percent < settings.limit ? .charging(to: settings.limit) : .holding(settings.limit)
+            }
+            return
+        }
         Task {
             do {
                 try await client.update(settings)
@@ -264,6 +364,7 @@ final class AppModel {
     }
 
     func perform(_ command: DaemonCommand) {
+        if isPreview { return }
         Task {
             do {
                 try await client.perform(command)
@@ -325,6 +426,7 @@ final class AppModel {
     }
 
     func installService() {
+        if isPreview { return }
         guard !isInstallingService else { return }
         isInstallingService = true
         Task {
@@ -441,6 +543,8 @@ final class AppModel {
             "Saved Application State/\(identifier).savedState",
             "Application Support/\(identifier)",
             "WebKit/\(identifier)",
+            // The widget extension's sandbox container.
+            "Containers/\(DaemonIdentity.widgetsIdentifier)",
         ]
         for path in paths { try? files.removeItem(at: library.appendingPathComponent(path)) }
         let reports = library.appendingPathComponent("Logs/DiagnosticReports")

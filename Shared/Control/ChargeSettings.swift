@@ -32,6 +32,8 @@ nonisolated struct ChargeSettings: Codable, Equatable, Sendable {
     /// While wall power is cut on purpose, keep it cut through sleep instead of reconnecting.
     var holdAsleep = false
     var magSafeLED = MagSafeLEDMode.system
+    /// A full charge by a set time, or nil.
+    var fullBy: FullBySchedule?
 
     /// Charging resumes at or below this percentage.
     var lowerBound: Int { max(limit - sailing, Self.limitRange.lowerBound) }
@@ -53,6 +55,7 @@ nonisolated struct ChargeSettings: Codable, Equatable, Sendable {
         holdAsleep = try container.decodeIfPresent(Bool.self, forKey: .holdAsleep) ?? defaults.holdAsleep
         magSafeLED =
             try container.decodeIfPresent(MagSafeLEDMode.self, forKey: .magSafeLED) ?? defaults.magSafeLED
+        fullBy = try container.decodeIfPresent(FullBySchedule.self, forKey: .fullBy)
         self = normalized()
     }
 
@@ -63,6 +66,12 @@ nonisolated struct ChargeSettings: Codable, Equatable, Sendable {
         copy.sailing = min(max(sailing, Self.sailingRange.lowerBound), Self.sailingRange.upperBound)
         copy.heatThreshold = min(
             max(heatThreshold, Self.heatThresholdRange.lowerBound), Self.heatThresholdRange.upperBound)
+        if var schedule = fullBy {
+            schedule.hour = min(max(schedule.hour, 0), 23)
+            schedule.minute = min(max(schedule.minute, 0), 59)
+            schedule.weekdays = schedule.weekdays.filter { (1...7).contains($0) }
+            copy.fullBy = schedule.isRepeating || schedule.once != nil ? schedule : nil
+        }
         return copy
     }
 
@@ -76,6 +85,7 @@ nonisolated struct ChargeSettings: Codable, Equatable, Sendable {
             "heat \(heatProtection ? "\(Int(heatThreshold)) °C" : "off")",
             "discharge asleep \(holdAsleep ? "on" : "off")",
             "LED \(magSafeLED.title)",
+            "full by \(fullBy?.summary ?? "off")",
         ].joined(separator: " · ")
     }
 }

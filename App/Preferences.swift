@@ -9,6 +9,10 @@ enum PreferenceKey {
     static let setupComplete = "setupComplete"
     /// On unless turned off in Settings.
     static let autoUpdate = "autoUpdate"
+    /// Notifications, by kind (StatusEvent.Kind): problems and jobs on, limit reached off.
+    static let notifyProblems = "notify.problems"
+    static let notifyJobs = "notify.jobs"
+    static let notifyLimit = "notify.limit"
 }
 
 enum AppearanceMode: String, CaseIterable, Identifiable {

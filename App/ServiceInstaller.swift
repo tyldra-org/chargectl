@@ -21,8 +21,10 @@ enum ServiceInstallError: LocalizedError {
 /// - Signed ad hoc, as releases are now: a launchd plist installed with the administrator
 ///   password, the way charge limiters installed helpers before SMAppService. SMAppService ties
 ///   an ad-hoc helper's approval to that exact build, so after every update macOS refuses to start
-///   it ("Launch Constraint Violation"), and registering again does not refresh the approval. A
-///   plist names a path, so an update that replaces the app keeps the helper working.
+///   it ("Launch Constraint Violation"), and registering again does not refresh the approval. The
+///   plist runs a root-owned copy of the helper (HelperInstall), which an update replaces only
+///   when the new helper is signed with Chargectl's release certificate; otherwise the app asks
+///   to install it again.
 struct ServiceInstaller {
     enum Method: Equatable {
         case appService
@@ -37,7 +39,7 @@ struct ServiceInstaller {
 
     static let method: Method = CodeSigning.ownTeam() == nil ? .launchdPlist : .appService
     static let label = DaemonIdentity.machService
-    static let plistPath = "/Library/LaunchDaemons/\(label).plist"
+    static let plistPath = HelperInstall.plistPath
     static let dataPath = "/Library/Application Support/Chargectl"
 
     private static var service: SMAppService { .daemon(plistName: DaemonIdentity.plistName) }
@@ -63,12 +65,13 @@ struct ServiceInstaller {
         case .launchdPlist:
             // A copy registered through SMAppService uses the same label; launchd runs only one.
             await Self.unregisterAppService()
-            try await Self.runAsAdministrator(Self.installCommand(), prompt: "Chargectl needs to install its helper.")
+            try await Self.runAsAdministrator(
+                HelperInstall.installCommand(app: Bundle.main.bundleURL.path),
+                prompt: "Chargectl needs to install its helper.")
         case .appService:
             if FileManager.default.fileExists(atPath: Self.plistPath) {
                 try await Self.runAsAdministrator(
-                    "/bin/launchctl bootout system/\(Self.label) 2>/dev/null; /bin/rm -f \(Self.plistPath)",
-                    prompt: "Chargectl needs to replace its old helper.")
+                    HelperInstall.removeCommand, prompt: "Chargectl needs to replace its old helper.")
             }
             // Registering an enabled service again changes nothing; a fresh registration makes
             // launchd take the helper inside this copy of the app.
@@ -88,10 +91,11 @@ struct ServiceInstaller {
     /// password is asked only when it could not.
     func remove() async throws {
         await Self.unregisterAppService()
-        if FileManager.default.fileExists(atPath: Self.plistPath) {
+        if FileManager.default.fileExists(atPath: Self.plistPath)
+            || FileManager.default.fileExists(atPath: HelperInstall.programPath)
+        {
             try await Self.runAsAdministrator(
-                "/bin/launchctl bootout system/\(Self.label) 2>/dev/null; /bin/rm -f \(Self.plistPath)",
-                prompt: "Chargectl needs to remove its helper.")
+                HelperInstall.removeCommand, prompt: "Chargectl needs to remove its helper.")
         }
     }
 
@@ -138,7 +142,7 @@ struct ServiceInstaller {
                 "/bin/launchctl bootout system/\(Self.label) 2>/dev/null",
                 // Reconnect wall power and restore the macOS charge limit before the files go.
                 "'\(helper)' --restore 2>/dev/null",
-                "/bin/rm -f \(Self.plistPath) \(HelperStartRule.path)",
+                "/bin/rm -f \(Self.plistPath) \(HelperStartRule.path) '\(HelperInstall.programPath)' '\(HelperInstall.stagingPath)'",
                 "/bin/rm -rf '\(Self.dataPath)'",
                 rootFolders,
                 "/bin/rm -f /Library/Logs/DiagnosticReports/Chargectl* /Library/Logs/DiagnosticReports/Retired/Chargectl* /Library/Logs/DiagnosticReports/chargectld* /Library/Logs/DiagnosticReports/Retired/chargectld*",
@@ -149,6 +153,7 @@ struct ServiceInstaller {
     /// Whether anything of the helper is still on disk.
     var leavesFiles: Bool {
         FileManager.default.fileExists(atPath: Self.plistPath)
+            || FileManager.default.fileExists(atPath: HelperInstall.programPath)
             || FileManager.default.fileExists(atPath: Self.dataPath)
     }
 
@@ -163,35 +168,6 @@ struct ServiceInstaller {
     static func unregisterAll() {
         try? service.unregister()
         try? SMAppService.mainApp.unregister()
-    }
-
-    /// Writes the plist, then starts the job. Stops a loaded copy first and waits until launchd
-    /// has let go of it: bootout returns early, and bootstrapping too soon fails with
-    /// "Bootstrap failed: 5". Unregistering an SMAppService copy leaves the label disabled, which
-    /// also makes bootstrap fail, hence the enable.
-    private static func installCommand() -> String {
-        let program = Bundle.main.bundleURL.appendingPathComponent("Contents/MacOS/Chargectl Service").path
-        let plist: [String: Any] = [
-            "Label": label,
-            "Program": program,
-            "AssociatedBundleIdentifiers": [DaemonIdentity.appIdentifier],
-            "MachServices": [label: true],
-            "RunAtLoad": true,
-            "KeepAlive": true,
-            "ProcessType": "Background",
-        ]
-        let data = (try? PropertyListSerialization.data(fromPropertyList: plist, format: .xml, options: 0)) ?? Data()
-        let job = "system/\(label)"
-        return [
-            "/bin/launchctl bootout \(job) 2>/dev/null",
-            "for i in $(/usr/bin/jot 20); do /bin/launchctl print \(job) >/dev/null 2>&1 || break; /bin/sleep 0.25; done",
-            "/bin/echo \(data.base64EncodedString()) | /usr/bin/base64 -D > \(plistPath)",
-            "/usr/sbin/chown root:wheel \(plistPath)",
-            "/bin/chmod 644 \(plistPath)",
-            "/bin/launchctl enable \(job)",
-            "for attempt in 1 2 3; do /bin/launchctl bootstrap system \(plistPath) 2>/dev/null && break; /bin/launchctl print \(job) >/dev/null 2>&1 && break; /bin/sleep 1; /bin/launchctl bootout \(job) 2>/dev/null; /bin/launchctl enable \(job); done",
-            "/bin/launchctl print \(job) >/dev/null 2>&1 || { echo 'launchd did not start the helper' >&2; exit 1; }",
-        ].joined(separator: "; ")
     }
 
     /// Runs a shell command as root after macOS's administrator password dialog.

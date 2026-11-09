@@ -22,7 +22,7 @@ nonisolated struct ChargeEstimate: Equatable, Sendable {
         switch activity {
         case .charging(let target)?:
             return toward(target, battery: battery, current: current, moving: charging, verb: "Charging")
-        case .toppingUp?, .calibrating(.charging)?:
+        case .toppingUp?, .calibrating(.charging)?, .chargingFull?:
             return toward(100, battery: battery, current: current, moving: charging, verb: "Charging")
         case .aboveLimit(let target)?, .discharging(let target)?, .stoppedOvercharge(let target)?:
             return toward(target, battery: battery, current: current, moving: draining, verb: "Discharging")
