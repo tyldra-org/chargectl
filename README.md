@@ -319,10 +319,10 @@ administrator.
    ```
 
 The [release workflow](.github/workflows/release.yml) checks that the tag
-matches `project.yml` and runs the tests, while it builds and attests
-`Chargectl-<version>.zip` on another runner. Once both are done, it publishes the
-release with notes from the changelog, and opens a pull request that updates
-the cask in
+matches `project.yml`, runs the tests, and builds and attests
+`Chargectl-<version>.zip`, while the cask check runs on another runner. Once
+both are done, it publishes the release with notes from the changelog, and
+opens a pull request that updates the cask in
 [tyldra-org/homebrew-tools](https://github.com/tyldra-org/homebrew-tools).
 Running the workflow by hand from the Actions tab is a dry run: the same checks
 and signed build, with nothing published. `./scripts/package.sh` builds the same
