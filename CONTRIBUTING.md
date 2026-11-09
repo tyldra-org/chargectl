@@ -77,6 +77,7 @@ the build is signed ad hoc, as releases are.
    | Test | `./scripts/test.sh` |
    | Shell | `shellcheck` on every tracked `*.sh` file |
    | Workflows | `actionlint` |
+   | Cask | `./scripts/check-cask.sh`: the Homebrew tap's `brew style` and `brew audit` on the cask |
 
    Fix formatting with `xcrun swift-format format --in-place --recursive App Daemon Shared Tests Widgets`.
 

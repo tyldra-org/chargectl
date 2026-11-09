@@ -60,8 +60,10 @@ jobs:
           ./scripts/release-notes.sh "$version" > "$RUNNER_TEMP/notes.md"
           echo "version=$version" >> "$GITHUB_OUTPUT"
 
-      - name: Format and test
-        run: ./scripts/check.sh --all format test
+      # cask runs the Homebrew tap's own checks on the cask, so the tap's pull
+      # request passes.
+      - name: Format, test and check the cask
+        run: ./scripts/check.sh --all format test cask
 
       - name: Import the release certificate
         env:

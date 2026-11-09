@@ -49,7 +49,7 @@ jobs:
       - name: Install XcodeGen
         run: brew install xcodegen
       - name: Check
-        run: ./scripts/check.sh --all format build test
+        run: ./scripts/check.sh --all format build test cask
 
   required:
     # The single required status check. It succeeds only if every needed job
