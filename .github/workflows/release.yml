@@ -79,14 +79,13 @@ jobs:
           ./scripts/release-notes.sh "$version" > "$RUNNER_TEMP/notes.md"
           echo "version=$version" >> "$GITHUB_OUTPUT"
 
-      # The tests use the Debug compilation cache CI's "Format and test" job keeps on main;
-      # the key must match ci.yml's. The build that is published does not: it is compiled
-      # from scratch below.
+      # The tests use the compilation cache CI's macOS job keeps on main; the key must match
+      # ci.yml's. The build that is published does not: it is compiled from scratch below.
       - name: Choose the DerivedData folder and the cache key
         id: cache
         run: |
           echo "CHARGECTL_DERIVED_DATA=$RUNNER_TEMP/DerivedData" >> "$GITHUB_ENV"
-          echo "key=compilation-cache-debug-$(xcodebuild -version | head -1 | tr -d ' ')-$(date -u +%Y-%m)" >> "$GITHUB_OUTPUT"
+          echo "key=compilation-cache-$(xcodebuild -version | head -1 | tr -d ' ')-$(date -u +%Y-%m)" >> "$GITHUB_OUTPUT"
 
       - name: Restore the compilation cache
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
