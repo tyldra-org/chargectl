@@ -105,6 +105,19 @@ import Testing
         #expect(decision.state.adapterEnabled)
     }
 
+    @Test func holdLevelFromAnEarlierVersionIsKept() throws {
+        let json = #"{"wasPluggedIn":true,"holdLevel":78,"isSailing":true}"#
+        let state = try JSONDecoder().decode(ControlState.self, from: Data(json.utf8))
+        #expect(state.phase == .holdingAbove(78))
+    }
+
+    @Test func phaseSurvivesSavingAndLoading() throws {
+        for phase in [HoldPhase.charging, .sailing, .holdingAbove(83)] {
+            let state = ControlState(phase: phase)
+            #expect(try JSONDecoder().decode(ControlState.self, from: JSONEncoder().encode(state)).phase == phase)
+        }
+    }
+
     @Test func turningAutoDischargeOnDrainsToLimit() {
         var settings = ChargeSettings.limit(55, sailing: 5)
         settings.autoDischarge = false
@@ -122,8 +135,27 @@ import Testing
     }
 
     @Test func insideBandKeepsDirection() {
-        #expect(decide(52, state: ControlState(adapterEnabled: true)).state.adapterEnabled)
-        #expect(!decide(52, state: ControlState(adapterEnabled: false)).state.adapterEnabled)
+        var charging = ControlState(adapterEnabled: true)
+        charging.wasPluggedIn = true
+        var sailing = ControlState(adapterEnabled: false)
+        sailing.wasPluggedIn = true
+        #expect(decide(52, state: charging).state.adapterEnabled)
+        #expect(!decide(52, state: sailing).state.adapterEnabled)
+    }
+
+    /// Plugging in inside the sailing range starts sailing instead of a short top-up to the limit.
+    @Test func plugInInsideTheBandSails() {
+        let unplugged = decide(52, pluggedIn: false, settings: .limit(55, sailing: 5))
+        let pluggedIn = decide(52, settings: .limit(55, sailing: 5), state: unplugged.state)
+        #expect(!pluggedIn.state.adapterEnabled)
+        #expect(pluggedIn.activity == .sailing(limit: 55, lowerBound: 50))
+    }
+
+    @Test func plugInAtTheLowerBoundCharges() {
+        let unplugged = decide(50, pluggedIn: false, settings: .limit(55, sailing: 5))
+        let pluggedIn = decide(50, settings: .limit(55, sailing: 5), state: unplugged.state)
+        #expect(pluggedIn.state.adapterEnabled)
+        #expect(pluggedIn.activity == .charging(to: 55))
     }
 
     @Test func lowerBoundReconnects() {
@@ -282,6 +314,23 @@ import Testing
         #expect(resume.activity == .charging(to: 75))
     }
 
+    /// The reported case: limit 55%, sailing 7%, plugged in at 52%. macOS holds the charge where
+    /// it is instead of charging to 55%, until it drifts to 48%.
+    @Test func plugInInsideTheBandHoldsThroughMacOS() {
+        var settings = ChargeSettings.limit(55, sailing: 7)
+        settings.autoDischarge = false
+        let unplugged = ChargePolicy.decide(
+            PolicyInput(percent: 52, isPluggedIn: false, temperature: 30, canSetMacOSLimit: true, macOSLimitFloor: 20),
+            settings: settings, state: ControlState(), now: now)
+        let pluggedIn = below80(52, settings: settings, state: unplugged.state)
+        #expect(pluggedIn.state.isSailing)
+        #expect(pluggedIn.state.adapterEnabled)
+        #expect(pluggedIn.macOSLimit == 52)
+        #expect(pluggedIn.activity == .sailingHold(52, resumeAt: 48))
+        let atLowerBound = below80(48, settings: settings, state: pluggedIn.state)
+        #expect(atLowerBound.activity == .charging(to: 55))
+    }
+
     @Test func autoDischargeOffBelow80HoldsTheCurrentCharge() {
         var settings = ChargeSettings.limit(60, sailing: 5)
         settings.autoDischarge = false
@@ -363,7 +412,7 @@ import Testing
     @Test func holdFollowsTheGaugeUpWhenNotCharging() {
         var settings = ChargeSettings.limit(50, sailing: 5)
         settings.autoDischarge = false
-        var held = ControlState(holdLevel: 61)
+        var held = ControlState(phase: .holdingAbove(61))
         held.wasPluggedIn = true
         held.lastLimit = 50
         held.lastAutoDischarge = false

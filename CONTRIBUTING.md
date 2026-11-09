@@ -34,11 +34,19 @@ try it on your own Mac. `./scripts/uninstall.sh` removes it again.
 is in your keychain (see [`scripts/signing.sh`](scripts/signing.sh)); otherwise
 the build is signed ad hoc, as releases are.
 
-- **Ad hoc:** Install Helper writes a launchd job to `/Library/LaunchDaemons`
-  with your administrator password. macOS ties a background item's approval to
-  an ad-hoc build, so the Login Items route would stop the helper after every
-  update; a launchd job keeps working. Login Items lists it as "Chargectl
-  Service".
+- **Ad hoc:** Install Helper copies the helper to
+  `/Library/PrivilegedHelperTools` and writes a launchd job to
+  `/Library/LaunchDaemons` that runs that root-owned copy, with your
+  administrator password. macOS ties a background item's approval to an ad-hoc
+  build, so the Login Items route would stop the helper after every update; a
+  launchd job keeps working. Login Items lists it as "Chargectl Service". An
+  update replaces the copy only when the new helper is signed with the release
+  certificate; otherwise the app asks to install it again.
+- **Release certificate:** `./scripts/make-release-certificate.sh <folder>`
+  creates a self-signed code-signing certificate and prints the commands that
+  store it as the release workflow's secrets. Releases are then signed with it,
+  its SHA-1 is built into the app and the helper, and updates replace the helper
+  without a password. Keep the `.p12` private and backed up.
 - **With a team:** Install Helper registers the helper with SMAppService. It is
   listed under Chargectl in Login Items, you turn it on once, and the approval
   carries over to updates. The helper only accepts the Chargectl app signed by
@@ -64,13 +72,13 @@ the build is signed ad hoc, as releases are.
 
    | Stage | Command |
    | --- | --- |
-   | Format | `xcrun swift-format lint --strict --recursive App Daemon Shared Tests` |
+   | Format | `xcrun swift-format lint --strict --recursive App Daemon Shared Tests Widgets` |
    | Build | `./scripts/build.sh Release` |
    | Test | `./scripts/test.sh` |
    | Shell | `shellcheck` on every tracked `*.sh` file |
    | Workflows | `actionlint` |
 
-   Fix formatting with `xcrun swift-format format --in-place --recursive App Daemon Shared Tests`.
+   Fix formatting with `xcrun swift-format format --in-place --recursive App Daemon Shared Tests Widgets`.
 
 Changes to how charging is controlled must also be tried on a real MacBook.
 Say in the pull request which Mac and macOS version you used and what you saw.

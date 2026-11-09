@@ -77,11 +77,16 @@ switch options and drag the white marker to change the limit.
 | **Overcharge guard** | When macOS charges past the limit anyway (its occasional charge to 100%, or "Charge to Full Now"), Chargectl brings the battery back. |
 | **Two-way sync** | Chargectl's limit shows in System Settings › Battery, and a limit chosen there becomes Chargectl's limit. |
 | **Jobs** | Top up to 100% once, discharge to the limit, or calibrate the battery gauge. |
+| **Full by** | Charge to 100% just in time for a time you set, once or on chosen days, then back to the limit. |
 | **Heat protection** | Pause charging while the battery is warm. |
 | **Live readings** | Charger, Mac and battery power each second, battery health, cycles and temperature. |
 | **Time to the limit** | How long until the charge reaches your limit, the end of sailing or a discharge target, or empty on battery. |
 | **Energy by app** | The apps using significant energy, averaged over the last minute, with each app's helpers and commands counted for it. |
 | **History and logs** | 24 hours of charge, temperature and power, and a log of what the battery and Chargectl did. |
+| **Health over time** | One summary a day, kept for years: health, cycles, hours at 90% or more and the warmest moment. |
+| **Widgets and controls** | Widgets in every size for the charge, power, health, today, Full by, time left and quick controls; Control Center controls for charge control, Top Up, Discharge and Full by. |
+| **Shortcuts and notifications** | Shortcuts actions for the limit, jobs and Full by. Notifications for problems, finished jobs and the limit. |
+| **Checks** | Warns when the charger is too weak to run the Mac, or when cutting wall power stops working after an update. |
 | **Automatic updates** | New releases install themselves while Chargectl's windows are closed, checked against their checksum and code signature. On by default; Settings › Updates. |
 | **Clean removal** | Uninstall restores normal charging and your macOS limit, and removes every file Chargectl added. |
 

@@ -39,10 +39,14 @@ disclosure. Maintainers will agree a disclosure date with you.
 
 ## What the helper can do
 
-The helper, `Chargectl Service` (built from the `chargectld` target), lives inside
-`Chargectl.app`. Install Helper installs it as a launchd daemon with your
-administrator password, or registers it with SMAppService for builds signed with
-a team; either way launchd runs it as root. It can:
+The helper, `Chargectl Service` (built from the `chargectld` target), ships inside
+`Chargectl.app`. For builds without an Apple team, Install Helper copies it to
+`/Library/PrivilegedHelperTools/com.tyldra.chargectl.daemon`, owned by root, and
+installs a launchd daemon that runs that copy, with your administrator password.
+launchd never runs the copy inside the app, because the app belongs to the user
+who installed it and anything running as that user could replace it. Builds
+signed with a team register the helper with SMAppService instead. Either way
+launchd runs it as root. It can:
 
 - switch wall power on and off and set the MagSafe LED through SMC keys;
 - set macOS's charge limit, including writing PowerUIAgent's preferences;
@@ -52,9 +56,16 @@ a team; either way launchd runs it as root. It can:
 The app checks `api.github.com` for new releases every few hours. Before
 installing one, it checks the zip against the release's SHA-256 file, verifies
 its code signature, and requires the bundle identifier `com.tyldra.chargectl`
-and the expected version. Releases are signed ad hoc, so the signature proves the
-app is intact, not who built it; the checksum comes from the same GitHub
-release over HTTPS.
+and the expected version. Releases signed with Chargectl's release certificate
+(a self-signed code-signing certificate whose SHA-1 is built into the app and the
+helper) must be signed with that certificate. Releases signed ad hoc prove only
+that the app is intact, not who built it; their checksum comes from the same
+GitHub release over HTTPS.
+
+When the app is updated, the helper copies the new helper over its root-owned
+copy only if the new one is signed with the release certificate; the copy is
+checked after it is made, in the root-owned folder. Otherwise the old helper keeps
+running and the app asks to install the new one with the administrator password.
 
 While its launchd plist is installed, the helper keeps a sudoers rule in
 `/private/etc/sudoers.d/chargectl`, checked with `visudo` before it is moved in
@@ -64,7 +75,9 @@ password, so the app can start the helper after a macOS update has moved it
 aside. Removing the helper or uninstalling deletes the rule.
 
 It accepts XPC connections only from the Chargectl app. When the build is signed
-with a team, the app must carry the same team identifier. Ad-hoc builds can only
-require the identifier `com.tyldra.chargectl`, so any local process signed ad hoc
-with that identifier can change charging behavior. Clients cannot make the service run
+with a team, the app must carry the same team identifier; with the release
+certificate, that certificate. Ad-hoc builds can only require the identifier
+`com.tyldra.chargectl`, so any local process signed ad hoc with that identifier
+can change charging behavior. Release builds carry no `get-task-allow`
+entitlement, so other processes cannot attach to the app and speak as it. Clients cannot make the service run
 commands or read other files. Reports that widen this boundary are in scope.

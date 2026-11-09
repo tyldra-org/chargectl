@@ -8,7 +8,7 @@
 nonisolated enum HelperStartRule {
     /// sudo skips files in sudoers.d whose names contain a dot.
     static let path = "/private/etc/sudoers.d/chargectl"
-    static let plistPath = "/Library/LaunchDaemons/\(DaemonIdentity.machService).plist"
+    static let plistPath = HelperInstall.plistPath
     static let enable = ["/bin/launchctl", "enable", "system/\(DaemonIdentity.machService)"]
     static let bootstrap = ["/bin/launchctl", "bootstrap", "system", plistPath]
 

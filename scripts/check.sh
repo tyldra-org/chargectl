@@ -19,7 +19,7 @@ set -euo pipefail
 ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 cd "$ROOT"
 
-FORMAT_CMD=${CHECK_FORMAT_CMD-'xcrun swift-format lint --strict --recursive App Daemon Shared Tests'}
+FORMAT_CMD=${CHECK_FORMAT_CMD-'xcrun swift-format lint --strict --recursive App Daemon Shared Tests Widgets'}
 # swift-format lint runs in the format stage; there is no separate linter.
 LINT_CMD=${CHECK_LINT_CMD-''}
 BUILD_CMD=${CHECK_BUILD_CMD-'scripts/build.sh Release'}

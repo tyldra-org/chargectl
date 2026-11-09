@@ -37,7 +37,7 @@ cask "chargectl" do
 
   app "Chargectl.app"
 
-  # Releases are signed ad hoc and not notarized, so Gatekeeper would refuse to
+  # Releases are not notarized, so Gatekeeper would refuse to
   # open a quarantined copy. The archive's checksum is pinned above.
   postflight_steps do
     run "/usr/bin/xattr",
@@ -53,11 +53,13 @@ cask "chargectl" do
   zap trash: [
     "/Library/Application Support/Chargectl",
     "/Library/LaunchDaemons/com.tyldra.chargectl.daemon.plist",
+    "/Library/PrivilegedHelperTools/com.tyldra.chargectl.daemon",
     "/Library/Logs/DiagnosticReports/Chargectl Service*",
     "/Library/Logs/DiagnosticReports/Retired/Chargectl Service*",
     "/private/etc/sudoers.d/chargectl",
     "~/Library/Application Support/com.tyldra.chargectl",
     "~/Library/Caches/com.tyldra.chargectl",
+    "~/Library/Containers/com.tyldra.chargectl.widgets",
     "~/Library/HTTPStorages/com.tyldra.chargectl",
     "~/Library/HTTPStorages/com.tyldra.chargectl.binarycookies",
     "~/Library/Logs/DiagnosticReports/Chargectl*",

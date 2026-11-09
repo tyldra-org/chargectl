@@ -35,6 +35,11 @@ final class DaemonClient {
         return try Coding.decode([LogEntry].self, from: data)
     }
 
+    func daily() async throws -> [DailySample] {
+        let data: Data = try await call { $0.dailyHistory(reply: $1) }
+        return try Coding.decode([DailySample].self, from: data)
+    }
+
     func update(_ settings: ChargeSettings) async throws {
         let payload = Coding.encode(settings)
         let message: String? = try await call { $0.updateSettings(payload, reply: $1) }

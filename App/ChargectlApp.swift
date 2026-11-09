@@ -3,11 +3,24 @@ import SwiftUI
 @main
 struct ChargectlApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
-    @State private var model = AppModel()
+    @State private var model: AppModel
     @AppStorage(PreferenceKey.showInMenuBar) private var showInMenuBar = true
 
     init() {
         CommandLineActions.runIfRequested()
+        #if DEBUG
+            // Before the model exists, so rendering never starts the refresh loop or the updater.
+            DesignRender.runIfRequested()
+        #endif
+        #if DEBUG
+            // Debug builds started with --demo show sample data everywhere and never talk to the
+            // helper, so they can be tried without changing how the Mac charges.
+            if Setup.isDemo {
+                _model = State(initialValue: Sample.model(manyLogs: true))
+                return
+            }
+        #endif
+        _model = State(initialValue: AppModel())
     }
 
     var body: some Scene {
@@ -34,7 +47,7 @@ struct ChargectlApp: App {
         .windowStyle(.hiddenTitleBar)
         .windowResizability(.contentMinSize)
         .defaultSize(width: 1080, height: 740)
-        .defaultLaunchBehavior(showInMenuBar || Setup.isNeeded ? .suppressed : .presented)
+        .defaultLaunchBehavior(Setup.isDemo || !(showInMenuBar || Setup.isNeeded) ? .presented : .suppressed)
         .restorationBehavior(.disabled)
         .handlesExternalEvents(matching: [WindowID.dashboard])
     }
@@ -51,8 +64,19 @@ enum WindowID {
 /// First-run setup: the welcome window opens on every launch until the user finished it and the
 /// helper is installed.
 enum Setup {
+    /// Debug builds started with --demo (every run from Xcode): sample data, no helper, and
+    /// the dashboard opens right away.
+    static var isDemo: Bool {
+        #if DEBUG
+            CommandLine.arguments.contains("--demo")
+        #else
+            false
+        #endif
+    }
+
     static var isNeeded: Bool {
-        !UserDefaults.standard.bool(forKey: PreferenceKey.setupComplete)
+        if isDemo { return false }
+        return !UserDefaults.standard.bool(forKey: PreferenceKey.setupComplete)
             || ServiceInstaller().registration != .enabled
     }
 

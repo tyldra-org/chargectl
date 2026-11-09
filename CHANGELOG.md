@@ -7,6 +7,99 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **Widgets.** Charge comes in every size macOS offers, from Small to Extra
+  Large Portrait. Power, Health, Today, Full by, Controls and Time left come in
+  Small and Medium, and Ring in Small. Each kind answers one question; Controls,
+  Full by and the larger Charge sizes have buttons that change the limit, Top Up,
+  Discharge or skip a full charge without opening the app.
+- **Control Center controls** for charge control (showing your limit), Top Up,
+  Discharge and Full by, which can also sit in the menu bar.
+- **Full by.** Control › Full by charges to 100% just in time for a time you
+  set, once, on weekdays, every day or on chosen days, then goes back to your
+  limit. Charging starts only as early as the charge needs, so the battery isn't
+  kept full for hours. Stopping it skips that time.
+- **Battery health over time.** History keeps one summary a day for years:
+  health, cycles, hours at 90% or more and the warmest moment. A new card shows
+  them over a month, three months, a year or everything.
+- **Shortcuts actions.** Set the limit, turn charge control on or off, Top Up,
+  Discharge, stop a job, charge to full by a time, turn Full by off, and get the
+  battery's charge.
+- **Notifications** for problems (on), finished jobs (on) and the limit being
+  reached (off); Settings › Notifications.
+- **A warning when the charger is too weak.** Plugged in, yet the battery runs
+  down for a minute: Chargectl says the charger can't keep up.
+- **A check that charge control works.** If the helper cuts wall power and the
+  battery keeps charging for 30 seconds, Chargectl warns that a macOS or firmware
+  update may have changed how charging is controlled.
+
+### Changed
+
+- **A redesigned dashboard and menu bar.** Every page now uses the same calm
+  cards, one green accent and a black status pill at the top that confirms each
+  change. Overview shows power flowing from the charger to the Mac and the
+  battery, and the charge over the last hour, 6 or 24 hours. Control puts the
+  limit first, on a slider with a ruler and the sailing range drawn in, and reads
+  the rules back as one sentence; turning charge control off asks first.
+  History adds four totals for the range, the charger connection under the
+  chart and one crosshair across all charts. Logs groups lines from the same
+  second, splits them by day, marks helper restarts and adds search (⌘F) and
+  Copy. Settings shows a menu bar preview and appearance as small windows, and
+  asks before removing the helper.
+- **The menu bar ring shows your limit.** Its track ends at the charge limit, so
+  a closed ring means the battery is held there, and a small symbol shows
+  charging, holding, discharging or a missing helper.
+- **A calmer setup window.** Each of the four steps shows one picture, a title,
+  a sentence and only that step's controls. A diagram shows what the helper
+  connects, the install checklist ticks off as it goes, the limit uses the same
+  slider as Control, and the last step shows where Chargectl sits in the menu
+  bar.
+- **The helper writes much less to disk and keeps more log.** History and log
+  entries are appended one line at a time instead of rewriting the whole file
+  every minute (about 280 MB a day at a full day of history), and the log keeps
+  the last 2,000 lines instead of 300. Files from older versions are moved over
+  on the first start.
+- **The app keeps hearing from the helper while macOS's battery service is
+  slow.** Status, history and logs are answered without waiting for it, and the
+  helper asks it for the charge limit once per check instead of up to four
+  times plus once for every status request.
+
+### Security
+
+- **Other programs can no longer replace the root helper.** launchd ran the
+  helper from inside Chargectl.app, which belongs to your user account, so any
+  program running as you could replace that file and have it run as root
+  without a password. Install Helper now copies the helper to
+  `/Library/PrivilegedHelperTools`, owned by root, and launchd runs that copy.
+  A helper installed by an earlier version moves itself there; this takes
+  effect when the Mac next restarts.
+- **Releases can be signed with Chargectl's own certificate.** Once they are,
+  the updater accepts only that signature, the helper takes commands only from
+  an app signed with it, and updates replace the helper without a password.
+  Until then, each update asks for the administrator password to update the
+  helper.
+- **Release builds no longer let other processes attach to them** (no
+  `get-task-allow` entitlement), so nothing can speak to the helper as the app.
+
+### Fixed
+
+- **Limits macOS can't hold stay held while the Mac sleeps.** Where macOS's own
+  limit can't go as low as yours, or isn't available, the helper used to
+  reconnect wall power before sleep, and the Mac could charge to macOS's limit
+  or to full overnight. Now wall power stays cut while asleep when the charge is
+  at least at the lower bound and 30%, so it only drifts down a little.
+- **Wall power comes back when the battery cannot be read.** After three failed
+  readings in a row the helper reconnects the charger instead of leaving the Mac
+  running down its battery.
+- **A limit below 80% no longer flickers wall power the first time macOS
+  refuses it.** The helper now decides again at once, instead of applying the
+  old decision after switching to holding the limit with wall power.
+- **Plugging in inside the sailing range no longer charges.** With a 55% limit
+  and 7% sailing, plugging in at 52% started charging to 55%. The charge is now
+  held where it is, and charging starts only once it drifts down to 48%, the
+  same as after reaching the limit.
+
 ## [0.1.10] - 2026-10-27
 
 The helper comes back by itself after a macOS update, and holding above the

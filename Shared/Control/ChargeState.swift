@@ -15,6 +15,8 @@ nonisolated enum ChargeMode: Codable, Equatable, Sendable {
     case topUp
     case discharge(to: Int)
     case calibrate(CalibrationPhase, since: Date)
+    /// Charging to 100% for a Full by time, held there until it passes.
+    case fullBy(Date)
 
     var title: String {
         switch self {
@@ -22,8 +24,31 @@ nonisolated enum ChargeMode: Codable, Equatable, Sendable {
         case .topUp: "top up"
         case .discharge: "discharge"
         case .calibrate: "calibration"
+        case .fullBy: "full charge"
         }
     }
+}
+
+/// Where an automatic charge stands while the charger is connected. One value instead of a hold
+/// level and a sailing flag, so the two can never disagree.
+nonisolated enum HoldPhase: Codable, Equatable, Sendable {
+    /// Charging up to the limit, or holding at it.
+    case charging
+    /// Reached the limit: the charge is held wherever it drifts until it falls to the lower
+    /// bound (limit − sailing), instead of being topped up in short bursts.
+    case sailing
+    /// Plugged in above the limit with automatic discharge off: the charge is held at this level
+    /// until the charger is unplugged or the charge falls to the limit, then it sails.
+    case holdingAbove(Int)
+
+    /// The level held above the limit, if any.
+    var holdLevel: Int? {
+        if case .holdingAbove(let level) = self { return level }
+        return nil
+    }
+
+    /// Whether the charge has reached the limit and is not being charged back up yet.
+    var isSailing: Bool { self != .charging }
 }
 
 /// What the daemon remembers between ticks and restarts.
@@ -33,12 +58,9 @@ nonisolated struct ControlState: Codable, Equatable, Sendable {
     var adapterEnabled = true
     /// Latched while the battery is too warm; clears 2 °C below the threshold.
     var heatPaused = false
-    /// With automatic discharge off: the charge when the Mac was plugged in above the limit,
-    /// held until it is unplugged or drops to the limit.
-    var holdLevel: Int?
-    /// Reached the limit and has not yet fallen to the lower bound (limit − sailing).
-    var isSailing = false
-    /// Plugged in on the previous decision; the hold level is only taken when plugging in.
+    /// Where an automatic charge stands while plugged in; always .charging otherwise.
+    var phase = HoldPhase.charging
+    /// Plugged in on the previous decision; a hold level is only taken when plugging in.
     var wasPluggedIn = false
     /// Wall power was cut because macOS kept charging past the target (its occasional charge to
     /// 100%, or "Charge to Full Now"); stays cut until the charge is back at the target.
@@ -47,12 +69,20 @@ nonisolated struct ControlState: Codable, Equatable, Sendable {
     /// plugged in above the limit starts a hold, the same as plugging in; nil after an update.
     var lastLimit: Int?
     var lastAutoDischarge: Bool?
+    /// A Full by time the user stopped; it does not start again.
+    var skippedDeadline: Date?
 
-    init(mode: ChargeMode = .automatic, adapterEnabled: Bool = true, heatPaused: Bool = false, holdLevel: Int? = nil) {
+    var holdLevel: Int? { phase.holdLevel }
+    var isSailing: Bool { phase.isSailing }
+
+    init(
+        mode: ChargeMode = .automatic, adapterEnabled: Bool = true, heatPaused: Bool = false,
+        phase: HoldPhase = .charging
+    ) {
         self.mode = mode
         self.adapterEnabled = adapterEnabled
         self.heatPaused = heatPaused
-        self.holdLevel = holdLevel
+        self.phase = phase
     }
 
     init(from decoder: any Decoder) throws {
@@ -60,12 +90,31 @@ nonisolated struct ControlState: Codable, Equatable, Sendable {
         mode = try container.decodeIfPresent(ChargeMode.self, forKey: .mode) ?? .automatic
         adapterEnabled = try container.decodeIfPresent(Bool.self, forKey: .adapterEnabled) ?? true
         heatPaused = try container.decodeIfPresent(Bool.self, forKey: .heatPaused) ?? false
-        holdLevel = try container.decodeIfPresent(Int.self, forKey: .holdLevel)
-        isSailing = try container.decodeIfPresent(Bool.self, forKey: .isSailing) ?? false
+        if let phase = try container.decodeIfPresent(HoldPhase.self, forKey: .phase) {
+            self.phase = phase
+        } else {
+            // Versions before 0.1.11 kept a hold level and a sailing flag.
+            let legacy = try decoder.container(keyedBy: LegacyKeys.self)
+            if let level = try legacy.decodeIfPresent(Int.self, forKey: .holdLevel) {
+                phase = .holdingAbove(level)
+            } else if try legacy.decodeIfPresent(Bool.self, forKey: .isSailing) == true {
+                phase = .sailing
+            }
+        }
         wasPluggedIn = try container.decodeIfPresent(Bool.self, forKey: .wasPluggedIn) ?? false
         overchargeCut = try container.decodeIfPresent(Bool.self, forKey: .overchargeCut) ?? false
         lastLimit = try container.decodeIfPresent(Int.self, forKey: .lastLimit)
         lastAutoDischarge = try container.decodeIfPresent(Bool.self, forKey: .lastAutoDischarge)
+        skippedDeadline = try container.decodeIfPresent(Date.self, forKey: .skippedDeadline)
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case mode, adapterEnabled, heatPaused, phase, wasPluggedIn, overchargeCut, lastLimit, lastAutoDischarge
+        case skippedDeadline
+    }
+
+    private enum LegacyKeys: String, CodingKey {
+        case holdLevel, isSailing
     }
 }
 
@@ -94,6 +143,8 @@ nonisolated enum ChargeActivity: Codable, Equatable, Sendable {
     case heatPaused
     case toppingUp
     case calibrating(CalibrationPhase)
+    /// Charging to 100% for a Full by time.
+    case chargingFull(by: Date)
 
     var summary: String {
         switch self {
@@ -112,6 +163,7 @@ nonisolated enum ChargeActivity: Codable, Equatable, Sendable {
         case .discharging(let target): "discharging to \(target)%"
         case .heatPaused: "too warm, charging paused"
         case .toppingUp: "topping up to 100%"
+        case .chargingFull(let deadline): "charging to 100% by \(deadline.formatted(date: .omitted, time: .shortened))"
         case .calibrating(.draining): "calibrating, draining to \(ChargePolicy.calibrationFloor)%"
         case .calibrating(.charging): "calibrating, charging to 100%"
         case .calibrating(.holding): "calibrating, resting at 100%"

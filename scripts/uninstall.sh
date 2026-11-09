@@ -22,7 +22,8 @@ helper="$app/Contents/MacOS/Chargectl Service"
 if [[ -x "$helper" ]]; then
   sudo "$helper" --restore 2>/dev/null || true
 fi
-sudo rm -f "/Library/LaunchDaemons/$label.plist" /private/etc/sudoers.d/chargectl
+sudo rm -f "/Library/LaunchDaemons/$label.plist" /private/etc/sudoers.d/chargectl \
+  "/Library/PrivilegedHelperTools/$label" "/Library/PrivilegedHelperTools/$label.new"
 sudo rm -rf "/Library/Application Support/Chargectl"
 sudo sh -c 'rm -f /Library/Logs/DiagnosticReports/Chargectl* /Library/Logs/DiagnosticReports/Retired/Chargectl* /Library/Logs/DiagnosticReports/chargectld* /Library/Logs/DiagnosticReports/Retired/chargectld*'
 rm -rf "$app" "$HOME"/.Trash/Chargectl*.app
@@ -50,6 +51,7 @@ rm -rf "$HOME/Library/Preferences/$id.plist" \
   "$HOME/Library/Saved Application State/$id.savedState" \
   "$HOME/Library/Application Support/$id" \
   "$HOME/Library/WebKit/$id" \
+  "$HOME/Library/Containers/$id.widgets" \
   "$HOME"/Library/Logs/DiagnosticReports/Chargectl* \
   "$HOME"/Library/Logs/DiagnosticReports/chargectld* \
   "${TMPDIR:-/tmp}/Chargectl-DerivedData"

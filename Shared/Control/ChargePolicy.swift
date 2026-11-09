@@ -12,6 +12,8 @@ nonisolated struct PolicyInput: Equatable, Sendable {
     /// The lowest macOS limit that can be set: 80 through Apple's API, lower through PowerUIAgent's
     /// own preferences.
     var macOSLimitFloor = ChargePolicy.macOSLimitAPIFloor
+    /// The next Full by time, unless the user stopped that one.
+    var fullBy: Date? = nil
 }
 
 nonisolated struct ChargeDecision: Equatable, Sendable {
@@ -52,15 +54,14 @@ nonisolated enum ChargePolicy {
         let native = input.canSetMacOSLimit
 
         state.heatPaused = heatPaused(input.temperature, settings: settings, wasPaused: state.heatPaused)
-        let event = advance(&state.mode, percent: input.percent, now: now)
+        let event = advance(&state.mode, percent: input.percent, fullBy: input.fullBy, now: now)
         let settingsChanged = state.lastLimit != settings.limit || state.lastAutoDischarge != settings.autoDischarge
         state.lastLimit = settings.limit
         state.lastAutoDischarge = settings.autoDischarge
 
         guard input.isPluggedIn else {
             state.adapterEnabled = true
-            state.holdLevel = nil
-            state.isSailing = false
+            state.phase = .charging
             state.overchargeCut = false
             state.wasPluggedIn = false
             // Set macOS's limit even on battery, so System Settings shows it and charging
@@ -72,36 +73,43 @@ nonisolated enum ChargePolicy {
             return ChargeDecision(state: state, activity: .onBattery, event: event, macOSLimit: limit)
         }
 
+        let justPluggedIn = !state.wasPluggedIn
+        var hold: Int?
         if state.mode == .automatic, !settings.autoDischarge, input.percent > settings.limit, settings.limit < 100 {
-            if let hold = state.holdLevel {
+            if let level = state.holdLevel {
                 // The hold drops when the battery runs down on its own. With macOS's limit holding
                 // it, the hold also rises when the reading creeps up without charging, as it does
                 // after a restart: a macOS limit below the reading would discharge the battery.
                 // Charging past the hold is an overshoot, handled below.
                 let follows = input.canSetMacOSLimit && !input.isCharging
-                state.holdLevel = follows ? input.percent : min(hold, input.percent)
+                hold = follows ? input.percent : min(level, input.percent)
             } else if !state.wasPluggedIn || settingsChanged || !(input.isCharging || state.overchargeCut) {
                 // Above the limit with automatic discharge off, the charge is held where it is:
                 // after plugging in, after a settings change, after the helper starts, or when
                 // macOS stopped a little past the limit. Only charging past the limit is an
                 // overshoot, handled below.
-                state.holdLevel = input.percent
+                hold = input.percent
             }
-        } else {
-            state.holdLevel = nil
         }
         state.wasPluggedIn = true
         // Sailing: after reaching the limit, hold where the charge drifts to until it falls to the
-        // lower bound, instead of topping it back up.
+        // lower bound, instead of topping it back up. Plugging in inside the band is the same case:
+        // the charger takes over where the battery is, with no short top-up to the limit.
+        var sailing = state.isSailing
         if state.mode == .automatic {
             if input.percent >= settings.limit {
-                state.isSailing = true
+                sailing = true
             } else if input.percent <= settings.lowerBound {
-                state.isSailing = false
+                sailing = false
+            } else if justPluggedIn {
+                sailing = true
+                // Without macOS's limit, sailing means running on battery down to the lower bound.
+                state.adapterEnabled = false
             }
         } else {
-            state.isSailing = false
+            sailing = false
         }
+        state.phase = hold.map(HoldPhase.holdingAbove) ?? (sailing ? .sailing : .charging)
         var result = target(
             input.percent, settings: settings, state: state, native: native, floor: input.macOSLimitFloor)
         guardAgainstOvercharge(&result, input: input, settings: settings, state: &state)
@@ -137,7 +145,7 @@ nonisolated enum ChargePolicy {
         let floor = min(max(input.macOSLimitFloor, ChargeSettings.limitRange.lowerBound), macOSLimitAPIFloor)
         let target: Int
         switch mode {
-        case .topUp, .calibrate: target = 100
+        case .topUp, .calibrate, .fullBy: target = 100
         case .discharge: return nil
         case .automatic: target = settings.limit
         }
@@ -151,10 +159,19 @@ nonisolated enum ChargePolicy {
     }
 
     /// Moves a job to its next phase. Returns a log line when something changed.
-    private static func advance(_ mode: inout ChargeMode, percent: Int, now: Date) -> String? {
+    private static func advance(_ mode: inout ChargeMode, percent: Int, fullBy: Date?, now: Date) -> String? {
         switch mode {
         case .automatic:
-            return nil
+            // Starts a Full by charge just long enough before its time.
+            guard let deadline = fullBy, now < deadline,
+                now >= deadline.addingTimeInterval(-FullBySchedule.leadTime(from: percent))
+            else { return nil }
+            mode = .fullBy(deadline)
+            return "charging to 100% by \(deadline.formatted(date: .omitted, time: .shortened))"
+        case .fullBy(let deadline):
+            guard now >= deadline else { return nil }
+            mode = .automatic
+            return "full charge time reached at \(percent)%"
         case .topUp:
             guard percent >= 100 else { return nil }
             mode = .automatic
@@ -209,6 +226,10 @@ nonisolated enum ChargePolicy {
         case .topUp:
             if state.heatPaused { return Target(adapterEnabled: false, activity: .heatPaused, macOSLimit: nil) }
             return Target(adapterEnabled: true, activity: .toppingUp, macOSLimit: macOS(100))
+        case .fullBy(let deadline):
+            if state.heatPaused { return Target(adapterEnabled: false, activity: .heatPaused, macOSLimit: nil) }
+            let activity: ChargeActivity = percent >= 100 ? .full : .chargingFull(by: deadline)
+            return Target(adapterEnabled: true, activity: activity, macOSLimit: macOS(100))
         case .automatic:
             break
         }

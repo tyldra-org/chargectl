@@ -128,6 +128,10 @@ final class Updater {
         try run("/usr/bin/ditto", "-x", "-k", zip.path, staging.path)
         let new = staging.appendingPathComponent("Chargectl.app")
         try run("/usr/bin/codesign", "--verify", "--deep", "--strict", new.path)
+        // Releases signed with Chargectl's own certificate must be signed with that one.
+        if let requirement = DaemonIdentity.requirement(identifier: DaemonIdentity.appIdentifier) {
+            try run("/usr/bin/codesign", "--verify", "--deep", "--strict", "-R=\(requirement)", new.path)
+        }
         let info = NSDictionary(contentsOf: new.appendingPathComponent("Contents/Info.plist"))
         guard info?["CFBundleIdentifier"] as? String == DaemonIdentity.appIdentifier,
             info?["CFBundleShortVersionString"] as? String == release.version
