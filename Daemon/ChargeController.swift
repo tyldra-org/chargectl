@@ -302,9 +302,11 @@ final class ChargeController {
         switch change {
         case .removed:
             // Deleting the app is an uninstall: hand charging back to macOS and remove the helper's
-            // plist, data and caches. A helper registered through SMAppService has no plist of its
-            // own; without the app, launchd would keep trying to start a missing program.
+            // plist, data and caches, and what the app left in each user's Library. A helper
+            // registered through SMAppService has no plist of its own; without the app, launchd
+            // would keep trying to start a missing program.
             _ = removeEverything()
+            UserCleanup.removeForEveryUser()
             bootOutSoon()
             return true
         case .replaced(let date):

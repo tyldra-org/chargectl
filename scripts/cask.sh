@@ -60,6 +60,7 @@ cask "chargectl" do
     "/Library/Logs/DiagnosticReports/Retired/Chargectl Service*",
     "/Library/PrivilegedHelperTools/com.tyldra.chargectl.daemon",
     "/private/etc/sudoers.d/chargectl",
+    "~/Library/Application Scripts/com.tyldra.chargectl.widgets",
     "~/Library/Application Support/com.tyldra.chargectl",
     "~/Library/Caches/com.tyldra.chargectl",
     "~/Library/Containers/com.tyldra.chargectl.widgets",
@@ -68,6 +69,7 @@ cask "chargectl" do
     "~/Library/Logs/DiagnosticReports/Chargectl*",
     "~/Library/Preferences/com.tyldra.chargectl.plist",
     "~/Library/Saved Application State/com.tyldra.chargectl.savedState",
+    "~/Library/WebKit/com.tyldra.chargectl",
   ]
 
   caveats <<~EOS

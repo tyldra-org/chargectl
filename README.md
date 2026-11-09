@@ -92,7 +92,7 @@ switch options and drag the white marker to change the limit.
 | **Shortcuts and notifications** | Shortcuts actions for the limit, jobs and Full by. Notifications for problems, finished jobs and the limit. |
 | **Checks** | Warns when the charger is too weak to run the Mac, or when cutting wall power stops working after an update. |
 | **Automatic updates** | New releases install themselves while Chargectl's windows are closed, checked against their checksum and code signature. On by default; Settings › Updates. |
-| **Clean removal** | Uninstall restores normal charging and your macOS limit, and removes every file Chargectl added. |
+| **Clean removal** | Uninstall restores normal charging and your macOS limit, and removes every file Chargectl added, including its caches, widget data and Dock tile. Dragging the app to the Trash does the same within a few minutes, through the helper. |
 
 ## Screenshots
 

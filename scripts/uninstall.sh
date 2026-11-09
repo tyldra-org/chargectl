@@ -26,37 +26,41 @@ sudo rm -f "/Library/LaunchDaemons/$label.plist" /private/etc/sudoers.d/chargect
   "/Library/PrivilegedHelperTools/$label" "/Library/PrivilegedHelperTools/$label.new"
 sudo rm -rf "/Library/Application Support/Chargectl"
 sudo sh -c 'rm -f /Library/Logs/DiagnosticReports/Chargectl* /Library/Logs/DiagnosticReports/Retired/Chargectl* /Library/Logs/DiagnosticReports/chargectld* /Library/Logs/DiagnosticReports/Retired/chargectld*'
-rm -rf "$app" "$HOME"/.Trash/Chargectl*.app
-# The Dock tile and what Homebrew keeps of the cask: the same script Uninstall runs, from
-# App/UninstallCleanup.swift, so the two cannot drift.
+rm -rf "$app"
+
+# What Homebrew keeps of the cask, when it installed Chargectl.
 brew=
 for prefix in /opt/homebrew /usr/local; do
   if [[ -x "$prefix/bin/brew" && ( -d "$prefix/Caskroom/chargectl" || -d "$prefix/Library/Taps/tyldra-org/homebrew-tools" ) ]]; then
     brew="$prefix/bin/brew"
   fi
 done
-cleanup=$(awk '/static let dock = """/{take=1; next} /static let homebrew = """/{take=1; next} take && /^        """/{take=0; next} take { sub(/^        /, ""); gsub(/\\\(bundleIdentifier\)/, "com.tyldra.chargectl"); gsub(/\\\(tap\)/, "tyldra-org/tools"); print }' "$(dirname "$0")/../App/UninstallCleanup.swift")
+
+# The same cleanup Uninstall runs, read out of Shared/UninstallCleanup.swift so the two cannot
+# drift: the Library items, crash reports and /private/var/folders entries, copies in the Trash,
+# the Dock tile and Homebrew's record.
+section() {
+  awk -v name="$1" '$0 ~ "static let " name " = \"\"\"" { take = 1; next } take && /^        """/ { exit } take { sub(/^        /, ""); print }' \
+    "$(dirname "$0")/../Shared/UninstallCleanup.swift" |
+    sed -e 's/\\(bundleIdentifier)/com.tyldra.chargectl/g' -e 's/\\(widgetsIdentifier)/com.tyldra.chargectl.widgets/g' \
+      -e 's/\\(widgetsProcess)/ChargectlWidgets/g' -e 's|\\(tap)|tyldra-org/tools|g'
+}
+cleanup="$(section files)
+$(section trash)
+$(section dock)
+$(section homebrew)"
+if [[ "$cleanup" != *'Containers/$widgets'* ]]; then
+  echo 'uninstall.sh: could not read the cleanup from Shared/UninstallCleanup.swift' >&2
+  exit 1
+fi
 sh -c "$cleanup" chargectl-cleanup "$brew" >/dev/null 2>&1 || true
 
-# Per-user cache and temp folders under /private/var/folders, for you and for the root service.
-user_dirs() { echo "$(getconf DARWIN_USER_CACHE_DIR)" "$(getconf DARWIN_USER_TEMP_DIR)"; }
-for dir in $(user_dirs); do rm -rf "$dir"$id*; done
+# The root service's cache and temporary folders under /private/var/folders.
 sudo sh -c 'for dir in "$(getconf DARWIN_USER_CACHE_DIR)" "$(getconf DARWIN_USER_TEMP_DIR)"; do rm -rf "$dir"'"$id"'*; done'
+rm -rf "${TMPDIR:-/tmp}/Chargectl-DerivedData"
 
-# Through cfprefsd first, so its cached copy cannot write the file back.
-defaults delete "$id" 2>/dev/null || true
-rm -rf "$HOME/Library/Preferences/$id.plist" \
-  "$HOME/Library/Caches/$id" \
-  "$HOME/Library/HTTPStorages/$id" "$HOME/Library/HTTPStorages/$id.binarycookies" \
-  "$HOME/Library/Saved Application State/$id.savedState" \
-  "$HOME/Library/Application Support/$id" \
-  "$HOME/Library/WebKit/$id" \
-  "$HOME/Library/Containers/$id.widgets" \
-  "$HOME"/Library/Logs/DiagnosticReports/Chargectl* \
-  "$HOME"/Library/Logs/DiagnosticReports/chargectld* \
-  "${TMPDIR:-/tmp}/Chargectl-DerivedData"
-
-leftovers=$( { find "$HOME/Library" /Library -maxdepth 3 -name "*$id*"; for dir in $(user_dirs); do ls -d "$dir"$id*; done; } 2>/dev/null || true)
+user_dirs() { echo "$(getconf DARWIN_USER_CACHE_DIR)" "$(getconf DARWIN_USER_TEMP_DIR)"; }
+leftovers=$( { find "$HOME/Library" /Library -maxdepth 3 -name "*$id*" -not -path "*/Caches/Homebrew/*"; for dir in $(user_dirs); do ls -d "$dir"$id*; done; } 2>/dev/null || true)
 if [[ -n "$leftovers" ]]; then
   echo "Still present:"; echo "$leftovers"
 else

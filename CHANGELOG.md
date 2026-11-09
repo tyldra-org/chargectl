@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.2.3] - 2026-11-08
+
+Uninstalling, or dragging Chargectl to the Trash, leaves nothing behind.
+
+### Fixed
+
+- **Uninstall leaves nothing behind.** It now also removes the widgets'
+  Application Scripts folder, stops the widget extension before deleting its
+  data, and makes a second pass after the app quits, because quitting wrote the
+  preferences and caches again. If macOS protects the widgets' data, Chargectl
+  shows those folders in Finder so you can drag them to the Trash.
+- **Dragging the app to the Trash cleans up too.** The helper already handed
+  charging back and removed itself when the app was deleted; it now also
+  removes the app's preferences, caches, widget data, crash reports and Dock
+  tile for each user.
+- **`brew uninstall --zap` removes the widgets' Application Scripts folder and
+  the WebKit data too.**
+
 ## [0.2.2] - 2026-11-08
 
 Full by is set on a day track, and cards no longer stretch into empty space.
@@ -351,7 +369,8 @@ MacBooks, from the menu bar.
   hands charging back to macOS and removes every file Chargectl added.
 - **Homebrew.** `brew install --cask tyldra-org/tools/chargectl`.
 
-[Unreleased]: https://github.com/tyldra-org/chargectl/compare/v0.2.2...HEAD
+[Unreleased]: https://github.com/tyldra-org/chargectl/compare/v0.2.3...HEAD
+[0.2.3]: https://github.com/tyldra-org/chargectl/compare/v0.2.2...v0.2.3
 [0.2.2]: https://github.com/tyldra-org/chargectl/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/tyldra-org/chargectl/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/tyldra-org/chargectl/compare/v0.1.10...v0.2.0
