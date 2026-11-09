@@ -472,7 +472,7 @@ struct SettingsPage: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Uninstall Chargectl").font(.system(size: 13, weight: .medium))
                     Text(
-                        "Removes the app, its background service, Login Items entries, settings, history, logs, preferences and caches, and hands charging back to macOS."
+                        "Removes the app, its background service, Login Items entries, settings, history, logs, preferences, caches and widget data, and hands charging back to macOS."
                     )
                     .font(.system(size: 12))
                     .foregroundStyle(.tertiary)
@@ -715,6 +715,7 @@ private struct UninstallSheet: View {
         ("person.crop.circle.badge.checkmark", "Login Items entries"),
         ("slider.horizontal.3", "Settings"), ("chart.xyaxis.line", "History"), ("list.bullet.rectangle", "Logs"),
         ("switch.2", "Preferences"), ("internaldrive", "Caches"),
+        ("square.grid.2x2", "Widget data"), ("exclamationmark.triangle", "Crash reports"),
     ]
 
     var body: some View {

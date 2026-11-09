@@ -487,10 +487,12 @@ final class AppModel {
             }
         }
         ServiceInstaller.unregisterAll()
-        if let identifier = Bundle.main.bundleIdentifier { Self.removeUserData(identifier) }
-        // Development builds outside /Applications are left alone; only installed copies go.
+        // Development builds outside /Applications are left alone; only installed copies go. The app
+        // goes first, so WidgetKit cannot start the widget extension again while its data is removed.
         let bundle = Bundle.main.bundleURL
         if bundle.path.hasPrefix("/Applications/") { try? FileManager.default.removeItem(at: bundle) }
+        Self.removeUserData()
+        Self.reportLeftovers()
         Self.cleanUpAfterQuitting(brew: Self.homebrewInstall)
         exit(0)
     }
@@ -512,44 +514,35 @@ final class AppModel {
         return nil
     }
 
-    /// Starts UninstallCleanup, which outlives the app: the Dock tile and Homebrew's record.
+    /// Starts UninstallCleanup.script, which outlives the app: once the app has quit it removes
+    /// what quitting wrote again, the Dock tile and Homebrew's record.
     private static func cleanUpAfterQuitting(brew: URL?) {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/bin/sh")
-        process.arguments = ["-c", UninstallCleanup.script, "chargectl-cleanup", brew?.path ?? ""]
+        process.arguments = [
+            "-c", UninstallCleanup.script, "chargectl-cleanup", brew?.path ?? "",
+            String(ProcessInfo.processInfo.processIdentifier),
+        ]
         process.standardOutput = FileHandle.nullDevice
         process.standardError = FileHandle.nullDevice
         try? process.run()
     }
 
-    private static func removeUserData(_ identifier: String) {
+    /// Everything in UninstallCleanup.libraryItems, while the app is still on screen: macOS may ask
+    /// to allow removing the widgets' data, which it protects as another app's.
+    private static func removeUserData() {
+        let identifier = UninstallCleanup.bundleIdentifier
+        run("/usr/bin/pkill", ["-U", String(getuid()), "-x", UninstallCleanup.widgetsProcess])
         UserDefaults.standard.removePersistentDomain(forName: identifier)
         CFPreferencesAppSynchronize(identifier as CFString)
         // Goes through cfprefsd, so its cached copy cannot write the file back after it is deleted.
-        let defaults = Process()
-        defaults.executableURL = URL(fileURLWithPath: "/usr/bin/defaults")
-        defaults.arguments = ["delete", identifier]
-        defaults.standardError = FileHandle.nullDevice
-        try? defaults.run()
-        defaults.waitUntilExit()
+        run("/usr/bin/defaults", ["delete", identifier])
         DarwinDirectories.removeEntries(withPrefix: identifier)
         let files = FileManager.default
-        let library = files.homeDirectoryForCurrentUser.appendingPathComponent("Library")
-        let paths = [
-            "Preferences/\(identifier).plist",
-            "Caches/\(identifier)",
-            "HTTPStorages/\(identifier)",
-            "HTTPStorages/\(identifier).binarycookies",
-            "Saved Application State/\(identifier).savedState",
-            "Application Support/\(identifier)",
-            "WebKit/\(identifier)",
-            // The widget extension's sandbox container.
-            "Containers/\(DaemonIdentity.widgetsIdentifier)",
-        ]
-        for path in paths { try? files.removeItem(at: library.appendingPathComponent(path)) }
+        for item in UninstallCleanup.libraryItems { try? files.removeItem(at: library.appendingPathComponent(item)) }
         let reports = library.appendingPathComponent("Logs/DiagnosticReports")
         for name in (try? files.contentsOfDirectory(atPath: reports.path)) ?? []
-        where name.hasPrefix("Chargectl") || name.hasPrefix("chargectld") {
+        where UninstallCleanup.crashReportPrefixes.contains(where: name.hasPrefix) {
             try? files.removeItem(at: reports.appendingPathComponent(name))
         }
         let trash = files.homeDirectoryForCurrentUser.appendingPathComponent(".Trash")
@@ -559,4 +552,40 @@ final class AppModel {
         }
     }
 
+    /// The widgets' sandbox folders when they could not be removed, which happens when macOS
+    /// protects them as another app's data, shown in Finder so they can be dragged to the Trash.
+    /// The other items are not checked: this process may write some of them once more before it
+    /// quits, and the script after quitting removes them again.
+    private static func reportLeftovers() {
+        let files = FileManager.default
+        let left = UninstallCleanup.libraryItems.filter { $0.hasSuffix(UninstallCleanup.widgetsIdentifier) }
+            .map { library.appendingPathComponent($0) }
+            .filter { files.fileExists(atPath: $0.path) }
+        guard !left.isEmpty else { return }
+        let home = files.homeDirectoryForCurrentUser.path
+        let alert = NSAlert()
+        alert.messageText =
+            "macOS kept Chargectl from removing \(left.count == 1 ? "a folder" : "\(left.count) folders")"
+        alert.informativeText =
+            left.map { "~" + $0.path.dropFirst(home.count) }.joined(separator: "\n")
+            + "\n\nEverything else is removed. Drag these to the Trash in Finder to finish."
+        alert.addButton(withTitle: "Show in Finder")
+        alert.addButton(withTitle: "Done")
+        NSApp.activate()
+        if alert.runModal() == .alertFirstButtonReturn { NSWorkspace.shared.activateFileViewerSelecting(left) }
+    }
+
+    private static var library: URL {
+        FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library")
+    }
+
+    private static func run(_ tool: String, _ arguments: [String]) {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: tool)
+        process.arguments = arguments
+        process.standardOutput = FileHandle.nullDevice
+        process.standardError = FileHandle.nullDevice
+        try? process.run()
+        process.waitUntilExit()
+    }
 }

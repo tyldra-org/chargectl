@@ -16,8 +16,8 @@ settings:
     CODE_SIGN_STYLE: Manual
     DEVELOPMENT_TEAM: ''
     ENABLE_HARDENED_RUNTIME: YES
-    MARKETING_VERSION: '0.2.2'
-    CURRENT_PROJECT_VERSION: '14'
+    MARKETING_VERSION: '0.2.3'
+    CURRENT_PROJECT_VERSION: '15'
     SWIFT_OBJC_BRIDGING_HEADER: Shared/SMC/SMCBridge.h
     # SHA-1 of the certificate releases are signed with when there is no Apple team; the helper
     # and the updater then accept only code signed with it. Empty: ad hoc.
