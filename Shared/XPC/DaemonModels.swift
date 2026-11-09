@@ -13,6 +13,9 @@ nonisolated struct DaemonStatus: Codable, Equatable, Sendable {
     var optimizedChargingEnabled: Bool? = nil
     /// Set when charge control is not having its effect (ControlCheck).
     var controlProblem: String? = nil
+    /// The Full by time that was skipped or stopped, while it is still ahead. Helpers before 0.2.4
+    /// do not send it.
+    var skippedFullBy: Date? = nil
 }
 
 nonisolated struct HistorySample: Codable, Equatable, Sendable {

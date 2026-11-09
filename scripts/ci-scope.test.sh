@@ -73,7 +73,9 @@ expect 'tests=none' suites README.md scripts/cask.sh
 expect 'tests=all' suites Assets/new-thing.json
 # App and Widgets are not in the test target.
 expect 'tests=none' suites App/Updater.swift Widgets/Views/WidgetViews.swift Daemon/main.swift
-expect 'tests=AppReleaseTests' suites Shared/Update/AppRelease.swift
+includes AppReleaseTests Shared/Update/AppRelease.swift
+# DaemonIdentity compares helper versions with AppRelease, so its tests run too.
+includes FeatureTests Shared/Update/AppRelease.swift
 includes ChargePolicyTests Shared/Control/ChargePolicy.swift
 # The controller runs the policy, so a policy change reaches the controller's tests.
 includes ChargeControllerTests Shared/Control/ChargePolicy.swift

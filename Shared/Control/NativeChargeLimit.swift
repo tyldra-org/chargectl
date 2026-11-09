@@ -47,6 +47,10 @@ nonisolated enum NativeChargeLimit {
             let plist = try? PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any],
             let policies = plist["policies"] as? Data
         else { return false }
+        // Policies from an earlier boot are not in force, as in limit(inPreferences:bootSession:).
+        if let stored = plist["bootSessionUUID"] as? String, let boot = bootSessionUUID(), stored != boot {
+            return false
+        }
         return drainsAboveLimit(inArchive: policies)
     }
 

@@ -78,10 +78,18 @@ struct Store {
                     throw CocoaError(.fileWriteUnknown)
                 }
             }
-            let handle = try FileHandle(forWritingTo: url)
+            let handle = try FileHandle(forUpdating: url)
             defer { try? handle.close() }
-            try handle.seekToEnd()
-            try handle.write(contentsOf: Coding.encode(value) + Data("\n".utf8))
+            var line = Coding.encode(value) + Data("\n".utf8)
+            // A line cut short by a crash has no newline; ending it keeps this entry on a line of
+            // its own, so loadLines skips only the broken one.
+            let end = try handle.seekToEnd()
+            if end > 0 {
+                try handle.seek(toOffset: end - 1)
+                if try handle.read(upToCount: 1) != Data("\n".utf8) { line.insert(UInt8(ascii: "\n"), at: 0) }
+                try handle.seekToEnd()
+            }
+            try handle.write(contentsOf: line)
         } catch {
             logger.error("could not append to \(file.rawValue, privacy: .public): \(error, privacy: .public)")
         }

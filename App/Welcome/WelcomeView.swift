@@ -647,7 +647,9 @@ private struct MenuBarPreview: View {
                 item
                 Image(systemName: "wifi")
                 Image(systemName: "switch.2")
-                Text(Date.now, format: .dateTime.weekday(.abbreviated).hour().minute()).fixedSize()
+                TimelineView(.everyMinute) { context in
+                    Text(context.date, format: .dateTime.weekday(.abbreviated).hour().minute()).fixedSize()
+                }
             }
             .font(.system(size: 12.5))
             .foregroundStyle(.primary.opacity(0.82))
@@ -671,7 +673,7 @@ private struct MenuBarPreview: View {
     private var item: some View {
         HStack(spacing: 4) {
             Image(nsImage: RingIcon.image(for: model)).renderingMode(.template)
-            Text("\(model.battery?.percent ?? 0)%").monospacedDigit()
+            Text(model.battery.map { "\($0.percent)%" } ?? "\u{2014}").monospacedDigit()
         }
         .foregroundStyle(.primary)
         .fixedSize()

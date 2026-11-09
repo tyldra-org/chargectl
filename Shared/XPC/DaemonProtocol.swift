@@ -6,6 +6,14 @@ nonisolated enum DaemonIdentity {
     /// MARKETING_VERSION, from the app's Info.plist or the one embedded in the service's binary.
     static let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "unknown"
     static let appIdentifier = "com.tyldra.chargectl"
+    /// The first helper with the daily record (dailyHistory).
+    static let dailyHistorySince = "0.2.0"
+
+    /// Whether a helper of this version has the daily record. An older helper does not answer the
+    /// call, so it is not made.
+    static func hasDailyHistory(_ version: String) -> Bool {
+        AppRelease.components(version) != nil && !AppRelease.isNewer(dailyHistorySince, than: version)
+    }
     /// The helper's code-signing identifier.
     static let serviceIdentifier = "com.tyldra.chargectl.daemon"
     /// The widget extension's, which asks the helper for its status and runs widget buttons.

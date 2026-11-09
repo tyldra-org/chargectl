@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **The Full By widget comes in every size.** Large, extra large and extra
+  large portrait join small and medium. They show the time left or the next
+  full charge, a track of the hours until then (held at your limit, then
+  charging), the week, the next few full charges with when each starts, and
+  Skip or Stop.
+
+### Fixed
+
+- **A skipped full charge no longer shows as the next one.** After Skip or Stop,
+  the widgets, the Control Center control and the Control page kept showing the
+  skipped time; they now show the one after it, and the widget marks the
+  skipped day.
+- **The Health widget and History's battery health chart work with an older
+  helper.** They stayed empty until the helper was updated to the app's
+  version; every helper from 0.2.0 on has the daily record they need.
+- **No history entry is lost after a crash.** An entry written right after a
+  line that a crash cut short was skipped together with it.
+- **macOS's own limit is only reported as draining the battery when it is in
+  force.** A policy left from before the last restart could count.
+- **The Time Left widget no longer says "Until you unplug" on battery** when
+  there is no estimate yet.
+- **The menu bar preview in setup and Settings keeps its clock current**, and
+  shows "—" instead of 0% before the battery is read.
+
 ## [0.2.3] - 2026-11-08
 
 Uninstalling, or dragging Chargectl to the Trash, leaves nothing behind.

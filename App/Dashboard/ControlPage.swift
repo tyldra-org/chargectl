@@ -249,7 +249,9 @@ struct ControlPage: View {
                             systemImage: "bolt.fill"
                         )
                         .labelStyle(TightLabelStyle(tint: Theme.accent))
-                    } else if let schedule, let next = schedule.nextDeadline(after: .now) {
+                    } else if let schedule,
+                        let next = schedule.nextDeadline(after: .now, skipping: model.status?.skippedFullBy)
+                    {
                         Text(Self.nextText(next, once: schedule.once != nil))
                             .contentTransition(.opacity)
                     }

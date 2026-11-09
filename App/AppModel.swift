@@ -317,10 +317,11 @@ final class AppModel {
         ControlCenter.shared.reloadAllControls()
     }
 
-    /// Helpers before this version have no daily record; only ask one of the same version.
+    /// Only helpers with the daily record are asked; an older one keeps its version until it is
+    /// installed again.
     func loadDaily() async {
         if isPreview { return }
-        guard status?.version == DaemonIdentity.version else { return }
+        guard let version = status?.version, DaemonIdentity.hasDailyHistory(version) else { return }
         if let samples = try? await client.daily() { daily = samples }
     }
 

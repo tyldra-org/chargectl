@@ -29,6 +29,17 @@ import Testing
         #expect(try Coding.decode(DaemonStatus.self, from: Coding.encode(status)) == status)
     }
 
+    /// A skipped Full by time travels with the status; a helper that does not send it decodes as none.
+    @Test func statusCarriesTheSkippedFullBy() throws {
+        var status = DaemonStatus(
+            version: "0.2.4", settings: ChargeSettings(), mode: .automatic, activity: .holding(80),
+            adapterEnabled: true, adapterKey: "CHIE", lastError: nil)
+        let older = try Coding.decode(DaemonStatus.self, from: Coding.encode(status))
+        #expect(older.skippedFullBy == nil)
+        status.skippedFullBy = Date(timeIntervalSince1970: 1_800_000_000)
+        #expect(try Coding.decode(DaemonStatus.self, from: Coding.encode(status)) == status)
+    }
+
     @Test func batterySnapshotParsesRegistry() throws {
         let registry: [String: Any] = [
             "CurrentCapacity": 80, "ExternalConnected": true, "IsCharging": false, "CycleCount": 214,

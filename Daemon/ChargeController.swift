@@ -489,7 +489,8 @@ final class ChargeController {
         DaemonStatus(
             version: DaemonIdentity.version, settings: settings, mode: state.mode, activity: activity,
             adapterEnabled: state.adapterEnabled, adapterKey: adapter?.key, lastError: lastError,
-            optimizedChargingEnabled: optimizedCharging, controlProblem: controlCheck.problem)
+            optimizedChargingEnabled: optimizedCharging, controlProblem: controlCheck.problem,
+            skippedFullBy: state.skippedDeadline.flatMap { $0 > .now ? $0 : nil })
     }
 
     /// Hands the app's view of the helper to the XPC service.

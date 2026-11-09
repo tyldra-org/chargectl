@@ -34,6 +34,31 @@ import Testing
         #expect(schedule.nextDeadline(after: schedule.once!.addingTimeInterval(1), calendar: calendar) == nil)
     }
 
+    @Test func aSkippedTimeGivesWayToTheNextOne() throws {
+        let schedule = FullBySchedule(hour: 8, minute: 0, weekdays: FullBySchedule.weekdaysOnly)
+        let monday = try #require(calendar.date(from: DateComponents(year: 2026, month: 11, day: 9, hour: 8)))
+        let tuesday = try #require(calendar.date(from: DateComponents(year: 2026, month: 11, day: 10, hour: 8)))
+        #expect(schedule.nextDeadline(after: sunday6am, skipping: monday, calendar: calendar) == tuesday)
+        #expect(schedule.nextDeadline(after: sunday6am, skipping: nil, calendar: calendar) == monday)
+        // A skip that is not the next time changes nothing.
+        #expect(schedule.nextDeadline(after: sunday6am, skipping: tuesday, calendar: calendar) == monday)
+    }
+
+    /// Days outside 1...7 only come from a damaged settings file; they must not crash the helper.
+    @Test func aDamagedScheduleStillDescribesItself() {
+        let schedule = FullBySchedule(hour: 8, minute: 0, weekdays: [0, 2, 8])
+        #expect(schedule.summary.hasSuffix("at 8:00"))
+        #expect(schedule.summary.split(separator: ",").count == 1)
+    }
+
+    @Test func onlyHelpersWithTheDailyRecordAreAskedForIt() {
+        #expect(DaemonIdentity.hasDailyHistory("0.2.0"))
+        #expect(DaemonIdentity.hasDailyHistory("0.2.3"))
+        #expect(DaemonIdentity.hasDailyHistory("1.0.0"))
+        #expect(!DaemonIdentity.hasDailyHistory("0.1.11"))
+        #expect(!DaemonIdentity.hasDailyHistory("unknown"))
+    }
+
     @Test func leadTimeGrowsAsTheChargeFalls() {
         #expect(FullBySchedule.leadTime(from: 100) == FullBySchedule.margin)
         #expect(FullBySchedule.leadTime(from: 80) == 50 * 60 + FullBySchedule.margin)
