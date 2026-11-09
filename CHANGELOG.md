@@ -7,17 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-11-08
+
+A new app icon, and the setup window loses its grey strip.
+
 ### Changed
 
 - **A new app icon.** It's the menu bar ring at Dock size: a green charge on a
   glass track that ends at your limit, with no lightning bolt. It's built in
   Icon Composer, so it follows System Settings › Appearance › Icon & widget
-  style: Default, Dark, Clear and Tinted.
+  style: Default, Dark, Clear and Tinted. (#23)
 
 ### Fixed
 
 - **The setup window no longer has a grey strip along its bottom.** The window
-  was a title bar taller than its content.
+  was a title bar taller than its content. (#22)
 
 ## [0.2.0] - 2026-11-08
 
@@ -320,7 +324,8 @@ MacBooks, from the menu bar.
   hands charging back to macOS and removes every file Chargectl added.
 - **Homebrew.** `brew install --cask tyldra-org/tools/chargectl`.
 
-[Unreleased]: https://github.com/tyldra-org/chargectl/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/tyldra-org/chargectl/compare/v0.2.1...HEAD
+[0.2.1]: https://github.com/tyldra-org/chargectl/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/tyldra-org/chargectl/compare/v0.1.10...v0.2.0
 [0.1.10]: https://github.com/tyldra-org/chargectl/compare/v0.1.9...v0.1.10
 [0.1.9]: https://github.com/tyldra-org/chargectl/compare/v0.1.8...v0.1.9
