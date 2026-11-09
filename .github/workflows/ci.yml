@@ -88,16 +88,31 @@ jobs:
     if: needs.changes.outputs.shell == 'true' || needs.changes.outputs.workflows == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
+    env:
+      ACTIONLINT_VERSION: v1.7.12
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      # actionlint comes from the Actions cache, so most runs download nothing.
+      # On a miss it is built from the Go module proxy, which go install checks
+      # against the Go checksum database, with retries.
+      - name: Restore actionlint
+        id: actionlint
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/go/bin/actionlint
+          key: ${{ runner.os }}-actionlint-${{ env.ACTIONLINT_VERSION }}
       - name: Install actionlint
+        if: steps.actionlint.outputs.cache-hit != 'true'
         run: |
-          go install github.com/rhysd/actionlint/cmd/actionlint@v1.7.12
-          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+          for attempt in 1 2 3; do
+            go install "github.com/rhysd/actionlint/cmd/actionlint@$ACTIONLINT_VERSION" && break
+            [ "$attempt" -lt 3 ] || exit 1
+            sleep $((attempt * 15))
+          done
       - name: Check
-        run: ./scripts/check.sh --all shell workflows
+        run: PATH="$HOME/go/bin:$PATH" ./scripts/check.sh --all shell workflows
 
   macos:
     name: Format, build and test
