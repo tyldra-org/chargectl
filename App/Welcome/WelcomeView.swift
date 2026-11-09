@@ -15,6 +15,7 @@ struct WelcomeView: View {
         case done
     }
 
+    /// The content below the title bar; the window adds the title bar's height.
     static let size = CGSize(width: 640, height: 572)
 
     let model: AppModel
@@ -57,7 +58,6 @@ struct WelcomeView: View {
             .ignoresSafeArea()
         }
         .tint(Theme.accent)
-        .ignoresSafeArea(edges: .top)
         .onAppear { Dashboard.show(Dashboard.window(WindowID.welcome)) }
         .onDisappear { Dashboard.didClose() }
     }
@@ -89,7 +89,8 @@ struct WelcomeView: View {
                 .padding(.top, 26)
                 .settleIn(2)
         }
-        .padding(.top, 46)
+        // Below the title bar, so 46 points from the top of the window.
+        .padding(.top, 14)
     }
 
     private var title: String {
