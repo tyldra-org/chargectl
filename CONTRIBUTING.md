@@ -87,8 +87,10 @@ the build is signed ad hoc, as releases are.
    through the Shared and Daemon files that use it. App and widget code isn't
    in the test target, so changing only that builds the tests without running
    them. Changes to `project.yml`, the test scripts or the CI wiring run
-   everything, and so does every push to `main`. To see what CI will pick for
-   your branch, run `./scripts/ci-scope.sh areas origin/main` and
+   everything, and so does every push to `main`. So does a file in none of the
+   script's lists: when you add a new kind of file, add it to the list for what
+   reads it, with a case in `scripts/ci-scope.test.sh`. To see what CI will pick
+   for your branch, run `./scripts/ci-scope.sh areas origin/main` and
    `./scripts/ci-scope.sh tests origin/main`.
 
 Changes to how charging is controlled must also be tried on a real MacBook.

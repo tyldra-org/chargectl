@@ -3,9 +3,11 @@
 # job "ci", so jobs can be added or renamed without editing the ruleset.
 #
 # The "changes" job runs first and picks the jobs a change needs
-# (scripts/ci-scope.sh), so a docs-only change finishes in seconds. Pull
-# requests also run only the test suites the change reaches; pushes to main,
-# the weekly run and manual runs run every test.
+# (scripts/ci-scope.sh), so a docs-only change finishes in seconds. A changed
+# path that no list in the script names runs everything. Pull requests also
+# run only the test suites the change reaches; pushes to main, the weekly run
+# and manual runs run every test. The Release build, the tests and the cask
+# check run side by side on separate runners.
 # There are deliberately no paths filters on the triggers: a skipped workflow
 # never reports "ci", and the merge would wait forever.
 name: CI
@@ -68,6 +70,8 @@ jobs:
               if git fetch --no-tags --depth=1 origin "$BEFORE"; then base=$BEFORE; fi
               ;;
           esac
+          # Only a full commit ID or nothing reaches the scope script.
+          if [[ ! $base =~ ^[0-9a-f]{40}$ ]]; then base=""; fi
           echo "sha=$base" >> "$GITHUB_OUTPUT"
       - name: Decide what to check
         id: scope
@@ -96,10 +100,11 @@ jobs:
           persist-credentials: false
       # actionlint comes from the Actions cache, so most runs download nothing.
       # On a miss it is built from the Go module proxy, which go install checks
-      # against the Go checksum database, with retries.
+      # against the Go checksum database, with retries. Only main saves it; pull
+      # requests restore it.
       - name: Restore actionlint
         id: actionlint
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/go/bin/actionlint
           key: ${{ runner.os }}-actionlint-${{ env.ACTIONLINT_VERSION }}
@@ -111,13 +116,32 @@ jobs:
             [ "$attempt" -lt 3 ] || exit 1
             sleep $((attempt * 15))
           done
+      - name: Save actionlint
+        if: github.ref == 'refs/heads/main' && steps.actionlint.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/go/bin/actionlint
+          key: ${{ runner.os }}-actionlint-${{ env.ACTIONLINT_VERSION }}
       - name: Check
         run: PATH="$HOME/go/bin:$PATH" ./scripts/check.sh --all shell workflows
 
   macos:
-    name: Format, build and test
+    # Two jobs side by side on separate runners: the Release build, and the
+    # format check with the Debug test build and run. Together they took about a
+    # minute in one job; apart, the run waits only for the slower one.
+    name: ${{ matrix.name }}
     needs: changes
-    if: needs.changes.outputs.swift == 'true' || needs.changes.outputs.cask == 'true'
+    if: needs.changes.outputs.swift == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Build (Release)
+            config: release
+            stages: build
+          - name: Format and test
+            config: debug
+            stages: format test
     # macOS 27 with Xcode 27 (public preview image).
     runs-on: xcode-27
     timeout-minutes: 30
@@ -128,21 +152,23 @@ jobs:
       - name: Select Xcode 27.1
         run: sudo xcode-select --switch /Applications/Xcode_27.1.app
       - name: Install XcodeGen
-        if: needs.changes.outputs.swift == 'true'
+        env:
+          HOMEBREW_NO_AUTO_UPDATE: "1"
+          HOMEBREW_NO_INSTALL_CLEANUP: "1"
         run: brew install xcodegen
       # Xcode's compilation cache (COMPILATION_CACHE_ENABLE_CACHING in project.yml) is kept
       # between runs, so a build compiles only what changed: about 5 seconds instead of 40 for a
       # full Release build on a Mac. DerivedData sits at a fixed path so cache entries match; the
-      # key changes with Xcode and each month, which starts the cache afresh. Only main saves it;
-      # pull requests restore main's.
+      # key changes with the configuration, Xcode and each month, which starts the cache afresh.
+      # Only main saves it; pull requests restore main's.
       - name: Choose the DerivedData folder and the cache key
         id: cache
-        if: needs.changes.outputs.swift == 'true'
+        env:
+          CONFIG: ${{ matrix.config }}
         run: |
           echo "CHARGECTL_DERIVED_DATA=$RUNNER_TEMP/DerivedData" >> "$GITHUB_ENV"
-          echo "key=compilation-cache-$(xcodebuild -version | head -1 | tr -d ' ')-$(date -u +%Y-%m)" >> "$GITHUB_OUTPUT"
+          echo "key=compilation-cache-$CONFIG-$(xcodebuild -version | head -1 | tr -d ' ')-$(date -u +%Y-%m)" >> "$GITHUB_OUTPUT"
       - name: Restore the compilation cache
-        if: needs.changes.outputs.swift == 'true'
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ runner.temp }}/DerivedData/CompilationCache.noindex
@@ -150,28 +176,66 @@ jobs:
           restore-keys: ${{ steps.cache.outputs.key }}-
       - name: Check
         env:
-          SWIFT: ${{ needs.changes.outputs.swift }}
-          CASK: ${{ needs.changes.outputs.cask }}
+          STAGES: ${{ matrix.stages }}
           # all, none (build the tests only) or the suites the change reaches.
           CHARGECTL_TEST_SUITES: ${{ needs.changes.outputs.tests }}
         run: |
-          stages=()
-          if [ "$SWIFT" = true ]; then stages+=(format build test); fi
-          if [ "$CASK" = true ]; then stages+=(cask); fi
+          read -r -a stages <<<"$STAGES"
           ./scripts/check.sh --all "${stages[@]}"
       - name: Save the compilation cache
-        if: github.ref == 'refs/heads/main' && needs.changes.outputs.swift == 'true'
+        if: github.ref == 'refs/heads/main'
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ runner.temp }}/DerivedData/CompilationCache.noindex
           key: ${{ steps.cache.outputs.key }}-${{ github.sha }}
+
+  cask:
+    # brew style and audit on the cask, as the tap's CI runs them. Its own job, so
+    # it runs beside the build instead of after it. It needs Homebrew, not Xcode;
+    # the image matches the release workflow's cask check.
+    name: Homebrew cask
+    needs: changes
+    if: needs.changes.outputs.cask == 'true'
+    runs-on: xcode-27
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # check-cask.sh checks with the newest Homebrew, as the tap's CI does.
+      # Updating first lets the gem cache key follow Homebrew's Gemfile.lock.
+      - name: Update Homebrew
+        id: brew
+        run: |
+          brew update --quiet
+          repo=$(brew --repository)
+          echo "gems-path=$repo/Library/Homebrew/vendor/bundle/ruby/" >> "$GITHUB_OUTPUT"
+          echo "gems-hash=$(shasum -a 256 "$repo/Library/Homebrew/Gemfile.lock" | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+      # brew style installs RuboCop and its gems on first use; in the tap's CI,
+      # brew style took 44 of test-bot's 50 seconds. Only main saves the gems;
+      # pull requests restore main's.
+      - name: Restore Homebrew's gems
+        id: gems
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ steps.brew.outputs.gems-path }}
+          key: ${{ runner.os }}-rubygems-${{ steps.brew.outputs.gems-hash }}
+          restore-keys: ${{ runner.os }}-rubygems-
+      - name: Check
+        run: ./scripts/check.sh --all cask
+      - name: Save Homebrew's gems
+        if: github.ref == 'refs/heads/main' && steps.gems.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ steps.brew.outputs.gems-path }}
+          key: ${{ runner.os }}-rubygems-${{ steps.brew.outputs.gems-hash }}
 
   required:
     # The single required status check. It succeeds only if every needed job
     # succeeded or was skipped because the change did not need it.
     name: ci
     if: always()
-    needs: [changes, static, macos]
+    needs: [changes, static, macos, cask]
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     permissions: {}

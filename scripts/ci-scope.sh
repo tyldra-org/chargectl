@@ -7,8 +7,10 @@
 #                                             tests=all, tests=none or tests=<Suite> ...
 #
 # Without [head], the working tree is compared, new files included. An empty,
-# all-zero or unknown <base> means "check everything". The classify and suites
-# modes take paths instead of commits; scripts/ci-scope.test.sh uses them.
+# all-zero or unknown <base> means "check everything". So does a changed path
+# that no list below names: add it to the list for what reads it, with a case in
+# scripts/ci-scope.test.sh. The classify and suites modes take paths instead of
+# commits; the tests use them.
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
 
@@ -42,6 +44,18 @@ is_workflow() {
   case $1 in .github/workflows/* | .github/actionlint.yaml) return 0 ;; esac
   return 1
 }
+# Files no check reads. A Markdown file the app bundles goes in is_swift instead.
+is_docs() {
+  case $1 in
+    *.md | docs/* | LICENSE | .gitignore) return 0 ;;
+    .github/ISSUE_TEMPLATE/* | .github/CODEOWNERS | .github/dependabot.yml) return 0 ;;
+  esac
+  return 1
+}
+# A path in none of the lists runs everything: a new kind of file costs time, never coverage.
+is_listed() {
+  is_full "$1" || is_swift "$1" || is_cask "$1" || is_shell "$1" || is_workflow "$1" || is_docs "$1"
+}
 # Changes every test depends on: the project, the test target's build and test helpers.
 is_test_global() {
   case $1 in project.yml | .swift-format | scripts/test.sh | scripts/generate.sh | scripts/env.sh) return 0 ;; esac
@@ -56,6 +70,10 @@ classify() {
     if is_cask "$file"; then cask=true; fi
     if is_shell "$file"; then shell=true; fi
     if is_workflow "$file"; then workflows=true; fi
+    if ! is_listed "$file"; then
+      echo "ci-scope: no list names $file, so everything is checked" >&2
+      full=true
+    fi
   done
   if [ "$full" = true ]; then swift=true cask=true shell=true workflows=true; fi
   printf 'full=%s\nswift=%s\ncask=%s\nshell=%s\nworkflows=%s\n' "$full" "$swift" "$cask" "$shell" "$workflows"
@@ -115,7 +133,7 @@ reached() {
 suites() {
   local picked='' sources=() file test name pattern
   for file in "$@"; do
-    if is_full "$file" || is_test_global "$file"; then
+    if is_full "$file" || is_test_global "$file" || ! is_listed "$file"; then
       echo all
       return
     fi
