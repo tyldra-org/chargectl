@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **The setup window no longer has a grey strip along its bottom.** The window
+  was a title bar taller than its content.
+
 ## [0.2.0] - 2026-11-08
 
 A redesigned app with widgets, Control Center controls and Full by. The root

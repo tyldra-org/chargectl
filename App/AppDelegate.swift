@@ -61,7 +61,11 @@ enum Dashboard {
     static func show(_ window: NSWindow? = nil) {
         NSApp.setActivationPolicy(.regular)
         NSApp.activate()
-        (window ?? Self.window)?.makeKeyAndOrderFront(nil)
+        let window = window ?? Self.window
+        #if DEBUG
+            if let window { ScreenshotLayout.place(window) }
+        #endif
+        window?.makeKeyAndOrderFront(nil)
     }
 
     /// Back to a menu bar–only app once no window of ours is open.
@@ -86,3 +90,26 @@ enum Dashboard {
         NSApp.terminate(nil)
     }
 }
+
+#if DEBUG
+    /// Debug builds started with `--screenshots` (scripts/screenshots.sh): each window opens in the
+    /// middle of the sharpest screen, and the dashboard at 1240 × 880 points, so the README's
+    /// screenshots come out the same every time.
+    enum ScreenshotLayout {
+        static let isOn = CommandLine.arguments.contains("--screenshots")
+        static let dashboardSize = NSSize(width: 1240, height: 880)
+
+        static func place(_ window: NSWindow) {
+            guard isOn, let screen = NSScreen.screens.max(by: { $0.backingScaleFactor < $1.backingScaleFactor })
+            else { return }
+            var frame = window.frame
+            if window.identifier?.rawValue.hasPrefix(WindowID.dashboard) == true {
+                frame.size = window.frameRect(forContentRect: NSRect(origin: .zero, size: dashboardSize)).size
+            }
+            let visible = screen.visibleFrame
+            frame.origin = NSPoint(
+                x: (visible.midX - frame.width / 2).rounded(), y: (visible.midY - frame.height / 2).rounded())
+            window.setFrame(frame, display: true)
+        }
+    }
+#endif
