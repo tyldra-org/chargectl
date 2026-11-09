@@ -6,8 +6,8 @@
 # (scripts/ci-scope.sh), so a docs-only change finishes in seconds. A changed
 # path that no list in the script names runs everything. Pull requests also
 # run only the test suites the change reaches; pushes to main, the weekly run
-# and manual runs run every test. The Release build, the tests and the cask
-# check run side by side on separate runners.
+# and manual runs run every test. The cask check runs beside the macOS build
+# and tests, on its own runner.
 # There are deliberately no paths filters on the triggers: a skipped workflow
 # never reports "ci", and the merge would wait forever.
 name: CI
@@ -126,22 +126,13 @@ jobs:
         run: PATH="$HOME/go/bin:$PATH" ./scripts/check.sh --all shell workflows
 
   macos:
-    # Two jobs side by side on separate runners: the Release build, and the
-    # format check with the Debug test build and run. Together they took about a
-    # minute in one job; apart, the run waits only for the slower one.
-    name: ${{ matrix.name }}
+    # One job on purpose. With warm caches, the tests took 21 s after the Release
+    # build in the same DerivedData (run 42581666649) and 54 s on a runner of
+    # their own (run 42591414912), so splitting them saved nothing and cost a
+    # second macOS runner.
+    name: Format, build and test
     needs: changes
     if: needs.changes.outputs.swift == 'true'
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - name: Build (Release)
-            config: release
-            stages: build
-          - name: Format and test
-            config: debug
-            stages: format test
     # macOS 27 with Xcode 27 (public preview image).
     runs-on: xcode-27
     timeout-minutes: 30
@@ -159,15 +150,13 @@ jobs:
       # Xcode's compilation cache (COMPILATION_CACHE_ENABLE_CACHING in project.yml) is kept
       # between runs, so a build compiles only what changed: about 5 seconds instead of 40 for a
       # full Release build on a Mac. DerivedData sits at a fixed path so cache entries match; the
-      # key changes with the configuration, Xcode and each month, which starts the cache afresh.
-      # Only main saves it; pull requests restore main's.
+      # key changes with Xcode and each month, which starts the cache afresh. release.yml
+      # restores the same key for its tests. Only main saves it; pull requests restore main's.
       - name: Choose the DerivedData folder and the cache key
         id: cache
-        env:
-          CONFIG: ${{ matrix.config }}
         run: |
           echo "CHARGECTL_DERIVED_DATA=$RUNNER_TEMP/DerivedData" >> "$GITHUB_ENV"
-          echo "key=compilation-cache-$CONFIG-$(xcodebuild -version | head -1 | tr -d ' ')-$(date -u +%Y-%m)" >> "$GITHUB_OUTPUT"
+          echo "key=compilation-cache-$(xcodebuild -version | head -1 | tr -d ' ')-$(date -u +%Y-%m)" >> "$GITHUB_OUTPUT"
       - name: Restore the compilation cache
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
@@ -176,12 +165,9 @@ jobs:
           restore-keys: ${{ steps.cache.outputs.key }}-
       - name: Check
         env:
-          STAGES: ${{ matrix.stages }}
           # all, none (build the tests only) or the suites the change reaches.
           CHARGECTL_TEST_SUITES: ${{ needs.changes.outputs.tests }}
-        run: |
-          read -r -a stages <<<"$STAGES"
-          ./scripts/check.sh --all "${stages[@]}"
+        run: ./scripts/check.sh --all format build test
       - name: Save the compilation cache
         if: github.ref == 'refs/heads/main'
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0

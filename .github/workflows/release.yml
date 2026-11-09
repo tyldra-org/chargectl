@@ -3,18 +3,32 @@
 #   git tag -a v0.1.0 -m "Chargectl 0.1.0" && git push origin v0.1.0
 #
 # The tag must match MARKETING_VERSION in project.yml, and CHANGELOG.md must
-# have a section for that version. Two jobs:
-#   release   checks, builds and attests Chargectl-<version>.zip, then
-#             publishes it with its checksum and Homebrew cask
+# have a section for that version. Four jobs:
+#   build     checks the tag and the release notes, runs the format check and the
+#             tests, then builds Chargectl-<version>.zip from scratch, signs and
+#             attests it
+#   cask      the Homebrew tap's own checks on the cask, beside build on another
+#             runner
+#   publish   only once both passed: the GitHub release with the zip, its
+#             checksum and the Homebrew cask
 #   homebrew  opens a pull request with the new cask in
 #             tyldra-org/homebrew-tools, which merges itself once the tap's
 #             CI passes
 # A failed homebrew job can be rerun on its own; the release stays published.
+#
+# The tests and the build share one runner on purpose. After the tests, in the
+# same DerivedData, the Release build took 65 s (v0.2.3); alone on a fresh
+# runner it took 2m41s (dry run 42590886557).
+#
+# Run it by hand (Actions > Release > Run workflow) for a dry run: the same
+# checks and signed build for the version in project.yml, without attesting,
+# publishing or touching the tap.
 name: Release
 
 on:
   push:
     tags: ["v*"]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -25,12 +39,12 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  release:
-    name: Build and publish
+  build:
+    name: Check, build, sign and attest
     runs-on: xcode-27
     timeout-minutes: 45
     permissions:
-      contents: write # create the GitHub release
+      contents: read
       id-token: write # sign the build provenance attestation
       attestations: write
     outputs:
@@ -45,29 +59,33 @@ jobs:
         run: sudo xcode-select --switch /Applications/Xcode_27.1.app
 
       - name: Install XcodeGen
+        env:
+          HOMEBREW_NO_AUTO_UPDATE: "1"
+          HOMEBREW_NO_INSTALL_CLEANUP: "1"
         run: brew install xcodegen
 
       - name: Check the tag against project.yml and CHANGELOG.md
         id: version
         env:
+          EVENT: ${{ github.event_name }}
           TAG: ${{ github.ref_name }}
         run: |
           version=$(./scripts/version.sh)
-          if [[ "$TAG" != "v$version" ]]; then
+          if [[ "$EVENT" == push && "$TAG" != "v$version" ]]; then
             echo "::error::Tag $TAG does not match MARKETING_VERSION $version in project.yml."
             exit 1
           fi
+          mkdir -p "$RUNNER_TEMP/dist"
           ./scripts/release-notes.sh "$version" > "$RUNNER_TEMP/notes.md"
           echo "version=$version" >> "$GITHUB_OUTPUT"
 
-      # The tests use the Debug compilation cache CI's "Format and test" job keeps on main;
-      # the key must match ci.yml's. The build that is published does not: it is compiled
-      # from scratch below.
+      # The tests use the compilation cache CI's macOS job keeps on main; the key must match
+      # ci.yml's. The build that is published does not: it is compiled from scratch below.
       - name: Choose the DerivedData folder and the cache key
         id: cache
         run: |
           echo "CHARGECTL_DERIVED_DATA=$RUNNER_TEMP/DerivedData" >> "$GITHUB_ENV"
-          echo "key=compilation-cache-debug-$(xcodebuild -version | head -1 | tr -d ' ')-$(date -u +%Y-%m)" >> "$GITHUB_OUTPUT"
+          echo "key=compilation-cache-$(xcodebuild -version | head -1 | tr -d ' ')-$(date -u +%Y-%m)" >> "$GITHUB_OUTPUT"
 
       - name: Restore the compilation cache
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -76,10 +94,8 @@ jobs:
           key: ${{ steps.cache.outputs.key }}-${{ github.sha }}
           restore-keys: ${{ steps.cache.outputs.key }}-
 
-      # cask runs the Homebrew tap's own checks on the cask, so the tap's pull
-      # request passes.
-      - name: Format, test and check the cask
-        run: ./scripts/check.sh --all format test cask
+      - name: Format and test
+        run: ./scripts/check.sh --all format test
 
       - name: Import the release certificate
         env:
@@ -98,30 +114,69 @@ jobs:
           zip=$(./scripts/package.sh "$RUNNER_TEMP/dist")
           sha256=$(awk '{ print $1 }' "$zip.sha256")
           ./scripts/cask.sh "$VERSION" "$sha256" > "$RUNNER_TEMP/dist/chargectl.rb"
+          cp "$RUNNER_TEMP/notes.md" "$RUNNER_TEMP/dist/notes.md"
           {
             echo "zip=$zip"
             echo "sha256=$sha256"
           } >> "$GITHUB_OUTPUT"
 
       - name: Attest build provenance
+        if: github.event_name == 'push'
         uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
           subject-path: ${{ steps.package.outputs.zip }}
+
+      - name: Keep the zip, its checksum, the cask and the notes for publishing
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: dist
+          path: ${{ runner.temp }}/dist/
+          if-no-files-found: error
+          retention-days: 7
+
+  cask:
+    # brew style and audit, as the tap's CI runs them, so the tap's pull
+    # request passes. Beside build, on its own runner.
+    name: Check the cask
+    runs-on: xcode-27
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Check the cask
+        run: ./scripts/check.sh --all cask
+
+  publish:
+    name: Publish the release
+    needs: [build, cask]
+    if: github.event_name == 'push'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write # create the GitHub release
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: dist
+          path: ${{ runner.temp }}/dist
 
       - name: Publish the release
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.ref_name }}
-          VERSION: ${{ steps.version.outputs.version }}
-          ZIP: ${{ steps.package.outputs.zip }}
+          VERSION: ${{ needs.build.outputs.version }}
         run: |
+          cd "$RUNNER_TEMP/dist"
+          sha256sum --check "Chargectl-$VERSION.zip.sha256"
           gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --verify-tag \
-            --title "Chargectl $VERSION" --notes-file "$RUNNER_TEMP/notes.md" \
-            "$ZIP" "$ZIP.sha256" "$RUNNER_TEMP/dist/chargectl.rb"
+            --title "Chargectl $VERSION" --notes-file notes.md \
+            "Chargectl-$VERSION.zip" "Chargectl-$VERSION.zip.sha256" chargectl.rb
 
   homebrew:
     name: Update the Homebrew tap
-    needs: release
+    needs: [build, publish]
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
@@ -150,8 +205,8 @@ jobs:
         working-directory: tap
         env:
           GH_TOKEN: ${{ steps.token.outputs.token }}
-          VERSION: ${{ needs.release.outputs.version }}
-          SHA256: ${{ needs.release.outputs.sha256 }}
+          VERSION: ${{ needs.build.outputs.version }}
+          SHA256: ${{ needs.build.outputs.sha256 }}
           BOT: ${{ steps.token.outputs.app-slug }}[bot]
         run: |
           branch="chargectl-$VERSION"
