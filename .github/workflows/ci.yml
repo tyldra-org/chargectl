@@ -1,12 +1,22 @@
 # Continuous integration. Every job calls scripts/check.sh, the same entry
 # point developers run locally. Branch protection requires only the aggregate
 # job "ci", so jobs can be added or renamed without editing the ruleset.
+#
+# The "changes" job runs first and picks the jobs a change needs
+# (scripts/ci-scope.sh), so a docs-only change finishes in seconds. Pull
+# requests also run only the test suites the change reaches; pushes to main,
+# the weekly run and manual runs run every test.
+# There are deliberately no paths filters on the triggers: a skipped workflow
+# never reports "ci", and the merge would wait forever.
 name: CI
 
 on:
   pull_request:
   push:
     branches: ["main"]
+  schedule:
+    # Weekly full run, for runner image and Xcode drift.
+    - cron: "23 5 * * 1"
   workflow_dispatch:
 
 # Read-only by default; no job needs more. No secrets are used, so fork pull
@@ -20,8 +30,62 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  changes:
+    # Decides which jobs and test suites this change needs. Docs-only changes
+    # skip everything else; the "ci" job still reports.
+    name: Detect changes
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    defaults:
+      run:
+        # pipefail: a failing scope script must fail the job, never leave the
+        # outputs empty and skip every check.
+        shell: bash
+    outputs:
+      swift: ${{ steps.scope.outputs.swift }}
+      cask: ${{ steps.scope.outputs.cask }}
+      shell: ${{ steps.scope.outputs.shell }}
+      workflows: ${{ steps.scope.outputs.workflows }}
+      tests: ${{ steps.scope.outputs.tests }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # A pull request checks out its merge commit; its first parent is
+          # the base branch, so the diff is exactly what the PR changes.
+          fetch-depth: 2
+          persist-credentials: false
+      - name: Find the base commit
+        id: base
+        env:
+          EVENT: ${{ github.event_name }}
+          BEFORE: ${{ github.event.before }}
+        run: |
+          base=""
+          case "$EVENT" in
+            pull_request) base=$(git rev-parse HEAD^1) ;;
+            # A new branch or a force push has no usable "before": check everything.
+            push)
+              if git fetch --no-tags --depth=1 origin "$BEFORE"; then base=$BEFORE; fi
+              ;;
+          esac
+          echo "sha=$base" >> "$GITHUB_OUTPUT"
+      - name: Decide what to check
+        id: scope
+        env:
+          BASE: ${{ steps.base.outputs.sha }}
+          EVENT: ${{ github.event_name }}
+        run: |
+          ./scripts/ci-scope.sh areas "$BASE" | tee -a "$GITHUB_OUTPUT"
+          if [ "$EVENT" = pull_request ]; then
+            ./scripts/ci-scope.sh tests "$BASE" | tee -a "$GITHUB_OUTPUT"
+          else
+            echo tests=all | tee -a "$GITHUB_OUTPUT"
+          fi
+
   static:
     name: Shell and workflows
+    needs: changes
+    if: needs.changes.outputs.shell == 'true' || needs.changes.outputs.workflows == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
@@ -37,6 +101,8 @@ jobs:
 
   macos:
     name: Format, build and test
+    needs: changes
+    if: needs.changes.outputs.swift == 'true' || needs.changes.outputs.cask == 'true'
     # macOS 27 with Xcode 27 (public preview image).
     runs-on: xcode-27
     timeout-minutes: 30
@@ -47,16 +113,26 @@ jobs:
       - name: Select Xcode 27.1
         run: sudo xcode-select --switch /Applications/Xcode_27.1.app
       - name: Install XcodeGen
+        if: needs.changes.outputs.swift == 'true'
         run: brew install xcodegen
       - name: Check
-        run: ./scripts/check.sh --all format build test cask
+        env:
+          SWIFT: ${{ needs.changes.outputs.swift }}
+          CASK: ${{ needs.changes.outputs.cask }}
+          # all, none (build the tests only) or the suites the change reaches.
+          CHARGECTL_TEST_SUITES: ${{ needs.changes.outputs.tests }}
+        run: |
+          stages=()
+          if [ "$SWIFT" = true ]; then stages+=(format build test); fi
+          if [ "$CASK" = true ]; then stages+=(cask); fi
+          ./scripts/check.sh --all "${stages[@]}"
 
   required:
     # The single required status check. It succeeds only if every needed job
-    # succeeded or was intentionally skipped.
+    # succeeded or was skipped because the change did not need it.
     name: ci
     if: always()
-    needs: [static, macos]
+    needs: [changes, static, macos]
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     permissions: {}

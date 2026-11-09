@@ -76,10 +76,20 @@ the build is signed ad hoc, as releases are.
    | Build | `./scripts/build.sh Release` |
    | Test | `./scripts/test.sh` |
    | Shell | `shellcheck` on every tracked `*.sh` file |
-   | Workflows | `actionlint` |
+   | Workflows | `actionlint`, then `scripts/ci-scope.test.sh` |
    | Cask | `./scripts/check-cask.sh`: the Homebrew tap's `brew style` and `brew audit` on the cask |
 
    Fix formatting with `xcrun swift-format format --in-place --recursive App Daemon Shared Tests Widgets`.
+
+   CI runs only what your change needs (`scripts/ci-scope.sh` decides). A
+   docs-only pull request skips the macOS build. A Swift change runs only the
+   test suites it reaches: the suites that name a type it declares, directly or
+   through the Shared and Daemon files that use it. App and widget code isn't
+   in the test target, so changing only that builds the tests without running
+   them. Changes to `project.yml`, the test scripts or the CI wiring run
+   everything, and so does every push to `main`. To see what CI will pick for
+   your branch, run `./scripts/ci-scope.sh areas origin/main` and
+   `./scripts/ci-scope.sh tests origin/main`.
 
 Changes to how charging is controlled must also be tried on a real MacBook.
 Say in the pull request which Mac and macOS version you used and what you saw.
