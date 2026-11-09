@@ -31,11 +31,18 @@ nonisolated extension BatteryEntry {
             wallPower: plugged ? (charging ? 35.1 : 9.6) : 0, systemPower: plugged ? (charging ? 8.1 : 9.4) : 12.4,
             chargerVoltage: plugged ? 19.8 : nil, chargerCurrent: plugged ? 1.77 : nil, adapterVoltage: 20,
             minutesToFull: nil, minutesToEmpty: kind == .battery ? 250 : nil)
+        // About three quarters of an hour away, on a quarter hour, whenever the sample is drawn.
+        let quarter: TimeInterval = 15 * 60
+        let deadline = Date(
+            timeIntervalSinceReferenceDate: (now.timeIntervalSinceReferenceDate / quarter).rounded(.up) * quarter + 30
+                * 60)
         var settings = ChargeSettings()
-        settings.fullBy = FullBySchedule(hour: 8, minute: 0, weekdays: FullBySchedule.weekdaysOnly)
-        let deadline =
-            Calendar.current.date(bySettingHour: 8, minute: 0, second: 0, of: now.addingTimeInterval(3600))
-            ?? now.addingTimeInterval(3600)
+        // Weekdays at 8:00, or at the deadline's time for a Full by charge in progress.
+        let time = Calendar.current.dateComponents([.hour, .minute], from: deadline)
+        settings.fullBy =
+            kind == .fullBy
+            ? FullBySchedule(hour: time.hour ?? 8, minute: time.minute ?? 0, weekdays: FullBySchedule.everyDay)
+            : FullBySchedule(hour: 8, minute: 0, weekdays: FullBySchedule.weekdaysOnly)
         let mode: ChargeMode = kind == .fullBy ? .fullBy(deadline) : .automatic
         let activity: ChargeActivity =
             switch kind {

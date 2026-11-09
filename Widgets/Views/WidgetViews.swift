@@ -43,7 +43,8 @@ enum ChargectlWidgetKind: String, CaseIterable {
 
     var families: [WidgetFamily] {
         switch self {
-        case .charge: [.systemSmall, .systemMedium, .systemLarge, .systemExtraLarge, .systemExtraLargePortrait]
+        case .charge, .fullBy:
+            [.systemSmall, .systemMedium, .systemLarge, .systemExtraLarge, .systemExtraLargePortrait]
         case .ring: [.systemSmall]
         default: [.systemSmall, .systemMedium]
         }
@@ -616,77 +617,289 @@ private struct FullByKind: View {
     let facts: WidgetFacts
     let family: WidgetFamily
 
+    private var schedule: FullBySchedule? { facts.settings?.fullBy }
+
     var body: some View {
         if !facts.hasHelper {
             NeedsHelper(symbol: "clock", title: "Full by", text: "Full by needs the helper.")
-        } else if family == .systemMedium {
-            Divided {
-                VStack(alignment: .leading, spacing: 0) {
-                    WidgetLabel(symbol: "clock", title: "Full by")
-                    Spacer(minLength: 0)
-                    headline
-                }
-            } right: {
-                VStack(alignment: .leading, spacing: 8) {
-                    if let schedule = facts.settings?.fullBy {
-                        ColumnHeader(title: schedule.isRepeating ? "This week" : "Once", note: time(schedule))
-                        WeekStrip(schedule: schedule, next: facts.nextFullBy)
-                        Spacer(minLength: 0)
-                        HStack(spacing: 6) {
-                            if facts.deadline != nil {
-                                Button(intent: StopJobIntent()) { Text("Stop") }
-                                    .buttonStyle(WidgetPillStyle(expands: true))
-                            } else {
-                                Button(intent: SkipNextFullByIntent()) { Text(skipTitle) }
-                                    .buttonStyle(WidgetPillStyle(expands: true))
-                            }
-                            Link(destination: ChargectlWidgetKind.fullBy.url) { Text("Change") }
-                                .buttonStyle(WidgetPillStyle(expands: true))
-                        }
-                    } else {
-                        Spacer(minLength: 0)
-                        Text("Charge to 100% by a set time, then back to your limit.")
-                            .font(.system(size: 11.5))
-                            .foregroundStyle(.secondary)
-                        Link(destination: ChargectlWidgetKind.fullBy.url) { Label("Set Up", systemImage: "clock") }
-                            .buttonStyle(WidgetPillStyle(filled: true))
-                    }
-                }
-            }
         } else {
-            VStack(alignment: .leading, spacing: 0) {
-                WidgetLabel(
-                    symbol: "clock", title: "Full by",
-                    note: facts.settings?.fullBy.map { $0.isRepeating ? repeatTitle($0) : "Once" })
-                Spacer(minLength: 0)
-                headline
+            switch family {
+            case .systemMedium: medium
+            case .systemLarge: large
+            case .systemExtraLarge: extraLarge
+            case .systemExtraLargePortrait: portrait
+            default: small
             }
         }
     }
 
-    @ViewBuilder private var headline: some View {
+    // MARK: Sizes
+
+    private var small: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            WidgetLabel(
+                symbol: "clock", title: "Full by", note: schedule.map { $0.isRepeating ? repeatTitle($0) : "Once" })
+            Spacer(minLength: 0)
+            headline(size: 36)
+        }
+    }
+
+    private var medium: some View {
+        Divided {
+            VStack(alignment: .leading, spacing: 0) {
+                WidgetLabel(symbol: "clock", title: "Full by")
+                Spacer(minLength: 0)
+                headline(size: 36)
+            }
+        } right: {
+            VStack(alignment: .leading, spacing: 8) {
+                if let schedule {
+                    ColumnHeader(title: schedule.isRepeating ? "This week" : "Once", note: time(schedule))
+                    WeekStrip(schedule: schedule, next: facts.nextFullBy, skipped: facts.skippedFullBy)
+                    Spacer(minLength: 0)
+                    actions
+                } else {
+                    Spacer(minLength: 0)
+                    Text("Charge to 100% by a set time, then back to your limit.")
+                        .font(.system(size: 11.5))
+                        .foregroundStyle(.secondary)
+                    setUpButton
+                }
+            }
+        }
+    }
+
+    private var large: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            WidgetLabel(symbol: "clock", title: "Full by", note: scheduleNote)
+            if let schedule {
+                headline(size: 52, showsStart: false).padding(.top, 12)
+                chargeLine.padding(.top, 12)
+                ColumnHeader(title: trackTitle).padding(.top, 14)
+                FullByTrack(facts: facts).frame(height: 44).padding(.top, 6)
+                ColumnHeader(title: schedule.isRepeating ? "This week" : "Once").padding(.top, 10)
+                WeekStrip(schedule: schedule, next: facts.nextFullBy, skipped: facts.skippedFullBy).padding(.top, 6)
+                Spacer(minLength: 8)
+                actions
+            } else {
+                off(size: 52)
+            }
+        }
+    }
+
+    private var extraLarge: some View {
+        Divided(leftWidth: 300) {
+            VStack(alignment: .leading, spacing: 0) {
+                WidgetLabel(symbol: "clock", title: "Full by", note: scheduleNote)
+                if schedule != nil {
+                    headline(size: 60, showsStart: false).padding(.top, 16)
+                    chargeLine.padding(.top, 16)
+                    planRows.padding(.top, 14)
+                    Spacer(minLength: 8)
+                    actions
+                } else {
+                    off(size: 56)
+                }
+            }
+        } right: {
+            VStack(alignment: .leading, spacing: 6) {
+                if let schedule {
+                    ColumnHeader(title: trackTitle, note: facts.limit.map { "Limit \($0)%" })
+                    FullByTrack(facts: facts).frame(height: 44)
+                    ColumnHeader(title: schedule.isRepeating ? "This week" : "Once", note: time(schedule))
+                        .padding(.top, 10)
+                    WeekStrip(schedule: schedule, next: facts.nextFullBy, skipped: facts.skippedFullBy)
+                    ColumnHeader(title: "Coming up").padding(.top, 10)
+                    UpcomingRows(rows: upcoming(4))
+                } else {
+                    howItWorks
+                }
+            }
+        }
+    }
+
+    private var portrait: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            WidgetLabel(symbol: "clock", title: "Full by", note: scheduleNote)
+            if let schedule {
+                headline(size: 64, showsStart: false).padding(.top, 18)
+                chargeLine.padding(.top, 16)
+                planRows.padding(.top, 14)
+                ColumnHeader(title: trackTitle).padding(.top, 18)
+                FullByTrack(facts: facts).frame(height: 44).padding(.top, 6)
+                ColumnHeader(title: schedule.isRepeating ? "This week" : "Once", note: time(schedule))
+                    .padding(.top, 16)
+                WeekStrip(schedule: schedule, next: facts.nextFullBy, skipped: facts.skippedFullBy).padding(.top, 6)
+                ColumnHeader(title: "Coming up").padding(.top, 16)
+                UpcomingRows(rows: upcoming(5)).padding(.top, 2)
+                Spacer(minLength: 8)
+                actions
+            } else {
+                off(size: 60)
+            }
+        }
+    }
+
+    // MARK: Pieces
+
+    @ViewBuilder private func headline(size: CGFloat, showsStart: Bool = true) -> some View {
+        let caption: CGFloat = size >= 50 ? 12.5 : 11
         if let deadline = facts.deadline {
             let minutes = facts.estimate?.minutes
-            BigValue(parts: minutes.map { durationParts($0) } ?? [("Full", "")], size: 36)
-            Text("to 100% by \(WidgetFacts.time(deadline))").font(.system(size: 11)).foregroundStyle(.secondary)
+            BigValue(parts: minutes.map { durationParts($0) } ?? [("Full", "")], size: size)
+            Text("to 100% by \(WidgetFacts.time(deadline))").font(.system(size: caption)).foregroundStyle(.secondary)
                 .padding(.top, 4)
-            WidgetMeter(percent: facts.percent, limit: 100).padding(.top, 10)
+            if size < 50 { WidgetMeter(percent: facts.percent, limit: 100).padding(.top, 10) }
         } else if let next = facts.nextFullBy {
-            BigValue(parts: timeParts(next), size: 36)
-            Text(next.formatted(.dateTime.weekday(.wide))).font(.system(size: 11)).foregroundStyle(.secondary)
+            BigValue(parts: timeParts(next), size: size)
+            Text(Self.relativeDay(next, now: facts.entry.date, wide: true)).font(.system(size: caption))
+                .foregroundStyle(.secondary)
                 .padding(.top, 4)
-            if let start = facts.fullByStart {
-                Text("Starts about \(WidgetFacts.time(start))").font(.system(size: 11)).foregroundStyle(.tertiary)
+            if showsStart, let start = facts.fullByStart {
+                Text("Starts about \(WidgetFacts.time(start))").font(.system(size: caption)).foregroundStyle(.tertiary)
                     .padding(.top, 6)
             }
         } else {
-            BigValue(parts: [("Off", "")], size: 34)
-            Text("Set a time in Chargectl").font(.system(size: 11)).foregroundStyle(.secondary).padding(.top, 4)
+            BigValue(parts: [("Off", "")], size: size - 2)
+            Text("Set a time in Chargectl").font(.system(size: caption)).foregroundStyle(.secondary).padding(.top, 4)
         }
     }
 
+    /// The charge on its way to 100%, with what happens next.
+    private var chargeLine: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            WidgetMeter(percent: facts.percent, limit: 100)
+            Text(chargeText)
+                .font(.system(size: 11))
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+        }
+    }
+
+    private var chargeText: String {
+        if facts.deadline != nil {
+            return "\(facts.percent)% now" + (facts.finish.map { " · full about \(WidgetFacts.time($0))" } ?? "")
+        }
+        if let start = facts.fullByStart {
+            return "\(facts.percent)% now · charging starts about \(WidgetFacts.time(start))"
+        }
+        return "\(facts.percent)% now"
+    }
+
+    private var actions: some View {
+        HStack(spacing: 6) {
+            if facts.deadline != nil {
+                Button(intent: StopJobIntent()) { Text("Stop") }
+                    .buttonStyle(WidgetPillStyle(expands: true))
+            } else if let skipped = facts.skippedFullBy {
+                // One skip at a time: the next one is skipped already.
+                Button(intent: SkipNextFullByIntent()) { Text("\(Self.weekday(skipped)) skipped") }
+                    .buttonStyle(WidgetPillStyle(dimmed: true, expands: true))
+                    .disabled(true)
+            } else {
+                Button(intent: SkipNextFullByIntent()) { Text(skipTitle) }
+                    .buttonStyle(WidgetPillStyle(expands: true))
+            }
+            Link(destination: ChargectlWidgetKind.fullBy.url) { Text("Change") }
+                .buttonStyle(WidgetPillStyle(expands: true))
+        }
+    }
+
+    private var setUpButton: some View {
+        Link(destination: ChargectlWidgetKind.fullBy.url) { Label("Set Up", systemImage: "clock") }
+            .buttonStyle(WidgetPillStyle(filled: true))
+    }
+
+    @ViewBuilder private func off(size: CGFloat) -> some View {
+        BigValue(parts: [("Off", "")], size: size).padding(.top, 14)
+        Text("Charge to 100% by a set time, on the days you pick, then back to your limit.")
+            .font(.system(size: 12))
+            .foregroundStyle(.secondary)
+            .fixedSize(horizontal: false, vertical: true)
+            .padding(.top, 6)
+        // The extra large widget explains it in its right column.
+        if family != .systemExtraLarge { howItWorks.padding(.top, 18) }
+        Spacer(minLength: 8)
+        setUpButton
+    }
+
+    /// When charging starts, how long it takes and what comes after.
+    private var planRows: some View {
+        let back = facts.limit.map { "Back to \($0)%" } ?? "Back to your limit"
+        let rows: [(String, String)]
+        if let deadline = facts.deadline {
+            rows = [
+                ("Full", facts.finish.map { "about \(WidgetFacts.time(min($0, deadline)))" } ?? "\u{2014}"),
+                ("Then", "At 100% until \(WidgetFacts.time(deadline))"), ("Afterwards", back),
+            ]
+        } else {
+            let minutes = Int((FullBySchedule.leadTime(from: facts.percent) - FullBySchedule.margin) / 60)
+            rows = [
+                ("Charging starts", facts.fullByStart.map { "about \(WidgetFacts.time($0))" } ?? "\u{2014}"),
+                ("Charging takes", "about \(WidgetFacts.duration(max(minutes, 1)))"), ("Afterwards", back),
+            ]
+        }
+        return VStack(spacing: 0) {
+            ForEach(Array(rows.enumerated()), id: \.offset) { index, row in
+                WidgetRow(title: row.0, value: row.1, first: index == 0)
+            }
+        }
+    }
+
+    private var howItWorks: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            ColumnHeader(title: "How it works")
+            ForEach(Array(Self.steps.enumerated()), id: \.offset) { index, step in
+                WidgetRow(title: step.0, value: step.1, first: index == 0)
+            }
+        }
+    }
+
+    private static let steps = [
+        ("Until then", "Held at your limit"), ("Just before", "Charges to 100%"), ("At the time", "Full"),
+        ("After", "Back to your limit"),
+    ]
+
+    private var scheduleNote: String? {
+        guard let schedule else { return nil }
+        if let once = schedule.once { return "Once · \(Self.weekday(once)) \(WidgetFacts.time(once))" }
+        return "\(repeatTitle(schedule)) · \(time(schedule))"
+    }
+
+    private var trackTitle: String {
+        guard let next = facts.nextFullBy else { return "Next full charge" }
+        let day = Self.relativeDay(next, now: facts.entry.date, wide: false)
+        let calendar = Calendar.current
+        let near = calendar.isDate(next, inSameDayAs: facts.entry.date) || calendar.isDateInTomorrow(next)
+        return near ? "Until \(day.lowercased()) \(WidgetFacts.time(next))" : "Until \(day), \(WidgetFacts.time(next))"
+    }
+
+    /// The next full charges, the skipped one first.
+    private func upcoming(_ count: Int) -> [UpcomingRows.Row] {
+        guard let schedule else { return [] }
+        let now = facts.entry.date
+        var rows: [UpcomingRows.Row] = []
+        if let skipped = facts.skippedFullBy {
+            rows.append(.init(title: Self.relativeDay(skipped, now: now, wide: false), value: "Skipped", dimmed: true))
+        }
+        var next = facts.nextFullBy
+        while let date = next, rows.count < count {
+            let start =
+                date == facts.nextFullBy && facts.deadline == nil
+                ? facts.fullByStart
+                : date.addingTimeInterval(-FullBySchedule.leadTime(from: facts.limit ?? facts.percent))
+            let value =
+                date == facts.deadline
+                ? "\(WidgetFacts.time(date)) · charging"
+                : "\(WidgetFacts.time(date)) · from \(start.map { WidgetFacts.time($0) } ?? "\u{2014}")"
+            rows.append(.init(title: Self.relativeDay(date, now: now, wide: false), value: value, dimmed: false))
+            next = schedule.nextDeadline(after: date)
+        }
+        return rows
+    }
+
     private var skipTitle: String {
-        facts.nextFullBy.map { "Skip \($0.formatted(.dateTime.weekday(.abbreviated)))" } ?? "Skip"
+        facts.nextFullBy.map { "Skip \(Self.weekday($0))" } ?? "Skip"
     }
 
     private func time(_ schedule: FullBySchedule) -> String {
@@ -699,6 +912,20 @@ private struct FullByKind: View {
         if schedule.weekdays == FullBySchedule.weekdaysOnly { return "Weekdays" }
         if schedule.weekdays == FullBySchedule.everyDay { return "Every day" }
         return "Some days"
+    }
+
+    private static func weekday(_ date: Date) -> String { date.formatted(.dateTime.weekday(.abbreviated)) }
+
+    /// "Today", "Tomorrow", or the day: "Monday" when wide, "Mon 10" otherwise.
+    static func relativeDay(_ date: Date, now: Date, wide: Bool) -> String {
+        let calendar = Calendar.current
+        if calendar.isDate(date, inSameDayAs: now) { return "Today" }
+        if let tomorrow = calendar.date(byAdding: .day, value: 1, to: now), calendar.isDate(date, inSameDayAs: tomorrow)
+        {
+            return "Tomorrow"
+        }
+        return wide
+            ? date.formatted(.dateTime.weekday(.wide)) : date.formatted(.dateTime.weekday(.abbreviated).day())
     }
 
     private func timeParts(_ date: Date) -> [(String, String)] {
@@ -718,10 +945,126 @@ private struct FullByKind: View {
     }
 }
 
-/// The week's days, filled where Full by is set, the next one outlined.
+/// The time until the next full charge on one line: held at the limit, charging, then full at the
+/// time, with now on the left.
+private struct FullByTrack: View {
+    let facts: WidgetFacts
+    @Environment(\.colorScheme) private var scheme
+
+    var body: some View {
+        let palette = WidgetPalette(scheme: scheme)
+        GeometryReader { geometry in
+            if let deadline = facts.nextFullBy {
+                let width = geometry.size.width
+                let now = facts.entry.date
+                let charging = facts.deadline != nil
+                let start = charging ? now : max(facts.fullByStart ?? deadline, now)
+                let full = charging ? min(facts.finish ?? deadline, deadline) : deadline
+                // Some room after the time, so its mark is not on the edge.
+                let span = max(deadline.timeIntervalSince(now) * 1.14, 30 * 60)
+                let x = { (date: Date) -> CGFloat in
+                    width * CGFloat(min(max(date.timeIntervalSince(now) / span, 0), 1))
+                }
+                let labels = trackLabels(
+                    now: now, start: start, deadline: deadline, charging: charging, x: x, width: width)
+                ZStack(alignment: .topLeading) {
+                    Capsule().fill(palette.track).frame(height: 6).offset(y: 9)
+                    Capsule()
+                        .fill(
+                            LinearGradient(
+                                colors: [palette.accent.opacity(0.5), palette.accent], startPoint: .leading,
+                                endPoint: .trailing)
+                        )
+                        .frame(width: max(x(full) - x(start), 6), height: 6)
+                        .offset(x: x(start), y: 9)
+                        .widgetAccentable()
+                    if full < deadline {
+                        Capsule().fill(palette.accent.opacity(0.28))
+                            .frame(width: max(x(deadline) - x(full), 0), height: 6)
+                            .offset(x: x(full), y: 9)
+                            .widgetAccentable()
+                    }
+                    Circle().fill(Color.primary).frame(width: 9, height: 9).offset(y: 7.5)
+                    Capsule().fill(Color.primary).frame(width: 2, height: 18).offset(x: x(deadline) - 1, y: 3)
+                    ForEach(Array(labels.enumerated()), id: \.offset) { _, label in
+                        Text(label.text)
+                            .font(.system(size: 10.5, weight: label.strong ? .medium : .regular))
+                            .foregroundStyle(label.strong ? AnyShapeStyle(.primary) : AnyShapeStyle(.secondary))
+                            .fixedSize()
+                            .position(x: label.x, y: 34)
+                    }
+                }
+            }
+        }
+        .accessibilityElement()
+        .accessibilityLabel(accessibilityText)
+    }
+
+    private struct TrackLabel {
+        let text: String
+        let x: CGFloat
+        var strong = false
+    }
+
+    /// Now on the left, when charging starts, and the time; a label that would crowd another is
+    /// left out.
+    private func trackLabels(
+        now: Date, start: Date, deadline: Date, charging: Bool, x: (Date) -> CGFloat, width: CGFloat
+    ) -> [TrackLabel] {
+        let half: CGFloat = 30
+        let clamp = { (value: CGFloat) in min(max(value, half), width - half) }
+        let end = TrackLabel(text: WidgetFacts.time(deadline), x: clamp(x(deadline)), strong: true)
+        var labels = [end]
+        let middle =
+            charging
+            ? facts.finish.flatMap {
+                $0 < deadline ? TrackLabel(text: "Full \(WidgetFacts.time($0))", x: clamp(x($0))) : nil
+            }
+            : (start > now ? TrackLabel(text: "Starts \(WidgetFacts.time(start))", x: clamp(x(start))) : nil)
+        if let middle, end.x - middle.x > 2 * half + 6 { labels.append(middle) }
+        let first = TrackLabel(text: charging ? "Charging" : "Now", x: half)
+        if labels.allSatisfy({ $0.x - first.x > 2 * half + 6 }) { labels.append(first) }
+        // The time held at the limit, named in its middle when there is room.
+        if !charging, start > now, let limit = facts.limit {
+            let hold = TrackLabel(text: "Held at \(limit)%", x: (x(now) + x(start)) / 2)
+            if labels.allSatisfy({ abs($0.x - hold.x) > 2 * half + 14 }) { labels.append(hold) }
+        }
+        return labels
+    }
+
+    private var accessibilityText: String {
+        guard let deadline = facts.nextFullBy else { return "No full charge set" }
+        if facts.deadline != nil { return "Charging to 100% by \(WidgetFacts.time(deadline))" }
+        let start = facts.fullByStart.map { ", charging starts about \(WidgetFacts.time($0))" } ?? ""
+        return "Full by \(WidgetFacts.time(deadline))\(start)"
+    }
+}
+
+/// The next full charges, a row each.
+private struct UpcomingRows: View {
+    struct Row {
+        let title: String
+        let value: String
+        let dimmed: Bool
+    }
+
+    let rows: [Row]
+
+    var body: some View {
+        VStack(spacing: 0) {
+            ForEach(Array(rows.enumerated()), id: \.offset) { index, row in
+                WidgetRow(title: row.title, value: row.value, first: index == 0)
+                    .opacity(row.dimmed ? 0.55 : 1)
+            }
+        }
+    }
+}
+
+/// The week's days, filled where Full by is set, the next one outlined, a skipped one dashed.
 private struct WeekStrip: View {
     let schedule: FullBySchedule
     let next: Date?
+    var skipped: Date?
     @Environment(\.colorScheme) private var scheme
 
     var body: some View {
@@ -729,20 +1072,27 @@ private struct WeekStrip: View {
         let calendar = Calendar.current
         let today = calendar.startOfDay(for: .now)
         let nextDay = next.map { calendar.startOfDay(for: $0) }
+        let skippedDay = skipped.map { calendar.startOfDay(for: $0) }
         HStack(spacing: 4) {
             ForEach(0..<7, id: \.self) { offset in
                 let day = calendar.date(byAdding: .day, value: offset, to: today) ?? today
                 let weekday = calendar.component(.weekday, from: day)
                 let on =
                     schedule.once.map { calendar.isDate($0, inSameDayAs: day) } ?? schedule.weekdays.contains(weekday)
+                let isSkipped = on && skippedDay == day
                 VStack(spacing: 4) {
                     RoundedRectangle(cornerRadius: 6, style: .continuous)
-                        .fill(on ? palette.accent.opacity(0.22) : palette.chip)
+                        .fill(on && !isSkipped ? palette.accent.opacity(0.22) : palette.chip)
                         .overlay {
-                            if on { Circle().fill(palette.accent).frame(width: 4, height: 4).widgetAccentable() }
+                            if on && !isSkipped {
+                                Circle().fill(palette.accent).frame(width: 4, height: 4).widgetAccentable()
+                            }
                         }
                         .overlay {
-                            if nextDay == day {
+                            if isSkipped {
+                                RoundedRectangle(cornerRadius: 6, style: .continuous).strokeBorder(
+                                    palette.accent.opacity(0.6), style: StrokeStyle(lineWidth: 1, dash: [2.5, 2.5]))
+                            } else if nextDay == day {
                                 RoundedRectangle(cornerRadius: 6, style: .continuous).strokeBorder(
                                     palette.accent, lineWidth: 1.5
                                 )
@@ -755,6 +1105,14 @@ private struct WeekStrip: View {
                 }
             }
         }
+        .accessibilityElement()
+        .accessibilityLabel(accessibilityText)
+    }
+
+    private var accessibilityText: String {
+        var text = schedule.summary.prefix(1).uppercased() + schedule.summary.dropFirst()
+        if let skipped { text += ", \(skipped.formatted(.dateTime.weekday(.wide))) skipped" }
+        return text
     }
 }
 
@@ -939,7 +1297,10 @@ private struct TimeLeftKind: View {
     }
 
     private var finishText: String? {
-        guard let finish = facts.finish else { return facts.estimate?.minutes == nil ? "Until you unplug" : nil }
+        guard let finish = facts.finish else {
+            // Holding on the charger has no end time; on battery without an estimate there is nothing to say.
+            return facts.isPluggedIn && facts.estimate?.minutes == nil ? "Until you unplug" : nil
+        }
         return (facts.isPluggedIn ? "Done " : "Empty ") + WidgetFacts.time(finish)
     }
 }

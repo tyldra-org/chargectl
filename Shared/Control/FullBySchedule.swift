@@ -32,6 +32,14 @@ nonisolated struct FullBySchedule: Codable, Equatable, Sendable {
         return nil
     }
 
+    /// The first time it is due after now that was not skipped: when the next one was skipped or
+    /// stopped, the one after it.
+    func nextDeadline(after now: Date, skipping skipped: Date?, calendar: Calendar = .current) -> Date? {
+        guard let next = nextDeadline(after: now, calendar: calendar) else { return nil }
+        guard let skipped, next == skipped else { return next }
+        return nextDeadline(after: next, calendar: calendar)
+    }
+
     /// How long before a deadline charging starts, from this charge: about 0.9 minutes per percent
     /// below 80% and 2.5 above, where charging slows, plus a margin.
     static func leadTime(from percent: Int) -> TimeInterval {
@@ -58,7 +66,8 @@ nonisolated struct FullBySchedule: Codable, Equatable, Sendable {
         if weekdays == Self.everyDay { return "every day at \(time)" }
         if weekdays == Self.weekdaysOnly { return "weekdays at \(time)" }
         let names = Calendar(identifier: .gregorian).shortWeekdaySymbols
-        let days = weekdays.sorted().map { names[$0 - 1] }.joined(separator: ", ")
+        // A day outside 1...7 can only come from a damaged settings file; it is left out, not trusted.
+        let days = weekdays.filter { (1...7).contains($0) }.sorted().map { names[$0 - 1] }.joined(separator: ", ")
         return "\(days) at \(time)"
     }
 }

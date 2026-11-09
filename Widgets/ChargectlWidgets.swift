@@ -33,8 +33,7 @@ enum WidgetLoader {
         guard let status = try? await client.status() else { return BatteryEntry(date: now, battery: battery) }
         var entry = BatteryEntry(date: now, battery: battery, status: status)
         entry.history = (try? await client.history()) ?? []
-        // Helpers before this version have no daily record.
-        if status.version == DaemonIdentity.version { entry.daily = (try? await client.daily()) ?? [] }
+        if DaemonIdentity.hasDailyHistory(status.version) { entry.daily = (try? await client.daily()) ?? [] }
         entry.events = Array(
             ((try? await client.logs()) ?? []).filter { $0.source == .chargectl || $0.level == .warning }.suffix(3)
                 .reversed())
@@ -182,8 +181,10 @@ nonisolated struct FullByProvider: ControlValueProvider {
     var previewValue: FullByState { FullByState(isOn: true, next: nil) }
 
     func currentValue() async throws -> FullByState {
-        let schedule = try await IntentHelper.status().settings.fullBy
-        return FullByState(isOn: schedule != nil, next: schedule?.nextDeadline(after: .now))
+        let status = try await IntentHelper.status()
+        let schedule = status.settings.fullBy
+        return FullByState(
+            isOn: schedule != nil, next: schedule?.nextDeadline(after: .now, skipping: status.skippedFullBy))
     }
 }
 

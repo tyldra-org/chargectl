@@ -171,7 +171,7 @@ widget answers one question, and clicking one opens the matching page.
 | Power | Small, Medium | Watts from the charger, to the Mac and into the battery |
 | Health | Small, Medium | Battery health and cycles, and how health changed over months |
 | Today | Small, Medium | Time at 90% or more and on the charger, the lowest charge and the warmest moment |
-| Full by | Small, Medium | The next full charge and its days, with Skip and Change |
+| Full by | Small to Extra Large Portrait | The next full charge and its days, with Skip and Change; larger sizes add a track of the hours until then and the next few full charges |
 | Controls | Small, Medium | The limit in 5% steps, Top Up and Discharge; Medium adds the charge control switch |
 | Time left | Small, Medium | How long until the limit, full or empty |
 

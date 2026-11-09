@@ -123,6 +123,12 @@
                         AnyView(WidgetSheet(entry: .sample(sample), kinds: false, portrait: true))
                     })
             }
+            for (name, entry) in fullByEntries() {
+                shots.append(
+                    Shot(name: "widgets-fullby-\(name)", size: CGSize(width: 1600, height: 840)) {
+                        AnyView(WidgetSheet(entry: entry, kinds: false, fullBy: true))
+                    })
+            }
             let setup: [(String, WelcomeView.Step, ServiceState)] = [
                 ("welcome-1", .welcome, .running), ("welcome-2-install", .helper, .notInstalled),
                 ("welcome-2-approval", .helper, .needsApproval), ("welcome-2-running", .helper, .running),
@@ -141,6 +147,19 @@
                     })
             }
             return shots
+        }
+
+        /// Full by scheduled, charging, with the next one skipped, off, and without the helper.
+        private static func fullByEntries() -> [(String, BatteryEntry)] {
+            let scheduled = BatteryEntry.sample(.holding)
+            var skipped = scheduled
+            skipped.status?.skippedFullBy = scheduled.status?.settings.fullBy?.nextDeadline(after: scheduled.date)
+            var off = scheduled
+            off.status?.settings.fullBy = nil
+            return [
+                ("scheduled", scheduled), ("charging", .sample(.fullBy)), ("skipped", skipped), ("off", off),
+                ("no-helper", .sample(.noHelper)),
+            ]
         }
 
         private static func render(_ shot: Shot, dark: Bool, to file: URL) {
@@ -194,6 +213,8 @@
         var portrait = false
         /// The README's picture: one of each kind, in the sizes that suit it.
         var collage = false
+        /// Full by in every size.
+        var fullBy = false
         @Environment(\.colorScheme) private var scheme
 
         /// macOS's desktop grid: a medium widget is two small ones and 24 points across, a large
@@ -212,6 +233,8 @@
                 if collage {
                     collageGrid.padding(48)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else if fullBy {
+                    fullBySizes.padding(28)
                 } else if portrait {
                     tile(.charge, .systemExtraLargePortrait).padding(28)
                 } else if kinds {
@@ -234,6 +257,20 @@
                     tile(.charge, .systemExtraLarge)
                 }
                 tile(.charge, .systemLarge)
+            }
+        }
+
+        private var fullBySizes: some View {
+            HStack(alignment: .top, spacing: 24) {
+                VStack(alignment: .leading, spacing: 24) {
+                    HStack(alignment: .top, spacing: 24) {
+                        tile(.fullBy, .systemSmall)
+                        tile(.fullBy, .systemMedium)
+                    }
+                    tile(.fullBy, .systemExtraLarge)
+                }
+                tile(.fullBy, .systemLarge)
+                tile(.fullBy, .systemExtraLargePortrait)
             }
         }
 

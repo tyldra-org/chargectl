@@ -582,7 +582,9 @@ private struct MenuBarPreview: View {
                 .transition(.opacity.combined(with: .scale(scale: 0.8)))
             }
             Image(systemName: "wifi")
-            Text(Date.now, format: .dateTime.weekday(.abbreviated).hour().minute()).lineLimit(1).fixedSize()
+            TimelineView(.everyMinute) { context in
+                Text(context.date, format: .dateTime.weekday(.abbreviated).hour().minute()).lineLimit(1).fixedSize()
+            }
         }
         .lineLimit(1)
         .font(.system(size: 12.5, weight: .medium))

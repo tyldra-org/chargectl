@@ -162,6 +162,42 @@ import Testing
         _ = rig.controller.perform(.stop)
         rig.controller.tick()
         #expect(rig.controller.status().mode == .automatic)
+        #expect(rig.controller.status().skippedFullBy != nil)
+    }
+
+    /// The widgets and the Control page show the time after a skipped one.
+    @Test func aSkippedFullByIsReported() throws {
+        var settings = ChargeSettings.limit(80, sailing: 5)
+        settings.fullBy = try #require(
+            FullBySchedule.once(hour: 0, minute: 0, after: .now, calendar: .current).map {
+                var schedule = $0
+                schedule.once = Date.now.addingTimeInterval(6 * 3600)
+                return schedule
+            })
+        let rig = Rig(settings: settings)
+        defer { rig.remove() }
+        rig.battery.percent = 80
+        rig.start()
+        #expect(rig.controller.status().skippedFullBy == nil)
+        _ = rig.controller.perform(.skipFullBy)
+        // The helper's copy of the settings went through JSON, which keeps whole seconds.
+        let once = try #require(settings.fullBy?.once)
+        let skipped = try #require(rig.controller.status().skippedFullBy)
+        #expect(abs(skipped.timeIntervalSince(once)) < 1)
+    }
+
+    /// A line a crash cut short is skipped; the entry written after it is kept.
+    @Test func anEntryAfterALineCutShortIsKept() throws {
+        let rig = Rig(settings: .limit(80, sailing: 5))
+        defer { rig.remove() }
+        rig.start()
+        let file = rig.store.directory.appendingPathComponent("history.jsonl")
+        let handle = try FileHandle(forWritingTo: file)
+        try handle.seekToEnd()
+        try handle.write(contentsOf: Data(#"{"date":"#.utf8))
+        try handle.close()
+        rig.controller.tick(now: Date.now.addingTimeInterval(61))
+        #expect(rig.store.loadLines(HistorySample.self, from: .history).count == 2)
     }
 
     @Test func eachDayIsSummedUpOnce() {

@@ -208,7 +208,9 @@ private struct HelperFooter: View {
             switch model.service {
             case .running:
                 (
-                    "Helper running", model.settings?.isEnabled == false ? "Charge control off" : "Charge control on",
+                    "Helper running",
+                    model.settings.map { $0.isEnabled ? "Charge control on" : "Charge control off" }
+                        ?? "Reading settings",
                     model.settings?.isEnabled != false
                 )
             case .checking: ("Checking…", "Asking the helper", true)

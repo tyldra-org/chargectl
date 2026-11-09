@@ -161,7 +161,12 @@ nonisolated struct WidgetFacts: Sendable {
 
     // MARK: Full by
 
-    var nextFullBy: Date? { deadline ?? settings?.fullBy?.nextDeadline(after: entry.date) }
+    /// The Full by time that was skipped or stopped, while it is still ahead.
+    var skippedFullBy: Date? { status?.skippedFullBy.flatMap { $0 > entry.date ? $0 : nil } }
+
+    var nextFullBy: Date? {
+        deadline ?? settings?.fullBy?.nextDeadline(after: entry.date, skipping: skippedFullBy)
+    }
 
     var fullByStart: Date? {
         guard deadline == nil, let next = nextFullBy else { return nil }
