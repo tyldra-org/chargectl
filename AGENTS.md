@@ -79,6 +79,7 @@ Run `./scripts/check.sh` once before saying the work is done.
 | Path | Contents |
 | --- | --- |
 | `App/` | Menu bar app: dashboard pages, menu bar panel, XPC client |
+| `App/Resources/AppIcon.icon` | The app icon, an Icon Composer document (Xcode › Open Developer Tool › Icon Composer) with SVG layers |
 | `Daemon/` | `Chargectl Service` (target `chargectld`): control loop, SMC and macOS limit adapters, XPC service |
 | `Widgets/` | Widget extension: widgets for every size, Control Center controls; `Widgets/Views` is also drawn by the app for design renders |
 | `Shared/` | Code built into both: SMC access, battery readings, `ChargePolicy`, XPC models |
