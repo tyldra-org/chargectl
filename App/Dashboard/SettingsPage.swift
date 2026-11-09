@@ -20,17 +20,15 @@ struct SettingsPage: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 14) {
-                SpanRow(spans: [1, 1]) {
+                menuBar.settleIn(0)
+                ColumnRow(spans: [1, 1]) {
                     VStack(spacing: 14) {
-                        menuBar.settleIn(0)
                         appearanceCard.settleIn(1)
                         notifications.settleIn(2)
-                        Spacer(minLength: 0)
                     }
                     VStack(spacing: 14) {
                         helper.settleIn(2)
                         updates.settleIn(3)
-                        Spacer(minLength: 0)
                     }
                 }
                 uninstall.settleIn(4)
@@ -256,8 +254,8 @@ struct SettingsPage: View {
                     .padding(.top, 12)
                 Text(
                     ServiceInstaller.method == .launchdPlist
-                        ? "A small helper runs as root, switches wall power and keeps your limit while Chargectl is closed. Installing it asks for your password once; updates keep it running. Removing it reconnects wall power."
-                        : "A small helper runs as root, switches wall power and keeps your limit while Chargectl is closed. After installing, turn on Chargectl in System Settings › Login Items. Removing it reconnects wall power."
+                        ? "The helper runs as root. Installing it asks for your password once; updates keep it running. Removing it reconnects wall power."
+                        : "The helper runs as root. After installing, turn on Chargectl in System Settings › Login Items. Removing it reconnects wall power."
                 )
                 .font(.system(size: 11.5))
                 .foregroundStyle(.tertiary)
@@ -368,7 +366,7 @@ struct SettingsPage: View {
                 }
                 .padding(.top, 8)
                 Text(
-                    "Chargectl checks GitHub for a new release every few hours and, with automatic updates on, installs it while its windows are closed. Each download is checked against its published checksum and code signature."
+                    "Chargectl checks GitHub for a new release every few hours. Each download is checked against its published checksum and code signature."
                 )
                 .font(.system(size: 11.5))
                 .foregroundStyle(.tertiary)
@@ -559,15 +557,15 @@ private struct MenuBarPreview: View {
     var body: some View {
         let ink: Color = scheme == .dark ? .white : Color(white: 0.11)
         HStack(spacing: 14) {
-            HStack(spacing: 14) {
-                Text("Chargectl").fontWeight(.bold)
-                Text("File")
-                Text("Edit")
+            // The menus give way first, as on a real menu bar, so the status items always fit.
+            ViewThatFits(in: .horizontal) {
+                menus(["File", "Edit", "View"])
+                menus(["File", "Edit"])
+                menus(["File"])
+                menus([])
             }
-            .lineLimit(1)
-            .fixedSize()
             .opacity(0.9)
-            Spacer()
+            Spacer(minLength: 8)
             if showsItem {
                 HStack(spacing: 5) {
                     Image(nsImage: RingIcon.image(for: model))
@@ -577,6 +575,7 @@ private struct MenuBarPreview: View {
                             .opacity.combined(with: .move(edge: .trailing)))
                     }
                 }
+                .fixedSize()
                 .padding(.horizontal, 7)
                 .padding(.vertical, 3)
                 .background(ink.opacity(0.14), in: RoundedRectangle(cornerRadius: 6, style: .continuous))
@@ -585,6 +584,7 @@ private struct MenuBarPreview: View {
             Image(systemName: "wifi")
             Text(Date.now, format: .dateTime.weekday(.abbreviated).hour().minute()).lineLimit(1).fixedSize()
         }
+        .lineLimit(1)
         .font(.system(size: 12.5, weight: .medium))
         .foregroundStyle(ink)
         .padding(.horizontal, 12)
@@ -609,6 +609,14 @@ private struct MenuBarPreview: View {
         .animation(.spring(response: 0.4, dampingFraction: 0.85), value: showsItem)
         .animation(.spring(response: 0.4, dampingFraction: 0.85), value: showsPercentage)
         .accessibilityHidden(true)
+    }
+
+    private func menus(_ titles: [String]) -> some View {
+        HStack(spacing: 14) {
+            Text("Chargectl").fontWeight(.bold)
+            ForEach(titles, id: \.self) { Text($0) }
+        }
+        .fixedSize()
     }
 }
 

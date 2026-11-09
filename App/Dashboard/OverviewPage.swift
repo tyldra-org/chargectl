@@ -74,10 +74,12 @@ struct OverviewPage: View {
                                 .font(.system(size: 17, weight: .semibold))
                                 .foregroundStyle(model.isDraining ? Theme.warn : .primary)
                         }
+                        // Wraps rather than squeezing the buttons beside it in a narrow window.
                         Text(subtitle(battery))
                             .font(.system(size: 13))
                             .foregroundStyle(.secondary)
-                            .lineLimit(1)
+                            .lineLimit(2)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
                     .accessibilityElement(children: .combine)
                     Spacer(minLength: 16)
@@ -145,6 +147,7 @@ struct OverviewPage: View {
             }
         }
         .buttonStyle(SoftButtonStyle())
+        .fixedSize()
         .disabled(!model.isControllable)
         .animation(.easeInOut(duration: 0.25), value: model.status?.mode)
         .confirmationDialog("Calibrate the battery?", isPresented: $confirmingCalibration) {
@@ -221,47 +224,48 @@ struct OverviewPage: View {
         let healthValue = battery.health ?? 0
         let warm = (battery.temperature ?? 0) >= 35
         return Panel {
-            VStack(alignment: .leading, spacing: 14) {
+            // The two rows spread over the card's height, which the Power card beside it sets.
+            VStack(alignment: .leading, spacing: 0) {
                 PanelHeader(title: "Battery health", symbol: "heart.text.square") {
                     Text(healthValue >= 0.8 ? "Normal" : "Below 80%")
                 }
-                Grid(alignment: .leading, horizontalSpacing: 18, verticalSpacing: 18) {
-                    GridRow {
-                        HealthCell(title: "Health", value: String(format: "%.1f", healthValue * 100), unit: "%") {
-                            MiniBar(fraction: healthValue, color: Theme.accent)
-                        }
-                        HealthCell(
-                            title: "Cycles", value: "\(battery.cycleCount)",
-                            unit: battery.designCycleCount.map { "of \($0.formatted())" } ?? ""
-                        ) {
-                            MiniBar(
-                                fraction: Double(battery.cycleCount) / Double(battery.designCycleCount ?? 1000),
-                                color: Color.secondary)
+                Spacer(minLength: 14)
+                HStack(alignment: .top, spacing: 18) {
+                    HealthCell(title: "Health", value: String(format: "%.1f", healthValue * 100), unit: "%") {
+                        MiniBar(fraction: healthValue, color: Theme.accent)
+                    }
+                    HealthCell(
+                        title: "Cycles", value: "\(battery.cycleCount)",
+                        unit: battery.designCycleCount.map { "of \($0.formatted())" } ?? ""
+                    ) {
+                        MiniBar(
+                            fraction: Double(battery.cycleCount) / Double(battery.designCycleCount ?? 1000),
+                            color: Color.secondary)
+                    }
+                }
+                Spacer(minLength: 18)
+                HStack(alignment: .top, spacing: 18) {
+                    HealthCell(
+                        title: "Temperature",
+                        value: battery.temperature.map { String(format: "%.1f", unit.value($0)) } ?? "–",
+                        unit: unit.symbol
+                    ) {
+                        HStack(spacing: 6) {
+                            Circle().fill(warm ? Theme.warn : Theme.accent).frame(width: 6, height: 6)
+                            Text(warm ? "Warm" : "Normal").font(.system(size: 11.5)).foregroundStyle(.secondary)
                         }
                     }
-                    GridRow {
-                        HealthCell(
-                            title: "Temperature",
-                            value: battery.temperature.map { String(format: "%.1f", unit.value($0)) } ?? "–",
-                            unit: unit.symbol
-                        ) {
-                            HStack(spacing: 6) {
-                                Circle().fill(warm ? Theme.warn : Theme.accent).frame(width: 6, height: 6)
-                                Text(warm ? "Warm" : "Normal").font(.system(size: 11.5)).foregroundStyle(.secondary)
-                            }
-                        }
-                        HealthCell(
-                            title: "Capacity", value: battery.fullChargeCapacity.formatted(), unit: "mAh"
-                        ) {
-                            Text(
-                                String(
-                                    format: "%.2f V · %@", battery.voltage,
-                                    abs(battery.current) < 0.005 ? "0 A" : String(format: "%+.2f A", battery.current))
-                            )
-                            .font(.system(size: 11.5))
-                            .foregroundStyle(.secondary)
-                            .monospacedDigit()
-                        }
+                    HealthCell(
+                        title: "Capacity", value: battery.fullChargeCapacity.formatted(), unit: "mAh"
+                    ) {
+                        Text(
+                            String(
+                                format: "%.2f V · %@", battery.voltage,
+                                abs(battery.current) < 0.005 ? "0 A" : String(format: "%+.2f A", battery.current))
+                        )
+                        .font(.system(size: 11.5))
+                        .foregroundStyle(.secondary)
+                        .monospacedDigit()
                     }
                 }
             }
@@ -422,15 +426,30 @@ struct OverviewPage: View {
                 .padding(.horizontal, 10)
                 .frame(height: 24)
                 .background(settings == nil ? Theme.warnSoft : Theme.accentSoft, in: Capsule())
+                .fixedSize()
                 .padding(.trailing, 16)
-                if let settings {
-                    kv("Limit", "\(settings.limit)%")
-                    kv("Sailing", settings.sailing == 0 ? "Off" : "\(settings.lowerBound)–\(settings.limit)%")
-                    kv("Above limit", settings.autoDischarge ? "Discharge" : "Hold")
-                    kv("macOS limit", model.macOSLimit.map { "\($0)%" } ?? "Off")
-                    kv("Heat guard", settings.heatProtection ? unit.format(settings.heatThreshold, decimals: 0) : "Off")
-                } else {
-                    kv("macOS limit", model.macOSLimit.map { "\($0)%" } ?? "Off")
+                let facts: [(String, String)] =
+                    if let settings {
+                        [
+                            ("Limit", "\(settings.limit)%"),
+                            ("Sailing", settings.sailing == 0 ? "Off" : "\(settings.lowerBound)–\(settings.limit)%"),
+                            ("Above limit", settings.autoDischarge ? "Discharge" : "Hold"),
+                            ("macOS limit", model.macOSLimit.map { "\($0)%" } ?? "Off"),
+                            (
+                                "Heat guard",
+                                settings.heatProtection ? unit.format(settings.heatThreshold, decimals: 0) : "Off"
+                            ),
+                        ]
+                    } else {
+                        [("macOS limit", model.macOSLimit.map { "\($0)%" } ?? "Off")]
+                    }
+                // In a narrow window the last facts drop out instead of wrapping or truncating.
+                ViewThatFits(in: .horizontal) {
+                    ForEach((1...facts.count).reversed(), id: \.self) { count in
+                        HStack(spacing: 0) {
+                            ForEach(facts.prefix(count), id: \.0) { kv($0.0, $0.1) }
+                        }
+                    }
                 }
                 Spacer(minLength: 12)
                 Button {
@@ -443,6 +462,7 @@ struct OverviewPage: View {
                     }
                     .font(.system(size: 12))
                     .foregroundStyle(.secondary)
+                    .fixedSize()
                 }
                 .buttonStyle(.plain)
             }
@@ -455,6 +475,7 @@ struct OverviewPage: View {
             Text(value).fontWeight(.medium).monospacedDigit()
         }
         .font(.system(size: 11.5))
+        .fixedSize()
         .padding(.horizontal, 12)
         .overlay(alignment: .leading) { Rectangle().fill(Theme.line).frame(width: 1, height: 14) }
     }

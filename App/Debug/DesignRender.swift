@@ -75,7 +75,8 @@
             }
             for page in [DashboardPage.overview, .control, .history, .settings] {
                 shots.append(
-                    Shot(name: "\(page.rawValue)-scrolled", size: CGSize(width: 1160, height: 1560)) {
+                    // The window's default width, so these show the layout people first see.
+                    Shot(name: "\(page.rawValue)-scrolled", size: CGSize(width: 1080, height: 1560)) {
                         AnyView(DashboardView(model: Sample.model(), initialPage: page))
                     })
             }

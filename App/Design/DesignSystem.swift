@@ -699,17 +699,22 @@ struct HelperEmptyState: View {
     }
 }
 
-/// Lays cards out side by side with widths in proportion to their spans (7 and 5 of 12, say),
-/// all as tall as the tallest.
+/// The widths of side-by-side columns in proportion to their spans (7 and 5 of 12, say).
+nonisolated private func spanWidths(_ spans: [Int], total: CGFloat, count: Int, spacing: CGFloat) -> [CGFloat] {
+    let spans = (0..<count).map { $0 < spans.count ? spans[$0] : 1 }
+    let sum = CGFloat(spans.reduce(0, +))
+    let available = max(total - spacing * CGFloat(count - 1), 0)
+    return spans.map { available * CGFloat($0) / sum }
+}
+
+/// Lays cards out side by side with widths in proportion to their spans, all as tall as the
+/// tallest. For cards whose contents are about as tall as each other; otherwise use ColumnRow.
 struct SpanRow: Layout {
     var spans: [Int]
     var spacing: CGFloat = 14
 
     private func widths(_ total: CGFloat, count: Int) -> [CGFloat] {
-        let spans = (0..<count).map { $0 < self.spans.count ? self.spans[$0] : 1 }
-        let sum = CGFloat(spans.reduce(0, +))
-        let available = max(total - spacing * CGFloat(count - 1), 0)
-        return spans.map { available * CGFloat($0) / sum }
+        spanWidths(spans, total: total, count: count, spacing: spacing)
     }
 
     func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
@@ -726,6 +731,40 @@ struct SpanRow: Layout {
             subview.place(
                 at: CGPoint(x: x, y: bounds.minY), proposal: ProposedViewSize(width: width, height: bounds.height))
             x += width + spacing
+        }
+    }
+}
+
+/// Columns of cards side by side, widths in proportion to their spans. Each column (a VStack of
+/// cards) is as tall as its own cards, so no card is stretched to match a neighbour and left
+/// with empty space. When the columns end within `tolerance` of each other, the shorter one
+/// stretches that little to line up the bottoms.
+struct ColumnRow: Layout {
+    var spans: [Int]
+    var spacing: CGFloat = 14
+    var tolerance: CGFloat = 24
+
+    private func fitted(_ subviews: Subviews, width: CGFloat) -> [(width: CGFloat, height: CGFloat)] {
+        let widths = spanWidths(spans, total: width, count: subviews.count, spacing: spacing)
+        return zip(subviews, widths).map { subview, width in
+            (width, subview.sizeThatFits(ProposedViewSize(width: width, height: nil)).height)
+        }
+    }
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let width = proposal.width ?? 800
+        return CGSize(width: width, height: fitted(subviews, width: width).map(\.height).max() ?? 0)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        let columns = fitted(subviews, width: bounds.width)
+        let tallest = columns.map(\.height).max() ?? 0
+        var x = bounds.minX
+        for (subview, column) in zip(subviews, columns) {
+            let height = tallest - column.height <= tolerance ? tallest : column.height
+            subview.place(
+                at: CGPoint(x: x, y: bounds.minY), proposal: ProposedViewSize(width: column.width, height: height))
+            x += column.width + spacing
         }
     }
 }

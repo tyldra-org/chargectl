@@ -12,15 +12,17 @@ struct ControlPage: View {
                 VStack(spacing: 14) {
                     if !settings.isEnabled { offNotice.settleIn(0) }
                     charging(settings).settleIn(0).dimmed(!settings.isEnabled)
-                    SpanRow(spans: [7, 5]) {
-                        fullBy(settings).dimmed(!settings.isEnabled).settleIn(1)
-                        master(settings).settleIn(2)
+                    ColumnRow(spans: [7, 5]) {
+                        VStack(spacing: 14) {
+                            fullBy(settings).dimmed(!settings.isEnabled).settleIn(1)
+                            sleep(settings).dimmed(!settings.isEnabled).settleIn(3)
+                        }
+                        VStack(spacing: 14) {
+                            master(settings).settleIn(2)
+                            heat(settings).dimmed(!settings.isEnabled).settleIn(4)
+                            magSafe(settings).dimmed(!settings.isEnabled).settleIn(5)
+                        }
                     }
-                    SpanRow(spans: [7, 5]) {
-                        heat(settings).dimmed(!settings.isEnabled).settleIn(3)
-                        magSafe(settings).dimmed(!settings.isEnabled).settleIn(4)
-                    }
-                    sleep(settings).dimmed(!settings.isEnabled).settleIn(5)
                 }
                 .padding(.horizontal, 24)
                 .padding(.top, 4)
@@ -247,6 +249,9 @@ struct ControlPage: View {
                             systemImage: "bolt.fill"
                         )
                         .labelStyle(TightLabelStyle(tint: Theme.accent))
+                    } else if let schedule, let next = schedule.nextDeadline(after: .now) {
+                        Text(Self.nextText(next, once: schedule.once != nil))
+                            .contentTransition(.opacity)
                     }
                 }
                 SettingRow(
@@ -288,6 +293,16 @@ struct ControlPage: View {
             }
             .animation(.spring(response: 0.4, dampingFraction: 0.85), value: schedule != nil)
         }
+    }
+
+    /// "Next: Tomorrow, 8:00 AM", or "Tomorrow only, 8:00 AM" for a one-off.
+    private static func nextText(_ date: Date, once: Bool) -> String {
+        let calendar = Calendar.current
+        let day =
+            calendar.isDateInToday(date)
+            ? "Today" : calendar.isDateInTomorrow(date) ? "Tomorrow" : date.formatted(.dateTime.weekday(.wide))
+        let time = date.formatted(date: .omitted, time: .shortened)
+        return once ? "\(day) only, \(time)" : "Next: \(day), \(time)"
     }
 
     // MARK: Master switch
@@ -456,16 +471,19 @@ struct SettingRow<Control: View>: View {
     }
 }
 
-/// The time and days of a Full by schedule, and when charging will start.
+/// The time and days of a Full by schedule, and when charging will start: big digits, the time
+/// on a day track, and the seven days with Weekdays, Every day and Once as shortcuts.
 private struct FullByEditor: View {
     let schedule: FullBySchedule
     let percent: Int
     let change: (FullBySchedule) -> Void
+    /// The time while the knob is dragged or stepped with the keyboard, before it is saved.
+    @State private var draft: Int?
 
     private enum Repeat: Hashable {
-        case once
         case weekdays
         case everyDay
+        case once
         case custom
     }
 
@@ -476,68 +494,94 @@ private struct FullByEditor: View {
         return .custom
     }
 
+    private var saved: Int { schedule.hour * 60 + schedule.minute }
+    private var minutes: Int { draft ?? saved }
+    /// How long before the time charging starts, from today's charge.
+    private var lead: Int { Int(FullBySchedule.leadTime(from: percent) / 60) }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 12) {
-                Text("Full by").font(.system(size: 13, weight: .medium))
-                DatePicker("Time", selection: time, displayedComponents: .hourAndMinute)
-                    .labelsHidden()
-                    .datePickerStyle(.stepperField)
-                    .fixedSize()
-                Spacer(minLength: 8)
-                SlidingSegments(
-                    options: [
-                        (Repeat.once, "Once"), (.weekdays, "Weekdays"), (.everyDay, "Every day"), (.custom, "Days"),
-                    ],
-                    selection: Binding(get: { repeating }, set: setRepeat), compact: true)
-            }
-            if repeating == .custom {
-                HStack(spacing: 6) {
-                    ForEach(Array(zip(1...7, Calendar.current.veryShortWeekdaySymbols)), id: \.0) { day, symbol in
-                        let on = schedule.weekdays.contains(day)
-                        Button(symbol) {
-                            var changed = schedule
-                            if on, changed.weekdays.count > 1 {
-                                changed.weekdays.remove(day)
-                            } else {
-                                changed.weekdays.insert(day)
-                            }
-                            change(changed)
-                        }
-                        .buttonStyle(DayChipStyle(isOn: on))
-                        .accessibilityLabel(Calendar.current.weekdaySymbols[day - 1])
-                        .accessibilityAddTraits(on ? .isSelected : [])
-                    }
+            HStack(alignment: .bottom, spacing: 14) {
+                TimeDigits(minutes: minutes)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(
+                        "Charging starts around \(Text(ClockTime.text(minutes - lead)).foregroundStyle(Theme.accent).fontWeight(.semibold))"
+                    )
+                    Text("\(TimeText.minutes(lead)) before, from \(percent)%")
                 }
-            }
-            if let next = schedule.nextDeadline(after: .now) {
-                let start = next.addingTimeInterval(-FullBySchedule.leadTime(from: percent))
-                Text(
-                    "Next \(Text(next.formatted(.dateTime.weekday(.wide).hour().minute())).foregroundStyle(.secondary)). Charging starts around \(Text(start.formatted(date: .omitted, time: .shortened)).foregroundStyle(.secondary)) from today’s \(percent)%."
-                )
                 .font(.system(size: 12))
                 .foregroundStyle(.tertiary)
-                .fixedSize(horizontal: false, vertical: true)
+                .padding(.bottom, 7)
+                .animation(.smooth(duration: 0.3), value: minutes)
+            }
+            DayTrack(saved: saved, lead: lead, draft: $draft, commit: setTime)
+            // Side by side when the card is wide enough, stacked when it isn't.
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 10) {
+                    dayChips
+                    Spacer(minLength: 8)
+                    repeatSegments
+                }
+                VStack(alignment: .leading, spacing: 10) {
+                    dayChips
+                    repeatSegments
+                }
+            }
+            if schedule.once != nil {
+                Text("Only the next one, then Full by turns itself off.")
+                    .font(.system(size: 11.5))
+                    .foregroundStyle(.tertiary)
+                    .transition(.opacity)
             }
         }
     }
 
-    private var time: Binding<Date> {
-        Binding(
-            get: {
-                Calendar.current.date(bySettingHour: schedule.hour, minute: schedule.minute, second: 0, of: .now)
-                    ?? .now
-            },
-            set: { date in
-                let parts = Calendar.current.dateComponents([.hour, .minute], from: date)
-                var changed = schedule
-                changed.hour = parts.hour ?? schedule.hour
-                changed.minute = parts.minute ?? schedule.minute
-                if changed.once != nil {
-                    changed = FullBySchedule.once(hour: changed.hour, minute: changed.minute, after: .now) ?? changed
-                }
-                change(changed)
-            })
+    private var repeatSegments: some View {
+        SlidingSegments(
+            options: [(Repeat.weekdays, "Weekdays"), (.everyDay, "Every day"), (.once, "Once")],
+            selection: Binding(get: { repeating }, set: setRepeat), compact: true
+        )
+        .fixedSize()
+    }
+
+    /// All seven days. A one-off lights only its day; tapping a day there makes it repeat on it.
+    private var dayChips: some View {
+        let onceDay = schedule.once.map { Calendar.current.component(.weekday, from: $0) }
+        return HStack(spacing: 4) {
+            ForEach(Array(zip(1...7, Calendar.current.veryShortWeekdaySymbols)), id: \.0) { day, symbol in
+                let on = onceDay.map { $0 == day } ?? schedule.weekdays.contains(day)
+                Button(symbol) { toggle(day) }
+                    .buttonStyle(DayChipStyle(isOn: on))
+                    .opacity(onceDay != nil && !on ? 0.4 : 1)
+                    .accessibilityLabel(Calendar.current.weekdaySymbols[day - 1])
+                    .accessibilityAddTraits(on ? .isSelected : [])
+            }
+        }
+        .fixedSize()
+    }
+
+    private func toggle(_ day: Int) {
+        var changed = schedule
+        if changed.once != nil {
+            changed.once = nil
+            changed.weekdays = [day]
+        } else if changed.weekdays.contains(day) {
+            guard changed.weekdays.count > 1 else { return }
+            changed.weekdays.remove(day)
+        } else {
+            changed.weekdays.insert(day)
+        }
+        withAnimation(.spring(response: 0.35, dampingFraction: 0.7)) { change(changed) }
+    }
+
+    private func setTime(_ minutes: Int) {
+        var changed = schedule
+        changed.hour = minutes / 60
+        changed.minute = minutes % 60
+        if changed.once != nil {
+            changed = FullBySchedule.once(hour: changed.hour, minute: changed.minute, after: .now) ?? changed
+        }
+        change(changed)
     }
 
     private func setRepeat(_ value: Repeat) {
@@ -552,14 +596,267 @@ private struct FullByEditor: View {
             changed.once = nil
             changed.weekdays = FullBySchedule.everyDay
         case .custom:
-            changed.once = nil
-            if changed.weekdays.isEmpty || changed.weekdays == FullBySchedule.everyDay
-                || changed.weekdays == FullBySchedule.weekdaysOnly
-            {
-                changed.weekdays = changed.weekdays.isEmpty ? FullBySchedule.weekdaysOnly : changed.weekdays
-            }
+            return
         }
         withAnimation(.spring(response: 0.35, dampingFraction: 0.86)) { change(changed) }
+    }
+}
+
+/// Times of day as the user's clock shows them.
+enum ClockTime {
+    /// A minute of the day, wrapped to 0..<1440, on today's date.
+    static func date(_ minutes: Int) -> Date {
+        let wrapped = ((minutes % 1440) + 1440) % 1440
+        return Calendar.current.date(bySettingHour: wrapped / 60, minute: wrapped % 60, second: 0, of: .now) ?? .now
+    }
+
+    /// "8:00 AM", or "08:00" on a 24-hour clock.
+    static func text(_ minutes: Int) -> String {
+        date(minutes).formatted(date: .omitted, time: .shortened)
+    }
+
+    /// The time split into its digits and its AM or PM, which is empty on a 24-hour clock.
+    static func parts(_ minutes: Int) -> (digits: String, period: String) {
+        let full = text(minutes)
+        for symbol in [Calendar.current.amSymbol, Calendar.current.pmSymbol] where full.hasSuffix(symbol) {
+            return (String(full.dropLast(symbol.count)).trimmingCharacters(in: .whitespaces), symbol)
+        }
+        return (full, "")
+    }
+
+    /// "12 AM", "6 PM", or "00", "18" on a 24-hour clock.
+    static func hour(_ hour: Int) -> String {
+        date(hour * 60).formatted(.dateTime.hour())
+    }
+}
+
+/// The Full by time in the same thin digits as the charge limit, rolling as it changes.
+private struct TimeDigits: View {
+    let minutes: Int
+
+    var body: some View {
+        let parts = ClockTime.parts(minutes)
+        HStack(alignment: .firstTextBaseline, spacing: 3) {
+            Text(parts.digits)
+                .font(.system(size: 44, weight: .ultraLight))
+                .monospacedDigit()
+                .tracking(-1.5)
+                .contentTransition(.numericText(value: Double(minutes)))
+                .animation(.smooth(duration: 0.35), value: minutes)
+            if !parts.period.isEmpty {
+                Text(parts.period)
+                    .font(.system(size: 14))
+                    .foregroundStyle(.tertiary)
+            }
+        }
+        .accessibilityElement(children: .combine)
+    }
+}
+
+/// A day from midnight to midnight: the Full by time as a knob, the charging window before it as
+/// a green stretch, hour ticks and now. Click or drag to set the time, which snaps to 15
+/// minutes and ticks on each hour; hover to preview one. Arrow keys move 15 minutes, Shift an
+/// hour.
+private struct DayTrack: View {
+    let saved: Int
+    let lead: Int
+    @Binding var draft: Int?
+    let commit: (Int) -> Void
+    @FocusState private var focused: Bool
+    @State private var hover: Int?
+    @State private var flash: Int?
+    @State private var pendingCommit: Task<Void, Never>?
+
+    private static let day = 1440
+    private static let step = 15
+    private var minutes: Int { draft ?? saved }
+    /// Follows the pointer exactly while dragging; glides for keyboard and outside changes.
+    private var motion: Animation? { draft != nil ? nil : .spring(response: 0.4, dampingFraction: 0.86) }
+
+    /// The charging window as one or two stretches of the day, with how green each starts and
+    /// ends: a window that starts before midnight wraps to the evening end of the track.
+    private var window: [(from: Int, to: Int, fade: Double, full: Double)] {
+        let start = minutes - lead
+        if start >= 0 { return [(start, minutes, 0.12, 1)] }
+        return [(Self.day + start, Self.day, 0.12, 0.6), (0, minutes, 0.6, 1)]
+    }
+
+    var body: some View {
+        VStack(spacing: 4) {
+            GeometryReader { geometry in
+                let width = geometry.size.width
+                let x = { (minutes: Int) in width * CGFloat(minutes) / CGFloat(Self.day) }
+                ZStack(alignment: .topLeading) {
+                    stretches(width: width, height: 18)
+                        .blur(radius: 8)
+                        .opacity(0.45)
+                        .offset(y: 12)
+                    ZStack(alignment: .topLeading) {
+                        Capsule().fill(Theme.track)
+                        stretches(width: width, height: 10)
+                    }
+                    .frame(width: width, height: 10)
+                    .clipShape(Capsule())
+                    .offset(y: 16)
+                    ForEach(0...24, id: \.self) { hour in
+                        let major = hour % 6 == 0
+                        Rectangle()
+                            .fill(
+                                flash == hour ? Theme.accent : major ? Color.secondary.opacity(0.6) : Theme.lineStrong
+                            )
+                            .frame(width: 1, height: flash == hour ? 8 : major ? 7 : 4)
+                            .offset(x: min(max(x(hour * 60) - 0.5, 0), width - 1), y: 31)
+                    }
+                    nowMarker(width: width)
+                    if let hover, draft == nil {
+                        Capsule()
+                            .fill(Color.secondary.opacity(0.5))
+                            .frame(width: 2, height: 16)
+                            .offset(x: x(hover) - 1, y: 13)
+                        Text(ClockTime.text(hover))
+                            .font(.system(size: 10.5))
+                            .foregroundStyle(.tertiary)
+                            .fixedSize()
+                            .frame(width: 90)
+                            .offset(x: x(hover) - 45, y: -12)
+                    }
+                    knob
+                        .offset(x: x(minutes) - 12, y: 9)
+                        .animation(motion, value: minutes)
+                }
+                .frame(width: width, height: geometry.size.height, alignment: .topLeading)
+                .contentShape(Rectangle())
+                .onContinuousHover(coordinateSpace: .local) { phase in
+                    switch phase {
+                    case .active(let location): hover = snapped(location.x / max(width, 1))
+                    case .ended: hover = nil
+                    }
+                }
+                .gesture(
+                    DragGesture(minimumDistance: 0)
+                        .onChanged { drag in
+                            let value = snapped(drag.location.x / max(width, 1))
+                            if let previous = draft ?? Optional(saved), previous / 60 != value / 60 {
+                                tick(value / 60 + (value > previous ? 0 : 1))
+                            }
+                            draft = value
+                            focused = true
+                        }
+                        .onEnded { _ in
+                            if let draft, draft != saved { commit(draft) }
+                            draft = nil
+                        })
+            }
+            .frame(height: 44)
+            HStack {
+                ForEach([0, 6, 12, 18, 24], id: \.self) { hour in
+                    if hour > 0 { Spacer(minLength: 4) }
+                    Text(ClockTime.hour(hour))
+                }
+            }
+            .font(.system(size: 10.5))
+            .foregroundStyle(.tertiary)
+        }
+        .focusable()
+        .focused($focused)
+        .focusEffectDisabled()
+        .onKeyPress(keys: [.leftArrow, .rightArrow, .upArrow, .downArrow]) { press in
+            let step = press.modifiers.contains(.shift) ? 60 : Self.step
+            let later = press.key == .rightArrow || press.key == .upArrow
+            let value = min(max(minutes + (later ? step : -step), 0), Self.day - Self.step)
+            draft = value
+            pendingCommit?.cancel()
+            pendingCommit = Task {
+                try? await Task.sleep(for: .milliseconds(500))
+                guard !Task.isCancelled else { return }
+                if value != saved { commit(value) }
+                draft = nil
+            }
+            return .handled
+        }
+        .accessibilityElement()
+        .accessibilityLabel("Full by time")
+        .accessibilityValue("\(ClockTime.text(minutes)), charging starts \(ClockTime.text(minutes - lead))")
+        .accessibilityAdjustableAction { direction in
+            switch direction {
+            case .increment: commit(min(saved + Self.step, Self.day - Self.step))
+            case .decrement: commit(max(saved - Self.step, 0))
+            @unknown default: break
+            }
+        }
+    }
+
+    private func stretches(width: CGFloat, height: CGFloat) -> some View {
+        let x = { (minutes: Int) in width * CGFloat(minutes) / CGFloat(Self.day) }
+        return ZStack(alignment: .topLeading) {
+            ForEach(Array(window.enumerated()), id: \.offset) { _, stretch in
+                LinearGradient(
+                    colors: [Theme.accent.opacity(stretch.fade), Theme.accent.opacity(stretch.full)],
+                    startPoint: .leading, endPoint: .trailing
+                )
+                .frame(width: max(x(stretch.to) - x(stretch.from), 0), height: height)
+                .offset(x: x(stretch.from))
+            }
+        }
+        .animation(motion, value: minutes)
+        .animation(.spring(response: 0.4, dampingFraction: 0.86), value: lead)
+    }
+
+    @ViewBuilder private func nowMarker(width: CGFloat) -> some View {
+        let x = { (minutes: Int) in width * CGFloat(minutes) / CGFloat(Self.day) }
+        let parts = Calendar.current.dateComponents([.hour, .minute], from: .now)
+        let now = (parts.hour ?? 0) * 60 + (parts.minute ?? 0)
+        Circle()
+            .fill(Theme.window)
+            .overlay(Circle().strokeBorder(Color.secondary, lineWidth: 2))
+            .frame(width: 12, height: 12)
+            .offset(x: x(now) - 6, y: 15)
+            .help("Now")
+            .allowsHitTesting(false)
+    }
+
+    private var knob: some View {
+        Circle()
+            .fill(.white)
+            .frame(width: 24, height: 24)
+            .shadow(color: .black.opacity(0.35), radius: 3, y: 1)
+            .background(
+                Circle().fill(Theme.accent.opacity(draft != nil ? 0.35 : focused ? 0.26 : 0.18))
+                    .frame(width: draft != nil ? 40 : 32, height: draft != nil ? 40 : 32)
+            )
+            .overlay(alignment: .top) {
+                // Always present and faded, never inserted or removed, as on the limit slider.
+                Text(ClockTime.text(minutes))
+                    .font(.system(size: 11, weight: .semibold))
+                    .monospacedDigit()
+                    .foregroundStyle(Theme.window)
+                    .padding(.horizontal, 7)
+                    .padding(.vertical, 3)
+                    .background(Color.primary, in: Capsule())
+                    .fixedSize()
+                    .offset(y: draft != nil ? -28 : -22)
+                    .opacity(draft != nil ? 1 : 0)
+                    .animation(.easeOut(duration: 0.18), value: draft != nil)
+                    .allowsHitTesting(false)
+            }
+            .scaleEffect(draft != nil ? 1.08 : 1)
+            .animation(.spring(response: 0.25, dampingFraction: 0.8), value: draft != nil)
+    }
+
+    /// A fraction of the track as a time, snapped to 15 minutes.
+    private func snapped(_ fraction: CGFloat) -> Int {
+        let raw = Int((min(max(fraction, 0), 1) * CGFloat(Self.day) / CGFloat(Self.step)).rounded()) * Self.step
+        return min(raw, Self.day - Self.step)
+    }
+
+    /// Crossing an hour while dragging: the trackpad ticks and the hour's mark lights for a moment.
+    private func tick(_ hour: Int) {
+        NSHapticFeedbackManager.defaultPerformer.perform(.alignment, performanceTime: .now)
+        flash = hour
+        Task {
+            try? await Task.sleep(for: .milliseconds(260))
+            if flash == hour { withAnimation(.easeOut(duration: 0.2)) { flash = nil } }
+        }
     }
 }
 
@@ -571,7 +868,7 @@ private struct DayChipStyle: ButtonStyle {
         configuration.label
             .font(.system(size: 11.5, weight: isOn ? .semibold : .regular))
             .foregroundStyle(isOn ? Theme.accent : .secondary)
-            .frame(width: 28, height: 28)
+            .frame(width: 26, height: 26)
             .background(Circle().fill(isOn ? Theme.accentSoft : Color.primary.opacity(0.05)))
             .overlay(Circle().strokeBorder(isOn ? Theme.accent.opacity(0.45) : Theme.lineStrong))
             .scaleEffect(configuration.isPressed ? 0.94 : 1)
