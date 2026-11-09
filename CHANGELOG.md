@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.2.2] - 2026-11-08
+
+Full by is set on a day track, and cards no longer stretch into empty space.
+
+### Changed
+
+- **Full by is set on a day track.** Drag the time along a 24-hour track, the
+  same ruler and knob as the charge limit, or use the arrow keys (15 minutes,
+  Shift for an hour). The green stretch before the knob shows when charging
+  starts, and the time sits above it in large digits. All seven days are always
+  shown, with Weekdays, Every day and Once as shortcuts; this replaces the Days
+  option, which jumped back to Weekdays or Every day when the chosen days
+  matched one of them. The card's caption shows the next one, such as "Next:
+  Tomorrow, 8:00 AM".
+
+### Fixed
+
+- **Cards no longer stretch to match their neighbour.** Control and Settings
+  stack their cards in two columns, each card as tall as its content, so cards
+  like Helper, Updates, Charge control and Heat no longer end in empty space.
+  Settings' menu bar card now spans the page.
+- **The menu bar preview in Settings fits.** It drops menus before it cuts off
+  the percentage.
+- **Overview fits the default window width.** The Top Up, Discharge and
+  Calibrate buttons no longer shorten their names, and the summary strip drops
+  its last facts instead of wrapping.
+
 ## [0.2.1] - 2026-11-08
 
 A new app icon, and the setup window loses its grey strip.
@@ -324,7 +351,8 @@ MacBooks, from the menu bar.
   hands charging back to macOS and removes every file Chargectl added.
 - **Homebrew.** `brew install --cask tyldra-org/tools/chargectl`.
 
-[Unreleased]: https://github.com/tyldra-org/chargectl/compare/v0.2.1...HEAD
+[Unreleased]: https://github.com/tyldra-org/chargectl/compare/v0.2.2...HEAD
+[0.2.2]: https://github.com/tyldra-org/chargectl/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/tyldra-org/chargectl/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/tyldra-org/chargectl/compare/v0.1.10...v0.2.0
 [0.1.10]: https://github.com/tyldra-org/chargectl/compare/v0.1.9...v0.1.10
