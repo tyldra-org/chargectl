@@ -19,6 +19,9 @@ settings:
     MARKETING_VERSION: '0.2.3'
     CURRENT_PROJECT_VERSION: '15'
     SWIFT_OBJC_BRIDGING_HEADER: Shared/SMC/SMCBridge.h
+    # Keeps compiled files by their inputs in DerivedData/CompilationCache.noindex, so a rebuild
+    # after a checkout or a clean compiles only what changed. CI keeps that folder between runs.
+    COMPILATION_CACHE_ENABLE_CACHING: YES
     # SHA-1 of the certificate releases are signed with when there is no Apple team; the helper
     # and the updater then accept only code signed with it. Empty: ad hoc.
     CHARGECTL_RELEASE_CERT: ''
