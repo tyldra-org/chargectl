@@ -98,6 +98,16 @@ helper. Update them when the app's look changes:
   `docs/assets/screenshots/widgets-dark.png` and `widgets-light.png`.
 - **Menu bar panel:** run the Debug build with `--demo`, open the panel, press
   ⌘⇧4 then Space, and click the panel. Save it as `menu-bar.png`.
+- **App icon:** after editing `App/Resources/AppIcon.icon` in Icon Composer,
+  export the README's copy with Icon Composer's `ictool`, then pad it to the
+  macOS icon grid:
+
+  ```sh
+  "$(xcode-select -p)/../Applications/Icon Composer.app/Contents/Executables/ictool" \
+    App/Resources/AppIcon.icon --export-image --output-file /tmp/icon.png \
+    --platform macOS --rendition Default --width 103 --height 103 --scale 2
+  magick /tmp/icon.png -background none -gravity center -extent 256x256 docs/assets/icon.png
+  ```
 
 ## Commit messages and pull request titles
 

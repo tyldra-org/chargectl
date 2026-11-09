@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- **A new app icon.** It's the menu bar ring at Dock size: a green charge on a
+  glass track that ends at your limit, with no lightning bolt. It's built in
+  Icon Composer, so it follows System Settings › Appearance › Icon & widget
+  style: Default, Dark, Clear and Tinted.
+
 ### Fixed
 
 - **The setup window no longer has a grey strip along its bottom.** The window
