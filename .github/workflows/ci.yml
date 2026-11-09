@@ -93,7 +93,9 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     env:
+      # Dependabot cannot bump these two; update them by hand.
       ACTIONLINT_VERSION: v1.7.12
+      ZIZMOR_VERSION: "1.32.0"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -122,8 +124,11 @@ jobs:
         with:
           path: ~/go/bin/actionlint
           key: ${{ runner.os }}-actionlint-${{ env.ACTIONLINT_VERSION }}
+      # zizmor from PyPI through pipx, which GitHub's Linux images include.
+      - name: Install zizmor
+        run: pipx install "zizmor==$ZIZMOR_VERSION"
       - name: Check
-        run: PATH="$HOME/go/bin:$PATH" ./scripts/check.sh --all shell workflows
+        run: PATH="$HOME/go/bin:$HOME/.local/bin:$PATH" ./scripts/check.sh --all shell workflows
 
   macos:
     # One job on purpose. With warm caches, the tests took 21 s after the Release

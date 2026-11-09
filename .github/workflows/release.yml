@@ -194,12 +194,18 @@ jobs:
           private-key: ${{ secrets.TAP_APP_PRIVATE_KEY }}
           owner: tyldra-org
           repositories: homebrew-tools
+          # Only what opening and auto-merging the pull request needs, not every
+          # permission of the app's installation.
+          permission-contents: write
+          permission-pull-requests: write
 
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: tyldra-org/homebrew-tools
           token: ${{ steps.token.outputs.token }}
           path: tap
+          # The git push below uses these credentials; nothing in this job uploads the folder.
+          persist-credentials: true # zizmor: ignore[artipacked]
 
       - name: Open a pull request with the new cask
         working-directory: tap

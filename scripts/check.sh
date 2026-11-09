@@ -69,7 +69,7 @@ stage_command() {
     build) printf '%s' "$BUILD_CMD" ;;
     test) printf '%s' "$TEST_CMD" ;;
     shell) printf '%s' 'shellcheck <tracked *.sh files>' ;;
-    workflows) printf '%s' 'actionlint, scripts/ci-scope.test.sh' ;;
+    workflows) printf '%s' 'actionlint, zizmor --offline, scripts/ci-scope.test.sh' ;;
     cask) printf '%s' 'scripts/check-cask.sh (brew style and audit, as the tap CI runs)' ;;
   esac
 }
@@ -171,12 +171,17 @@ run_workflows_stage() {
     record workflows ok "no workflows"
     return
   fi
-  if ! command -v actionlint >/dev/null 2>&1; then
-    skip_or_fail workflows "missing tool: actionlint"
-    return
-  fi
-  # The CI scope script decides which jobs run, so its tests run with the workflows.
-  run_timed workflows "actionlint, CI scope tests" bash -c 'actionlint && scripts/ci-scope.test.sh'
+  local tool
+  for tool in actionlint zizmor; do
+    if ! command -v "$tool" >/dev/null 2>&1; then
+      skip_or_fail workflows "missing tool: $tool"
+      return
+    fi
+  done
+  # actionlint for syntax and expressions, zizmor for injection, permissions and pins. The CI
+  # scope script decides which jobs run, so its tests run with the workflows.
+  run_timed workflows "actionlint, zizmor, CI scope tests" \
+    bash -c 'actionlint && zizmor --offline --min-severity low .github/workflows && scripts/ci-scope.test.sh'
 }
 
 run_cask_stage() {
