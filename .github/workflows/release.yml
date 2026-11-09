@@ -60,6 +60,21 @@ jobs:
           ./scripts/release-notes.sh "$version" > "$RUNNER_TEMP/notes.md"
           echo "version=$version" >> "$GITHUB_OUTPUT"
 
+      # The tests use the compilation cache CI keeps on main (see ci.yml). The build that is
+      # published does not: it is compiled from scratch below.
+      - name: Choose the DerivedData folder and the cache key
+        id: cache
+        run: |
+          echo "CHARGECTL_DERIVED_DATA=$RUNNER_TEMP/DerivedData" >> "$GITHUB_ENV"
+          echo "key=compilation-cache-$(xcodebuild -version | head -1 | tr -d ' ')-$(date -u +%Y-%m)" >> "$GITHUB_OUTPUT"
+
+      - name: Restore the compilation cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/DerivedData/CompilationCache.noindex
+          key: ${{ steps.cache.outputs.key }}-${{ github.sha }}
+          restore-keys: ${{ steps.cache.outputs.key }}-
+
       # cask runs the Homebrew tap's own checks on the cask, so the tap's pull
       # request passes.
       - name: Format, test and check the cask
@@ -75,6 +90,9 @@ jobs:
         id: package
         env:
           VERSION: ${{ steps.version.outputs.version }}
+          # From scratch, not from the compilation cache: what is published is built only from
+          # this commit.
+          CHARGECTL_COMPILATION_CACHE: "0"
         run: |
           zip=$(./scripts/package.sh "$RUNNER_TEMP/dist")
           sha256=$(awk '{ print $1 }' "$zip.sha256")
