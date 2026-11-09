@@ -3,6 +3,9 @@
 # Casks/chargectl.rb in tyldra-org/homebrew-tools.
 #
 #   ./scripts/cask.sh <version> <sha256 of Chargectl-<version>.zip>
+#
+# The tap's CI runs brew style and brew audit on it; ./scripts/check.sh cask runs
+# the same checks here. Keep arrays such as zap trash in alphabetical order.
 set -euo pipefail
 if [[ $# -ne 2 ]]; then
   echo 'Usage: cask.sh <version> <sha256>' >&2
@@ -53,9 +56,9 @@ cask "chargectl" do
   zap trash: [
     "/Library/Application Support/Chargectl",
     "/Library/LaunchDaemons/com.tyldra.chargectl.daemon.plist",
-    "/Library/PrivilegedHelperTools/com.tyldra.chargectl.daemon",
     "/Library/Logs/DiagnosticReports/Chargectl Service*",
     "/Library/Logs/DiagnosticReports/Retired/Chargectl Service*",
+    "/Library/PrivilegedHelperTools/com.tyldra.chargectl.daemon",
     "/private/etc/sudoers.d/chargectl",
     "~/Library/Application Support/com.tyldra.chargectl",
     "~/Library/Caches/com.tyldra.chargectl",

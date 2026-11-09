@@ -10,7 +10,7 @@
 #   --list           Print the stages and their commands, then exit.
 #   -h, --help       Show this help.
 #
-# Stages: format lint build test shell workflows.
+# Stages: format lint build test shell workflows cask.
 # Override a stage command with CHECK_<STAGE>_CMD, for example
 # CHECK_TEST_CMD='cargo test --locked'. Set it to an empty string to disable a
 # stage that does not apply to this project.
@@ -25,7 +25,7 @@ LINT_CMD=${CHECK_LINT_CMD-''}
 BUILD_CMD=${CHECK_BUILD_CMD-'scripts/build.sh Release'}
 TEST_CMD=${CHECK_TEST_CMD-'scripts/test.sh'}
 
-ALL_STAGES="format lint build test shell workflows"
+ALL_STAGES="format lint build test shell workflows cask"
 
 strict=false
 stages=()
@@ -70,6 +70,7 @@ stage_command() {
     test) printf '%s' "$TEST_CMD" ;;
     shell) printf '%s' 'shellcheck <tracked *.sh files>' ;;
     workflows) printf '%s' 'actionlint' ;;
+    cask) printf '%s' 'scripts/check-cask.sh (brew style and audit, as the tap CI runs)' ;;
   esac
 }
 
@@ -177,11 +178,20 @@ run_workflows_stage() {
   run_timed workflows actionlint actionlint
 }
 
+run_cask_stage() {
+  if ! command -v brew >/dev/null 2>&1; then
+    skip_or_fail cask "missing tool: brew"
+    return
+  fi
+  run_timed cask "brew style and audit on the Homebrew cask" scripts/check-cask.sh
+}
+
 for stage in "${stages[@]}"; do
   case $stage in
     format | lint | build | test) run_command_stage "$stage" ;;
     shell) run_shell_stage ;;
     workflows) run_workflows_stage ;;
+    cask) run_cask_stage ;;
   esac
 done
 

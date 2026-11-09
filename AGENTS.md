@@ -45,6 +45,7 @@ newly matching skills before continuing. Human contributors do not need them.
 | Fix formatting | `xcrun swift-format format --in-place --recursive App Daemon Shared Tests Widgets` |
 | Package a release zip | `./scripts/package.sh` |
 | Print the Homebrew cask | `./scripts/cask.sh <version> <sha256>` |
+| Check the cask as the tap's CI does | `./scripts/check.sh cask` |
 
 The build and test scripts regenerate the Xcode project from `project.yml`
 first, so edit `project.yml`, never the generated `.xcodeproj`.
