@@ -16,8 +16,8 @@ settings:
     CODE_SIGN_STYLE: Manual
     DEVELOPMENT_TEAM: ''
     ENABLE_HARDENED_RUNTIME: YES
-    MARKETING_VERSION: '0.2.4'
-    CURRENT_PROJECT_VERSION: '16'
+    MARKETING_VERSION: '0.2.5'
+    CURRENT_PROJECT_VERSION: '17'
     SWIFT_OBJC_BRIDGING_HEADER: Shared/SMC/SMCBridge.h
     # Keeps compiled files by their inputs in DerivedData/CompilationCache.noindex, so a rebuild
     # after a checkout or a clean compiles only what changed. CI keeps that folder between runs.
