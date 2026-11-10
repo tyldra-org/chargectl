@@ -10,9 +10,26 @@ import Testing
         #expect(
             plist["ProgramArguments"] as? [String]
                 == [
-                    "/Library/PrivilegedHelperTools/com.tyldra.chargectl.daemon", "--app",
+                    "/Library/PrivilegedHelperTools/Chargectl Service", "--app",
                     "/Applications/Chargectl.app",
                 ])
+    }
+
+    /// Login Items names the job after this file. A name with a dot, like the label, reads as a
+    /// file type: Login Items showed "com.tyldra.chargectl.daemon" with a blank document icon.
+    @Test func loginItemsShowsTheHelperAsChargectlService() {
+        let program = URL(fileURLWithPath: HelperInstall.programPath)
+        #expect(program.lastPathComponent == "Chargectl Service")
+        #expect(program.pathExtension.isEmpty)
+        #expect(HelperInstall.programPath != HelperInstall.legacyProgramPath)
+    }
+
+    @Test func installingAndRemovingDeleteTheLabelNamedCopy() {
+        let legacy = HelperInstall.quote(HelperInstall.legacyProgramPath)
+        #expect(HelperInstall.installCommand(app: "/Applications/Chargectl.app").contains("/bin/rm -f \(legacy) "))
+        for file in HelperInstall.programFiles {
+            #expect(HelperInstall.removeCommand.contains(HelperInstall.quote(file)))
+        }
     }
 
     @Test func theInstallCommandIsValidShell() throws {

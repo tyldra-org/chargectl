@@ -41,7 +41,7 @@ disclosure. Maintainers will agree a disclosure date with you.
 
 The helper, `Chargectl Service` (built from the `chargectld` target), ships inside
 `Chargectl.app`. For builds without an Apple team, Install Helper copies it to
-`/Library/PrivilegedHelperTools/com.tyldra.chargectl.daemon`, owned by root, and
+`/Library/PrivilegedHelperTools/Chargectl Service`, owned by root, and
 installs a launchd daemon that runs that copy, with your administrator password.
 launchd never runs the copy inside the app, because the app belongs to the user
 who installed it and anything running as that user could replace it. Builds

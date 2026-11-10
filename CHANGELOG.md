@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **Login Items lists the helper as "Chargectl Service" again**, instead of
+  "com.tyldra.chargectl.daemon" with a blank icon. Since 0.2.0 the helper's
+  root-owned copy was named after its launchd label, and Login Items shows that
+  file's name. The copy is now `/Library/PrivilegedHelperTools/Chargectl Service`.
+  Installing the helper again moves it right away; otherwise the helper moves
+  itself, which takes effect when the Mac next restarts.
+
 ## [0.2.4] - 2026-11-09
 
 The Full By widget comes in every size, and a skipped full charge no longer

@@ -91,9 +91,7 @@ struct ServiceInstaller {
     /// password is asked only when it could not.
     func remove() async throws {
         await Self.unregisterAppService()
-        if FileManager.default.fileExists(atPath: Self.plistPath)
-            || FileManager.default.fileExists(atPath: HelperInstall.programPath)
-        {
+        if FileManager.default.fileExists(atPath: Self.plistPath) || HelperInstall.programExists {
             try await Self.runAsAdministrator(
                 HelperInstall.removeCommand, prompt: "Chargectl needs to remove its helper.")
         }
@@ -136,13 +134,13 @@ struct ServiceInstaller {
     func removeAll() async throws {
         let rootFolders =
             "for d in \"$(/usr/bin/getconf DARWIN_USER_CACHE_DIR)\" \"$(/usr/bin/getconf DARWIN_USER_TEMP_DIR)\"; do /bin/rm -rf \"$d\"com.tyldra.chargectl*; done"
-        let helper = Bundle.main.bundleURL.appendingPathComponent("Contents/MacOS/Chargectl Service").path
+        let helper = HelperInstall.bundledProgram(app: Bundle.main.bundleURL.path)
         try await Self.runAsAdministrator(
             [
                 "/bin/launchctl bootout system/\(Self.label) 2>/dev/null",
                 // Reconnect wall power and restore the macOS charge limit before the files go.
-                "'\(helper)' --restore 2>/dev/null",
-                "/bin/rm -f \(Self.plistPath) \(HelperStartRule.path) '\(HelperInstall.programPath)' '\(HelperInstall.stagingPath)'",
+                "\(HelperInstall.quote(helper)) --restore 2>/dev/null",
+                "/bin/rm -f \(Self.plistPath) \(HelperStartRule.path) \(HelperInstall.programFiles.map(HelperInstall.quote).joined(separator: " "))",
                 "/bin/rm -rf '\(Self.dataPath)'",
                 rootFolders,
                 "/bin/rm -f /Library/Logs/DiagnosticReports/Chargectl* /Library/Logs/DiagnosticReports/Retired/Chargectl* /Library/Logs/DiagnosticReports/chargectld* /Library/Logs/DiagnosticReports/Retired/chargectld*",
@@ -152,8 +150,7 @@ struct ServiceInstaller {
 
     /// Whether anything of the helper is still on disk.
     var leavesFiles: Bool {
-        FileManager.default.fileExists(atPath: Self.plistPath)
-            || FileManager.default.fileExists(atPath: HelperInstall.programPath)
+        FileManager.default.fileExists(atPath: Self.plistPath) || HelperInstall.programExists
             || FileManager.default.fileExists(atPath: Self.dataPath)
     }
 

@@ -22,7 +22,9 @@ helper="$app/Contents/MacOS/Chargectl Service"
 if [[ -x "$helper" ]]; then
   sudo "$helper" --restore 2>/dev/null || true
 fi
+# The helper's root-owned copy; 0.2.0 to 0.2.4 named it after the label.
 sudo rm -f "/Library/LaunchDaemons/$label.plist" /private/etc/sudoers.d/chargectl \
+  "/Library/PrivilegedHelperTools/Chargectl Service" "/Library/PrivilegedHelperTools/Chargectl Service.new" \
   "/Library/PrivilegedHelperTools/$label" "/Library/PrivilegedHelperTools/$label.new"
 sudo rm -rf "/Library/Application Support/Chargectl"
 sudo sh -c 'rm -f /Library/Logs/DiagnosticReports/Chargectl* /Library/Logs/DiagnosticReports/Retired/Chargectl* /Library/Logs/DiagnosticReports/chargectld* /Library/Logs/DiagnosticReports/Retired/chargectld*'

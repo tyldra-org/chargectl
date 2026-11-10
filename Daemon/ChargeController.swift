@@ -152,7 +152,8 @@ final class ChargeController {
     /// Called by start() once macOS's limit is loaded; tests call it directly.
     func finishStarting(macOSLimit limit: (any MacOSLimitControl)?) {
         compactStoredLines()
-        moveOutOfApp()
+        moveToProgramPath()
+        removeLegacyProgram()
         macOSLimit = limit
         if limit == nil {
             log("macOS charge limit is not available; holding the limit by switching wall power", level: .warning)
@@ -340,32 +341,53 @@ final class ChargeController {
         }
     }
 
-    /// A plist install from before 0.1.11 runs the helper from inside Chargectl.app, which the user
-    /// can replace. Copies it to its root-owned place and points the plist there; launchd reads
-    /// the plist again when the Mac restarts.
-    private func moveOutOfApp() {
+    /// Moves a plist install that runs the helper from an older place to HelperInstall.programPath:
+    /// from inside Chargectl.app (before 0.2.0), which the user can replace, or from the copy named
+    /// after the label (0.2.0 to 0.2.4), which Login Items lists as "com.tyldra.chargectl.daemon".
+    /// Copies this helper there and points the plist at it; launchd reads the plist again when the
+    /// Mac restarts. Until then the copy is refreshed on every start, so an update installed in
+    /// the meantime is the version that runs after the restart.
+    private func moveToProgramPath() {
         let plistURL = URL(fileURLWithPath: HelperInstall.plistPath)
-        guard getuid() == 0, runsFromApp, executablePath != HelperInstall.programPath,
+        guard getuid() == 0, executablePath != HelperInstall.programPath,
+            runsFromApp || executablePath == HelperInstall.legacyProgramPath,
             let data = try? Data(contentsOf: plistURL),
             let plist = try? PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any],
-            let program = plist["Program"] as? String,
-            URL(fileURLWithPath: program).resolvingSymlinksInPath().path
-                == URL(fileURLWithPath: executablePath).resolvingSymlinksInPath().path
+            let program = (plist["ProgramArguments"] as? [String])?.first ?? plist["Program"] as? String
         else { return }
+        let resolved = URL(fileURLWithPath: program).resolvingSymlinksInPath().path
+        let pointsHere = resolved == URL(fileURLWithPath: executablePath).resolvingSymlinksInPath().path
+        guard pointsHere || resolved == HelperInstall.programPath else { return }
         do {
             // Taken as is: this is the code already running as root.
             try ProgramUpdate.install(from: executablePath, to: HelperInstall.programPath, requirement: nil)
+            guard pointsHere else { return }
             let moved = try PropertyListSerialization.data(
                 fromPropertyList: HelperInstall.plist(app: appPath), format: .xml, options: 0)
             try moved.write(to: plistURL, options: .atomic)
             try FileManager.default.setAttributes(
                 [.posixPermissions: 0o644, .ownerAccountID: 0, .groupOwnerAccountID: 0], ofItemAtPath: plistURL.path)
-            log(
-                "the helper now runs from \(HelperInstall.programPath), outside the app, from the next restart",
-                source: .chargectl)
+            log("the helper runs from \(HelperInstall.programPath) from the next restart", source: .chargectl)
         } catch {
-            report("could not move the helper out of the app: \(error)")
+            report("could not move the helper to \(HelperInstall.programPath): \(error)")
         }
+    }
+
+    /// Deletes the label-named copy of 0.2.0 to 0.2.4 once launchd runs this one instead.
+    private func removeLegacyProgram() {
+        guard getuid() == 0, executablePath == HelperInstall.programPath else { return }
+        let files = FileManager.default
+        var removed = false
+        for path in [HelperInstall.legacyProgramPath, "\(HelperInstall.legacyProgramPath).new"]
+        where files.fileExists(atPath: path) {
+            do {
+                try files.removeItem(atPath: path)
+                removed = true
+            } catch {
+                report("could not delete \(path): \(error.localizedDescription)")
+            }
+        }
+        if removed { log("removed the helper's old copy, \(HelperInstall.legacyProgramPath)", source: .chargectl) }
     }
 
     private enum ExecutableChange: Equatable {
@@ -604,9 +626,8 @@ final class ChargeController {
     private func unloadIfInstalledByScript() {
         try? FileManager.default.removeItem(atPath: HelperStartRule.path)
         if getuid() == 0 {
-            try? FileManager.default.removeItem(atPath: HelperInstall.stagingPath)
             // The running process keeps its copy open; launchd stops it moments later.
-            try? FileManager.default.removeItem(atPath: HelperInstall.programPath)
+            for path in HelperInstall.programFiles { try? FileManager.default.removeItem(atPath: path) }
         }
         let plist = HelperStartRule.plistPath
         guard FileManager.default.fileExists(atPath: plist) else { return }
