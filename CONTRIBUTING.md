@@ -39,11 +39,11 @@ the build is signed ad hoc, as releases are.
   `/Library/LaunchDaemons` that runs that root-owned copy, with your
   administrator password. macOS ties a background item's approval to an ad-hoc
   build, so the Login Items route would stop the helper after every update; a
-  launchd job keeps working. Login Items lists it by its label,
-  "com.tyldra.chargectl.daemon", with a blank icon: macOS ties a launchd job to
-  its app (`AssociatedBundleIdentifiers`) only when both are signed by the same
-  Apple team. An update replaces the copy only when the new helper is signed
-  with the release certificate; otherwise the app asks to install it again.
+  launchd job keeps working. Login Items lists it as "Chargectl Service", the
+  copy's file name, apart from Chargectl: macOS ties a launchd job to its app
+  (`AssociatedBundleIdentifiers`) only when both are signed by the same Apple
+  team. An update replaces the copy only when the new helper is signed with the
+  release certificate; otherwise the app asks to install it again.
 - **Release certificate:** `./scripts/make-release-certificate.sh <folder>`
   creates a self-signed code-signing certificate and prints the commands that
   store it as the release workflow's secrets. Releases are then signed with it,

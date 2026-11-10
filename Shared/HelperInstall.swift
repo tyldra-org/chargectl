@@ -10,13 +10,21 @@ import Foundation
 nonisolated enum HelperInstall {
     static let plistPath = "/Library/LaunchDaemons/\(DaemonIdentity.machService).plist"
     static let folder = "/Library/PrivilegedHelperTools"
-    static let programPath = "\(folder)/\(DaemonIdentity.machService)"
+    /// The helper's file name, in the app and in folder. Login Items names a launchd job that
+    /// belongs to no Apple team after its program's file, so this is the name it shows.
+    static let programName = "Chargectl Service"
+    static let programPath = "\(folder)/\(programName)"
     /// Where a new copy is written before it is checked and moved over programPath.
     static let stagingPath = "\(programPath).new"
+    /// The copy 0.2.0 to 0.2.4 installed, named after the label. Login Items showed it as
+    /// "com.tyldra.chargectl.daemon" with a blank document icon, reading ".daemon" as a file type.
+    static let legacyProgramPath = "\(folder)/\(DaemonIdentity.machService)"
+    /// Every file a plist install may have put in folder.
+    static let programFiles = [programPath, stagingPath, legacyProgramPath, "\(legacyProgramPath).new"]
 
     /// The helper inside a copy of Chargectl.app.
     static func bundledProgram(app: String) -> String {
-        "\(app)/Contents/MacOS/Chargectl Service"
+        "\(app)/Contents/MacOS/\(programName)"
     }
 
     /// The app a bundled helper belongs to: Chargectl.app/Contents/MacOS/Chargectl Service.
@@ -56,6 +64,7 @@ nonisolated enum HelperInstall {
             "{ /usr/bin/ditto \(quote(bundledProgram(app: app))) \(staging) && /usr/sbin/chown root:wheel \(staging)"
                 + " && /bin/chmod 755 \(staging) && /usr/bin/xattr -c \(staging) && /bin/mv -f \(staging) \(quote(programPath)); }"
                 + " || { echo 'The helper could not be copied.' >&2; exit 1; }",
+            "/bin/rm -f \(quote(legacyProgramPath)) \(quote("\(legacyProgramPath).new"))",
             "/bin/echo \(data.base64EncodedString()) | /usr/bin/base64 -D > \(plistPath)",
             "/usr/sbin/chown root:wheel \(plistPath)",
             "/bin/chmod 644 \(plistPath)",
@@ -67,7 +76,12 @@ nonisolated enum HelperInstall {
 
     /// Stops the job and deletes its plist and program. Run as root.
     static var removeCommand: String {
-        "/bin/launchctl bootout system/\(DaemonIdentity.machService) 2>/dev/null; /bin/rm -f \(plistPath) \(quote(programPath)) \(quote(stagingPath))"
+        "/bin/launchctl bootout system/\(DaemonIdentity.machService) 2>/dev/null; /bin/rm -f \(plistPath) \(programFiles.map(quote).joined(separator: " "))"
+    }
+
+    /// Whether any copy of the helper is still in folder.
+    static var programExists: Bool {
+        programFiles.contains { FileManager.default.fileExists(atPath: $0) }
     }
 
     /// A shell word that stands for exactly text.
