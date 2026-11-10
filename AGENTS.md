@@ -72,11 +72,15 @@ Run `./scripts/check.sh` once before saying the work is done.
 - `./scripts/install.sh`, `./scripts/uninstall.sh` or `./scripts/run.sh`
   unless the user asks. They change how the Mac charges.
 - Anything that writes SMC keys or PowerUIAgent preferences outside the app.
-- `git push --force` to `main`, or any push to a remote, unless the user asks.
-- Any command that changes GitHub state (`gh repo edit`, `gh label`,
+- Commits, pushes of a work branch, pull requests, merges through the
+  required `ci` check, and issue work for the change, unless the user asks,
+  in the conversation or in standing instructions (for example an automatic
+  mode in their own agent files).
+- A force push, a rewrite of pushed history, a tag or a release, unless the
+  user asks in this conversation. A `v*` tag publishes a release.
+- Any other command that changes GitHub state (`gh repo edit`, `gh label`,
   `gh release create`, `gh secret`, `gh api -X POST|PUT|PATCH|DELETE`),
-  unless the user asks.
-- Commands that publish packages or create tags.
+  unless the user asks in this conversation.
 
 ## Where things live
 
