@@ -5,11 +5,12 @@
 <h1 align="center">Chargectl</h1>
 
 <p align="center">
-  <strong>Battery charge limits for Apple silicon MacBooks, from the menu bar.</strong>
+  <strong>Battery charge limiter for Mac. Stop your MacBook charging at 80%, or any limit you choose.</strong>
 </p>
 
 <p align="center">
   <a href="https://github.com/tyldra-org/chargectl/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/tyldra-org/chargectl/actions/workflows/ci.yml/badge.svg?branch=main"></a>
+  <a href="https://github.com/tyldra-org/chargectl/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/tyldra-org/chargectl"></a>
   <a href="LICENSE"><img alt="License: Apache-2.0" src="https://img.shields.io/badge/license-Apache--2.0-blue.svg"></a>
   <img alt="macOS 27" src="https://img.shields.io/badge/macOS-27-black.svg?logo=apple">
   <img alt="Apple silicon" src="https://img.shields.io/badge/Apple%20silicon-arm64-black.svg">
@@ -21,6 +22,7 @@
   <a href="#screenshots">Screenshots</a> ·
   <a href="#widgets">Widgets</a> ·
   <a href="#how-it-works">How it works</a> ·
+  <a href="#faq">FAQ</a> ·
   <a href="#install-and-uninstall">Install</a> ·
   <a href="CONTRIBUTING.md">Contributing</a> ·
   <a href="SECURITY.md">Security</a>
@@ -35,11 +37,15 @@
 
 ---
 
-Lithium-ion batteries wear faster when they sit at 100%. Chargectl stops charging
-at the limit you choose, anywhere from 20% to 100%, and keeps your Mac running on
-the charger while the battery rests. It works with macOS's own charge limit
-instead of around it, shows what the charger, the Mac and the battery are doing
-each second, and keeps working while the app is closed.
+Chargectl is a free, open-source menu bar app that limits how far your MacBook
+charges. Lithium-ion batteries wear faster when they sit at 100%, so Chargectl
+stops charging at the limit you choose, anywhere from 20% to 100%, and keeps your
+Mac running on the charger while the battery rests. It works with macOS's own
+charge limit instead of around it, shows what the charger, the Mac and the battery
+are doing each second, and keeps working while the app is closed.
+
+It runs on Apple silicon MacBooks, including MacBook Air and MacBook Pro, with
+macOS 27 or later.
 
 ## Quickstart
 
@@ -219,6 +225,55 @@ Chargectl saves your own macOS charge limit before its first change and restores
 it when it stops, when you turn charge control off and when you uninstall.
 Readings come from the `AppleSmartBattery` registry entry and live SMC keys
 (`B0AC`, `B0AV`, `PDTR`, `PSTR`, `VD0R`, `ID0R`, `TB0T`) and need no privileges.
+
+## FAQ
+
+### How do I stop my MacBook charging at 80%?
+
+Install Chargectl and pick 80% during setup, or later drag the white marker in its
+menu bar panel. When the battery reaches 80%, charging stops and the Mac runs on
+the charger.
+
+### Does limiting the charge help my battery?
+
+Keeping a lithium-ion battery full for long stretches wears it faster. That is
+why macOS's Optimized Battery Charging holds at 80% until shortly before you
+usually unplug. A limit cuts that wear, though the battery still ages with time
+and charge cycles.
+
+### Doesn't macOS already have a charge limit?
+
+macOS can limit charging to between 80% and 100% in System Settings › Battery.
+Chargectl uses that same limit and adds limits down to 20%, sailing, Full by,
+heat protection and discharging to the limit. A limit set in either place shows
+in both.
+
+### Is Chargectl an alternative to AlDente?
+
+Yes. Both stop a MacBook from charging to 100%. Chargectl is free and open source
+under the Apache 2.0 license. Run one or the other, not both. Two charge limiters
+fight over the same settings.
+
+### Does it keep working when the app is closed or the Mac is asleep?
+
+Yes. A small helper controls charging in the background, so quitting the app
+changes nothing. While the Mac sleeps, macOS holds the limit.
+
+### Does it work on Intel Macs?
+
+No. Chargectl needs an Apple silicon MacBook with macOS 27 or later.
+
+### Does Chargectl collect any data?
+
+No. It has no account, analytics or tracking. Its only network request asks
+GitHub for the latest release every few hours. With automatic updates on, it
+downloads that release from GitHub.
+
+### How do I uninstall it?
+
+Choose **Settings › Uninstall Chargectl**. It restores normal charging and your
+macOS charge limit, then removes everything Chargectl added. Details are under
+[Uninstall](#uninstall).
 
 ## Install and uninstall
 
