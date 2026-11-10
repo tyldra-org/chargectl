@@ -1,0 +1,256 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Chargectl: stop your MacBook charging at 80% (free, open source)</title>
+  <meta name="description" content="Free, open-source menu bar app for Apple silicon MacBooks. Set a charge limit from 20% to 100% and Chargectl stops charging there to slow battery wear.">
+  <link rel="canonical" href="https://tyldra-org.github.io/chargectl/">
+  <link rel="icon" type="image/png" href="assets/icon.png">
+  <link rel="apple-touch-icon" href="assets/icon.png">
+  <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" content="#f6f6f7" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0f0f11" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Chargectl">
+  <meta property="og:title" content="Chargectl: stop your MacBook charging at 80%">
+  <meta property="og:description" content="Free, open-source menu bar app for Apple silicon MacBooks. Set a charge limit from 20% to 100% to slow battery wear.">
+  <meta property="og:url" content="https://tyldra-org.github.io/chargectl/">
+  <meta property="og:image" content="https://tyldra-org.github.io/chargectl/assets/social-preview.png">
+  <meta property="og:image:width" content="1280">
+  <meta property="og:image:height" content="640">
+  <meta property="og:image:alt" content="Chargectl, a menu bar app that stops a MacBook charging at a limit">
+  <meta name="twitter:card" content="summary_large_image">
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"SoftwareApplication","name":"Chargectl","description":"Free, open-source menu bar app for Apple silicon MacBooks that stops charging at a limit you choose, from 20% to 100%, to slow battery wear.","applicationCategory":"UtilitiesApplication","operatingSystem":"macOS 27 or later, Apple silicon","url":"https://tyldra-org.github.io/chargectl/","downloadUrl":"https://github.com/tyldra-org/chargectl/releases/latest","installUrl":"https://github.com/tyldra-org/chargectl#install-and-uninstall","image":"https://tyldra-org.github.io/chargectl/assets/social-preview.png","screenshot":"https://tyldra-org.github.io/chargectl/assets/web/overview-dark.webp","license":"https://www.apache.org/licenses/LICENSE-2.0","isAccessibleForFree":true,"offers":{"@type":"Offer","price":"0","priceCurrency":"USD"},"author":{"@type":"Organization","name":"Tyldra","url":"https://github.com/tyldra-org"},"codeRepository":"https://github.com/tyldra-org/chargectl"}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"How do I stop my MacBook charging at 80%?","acceptedAnswer":{"@type":"Answer","text":"Install Chargectl, open it, and pick 80% in the setup window, or later drag the white marker in its menu bar panel. When the battery reaches 80%, charging stops and your Mac runs on the charger until you unplug it."}},{"@type":"Question","name":"macOS already has a charge limit. Why use Chargectl?","acceptedAnswer":{"@type":"Answer","text":"Recent macOS versions can limit charging from 80% to 100% in System Settings › Battery. Chargectl uses that same limit and adds limits down to 20%, sailing, Full by, heat protection, discharging to the limit, and a record of your battery’s health over months."}},{"@type":"Question","name":"How is Chargectl different from AlDente?","acceptedAnswer":{"@type":"Answer","text":"Both stop a MacBook from charging to 100%. Chargectl is free and open source under the Apache-2.0 license, with no paid tier, and holds the limit through macOS’s own charge limit, so it keeps working while the Mac sleeps or the app is closed. Use one or the other: two charge limiters fight over the same settings."}},{"@type":"Question","name":"Does it work on Intel Macs or older versions of macOS?","acceptedAnswer":{"@type":"Answer","text":"No. Chargectl needs an Apple silicon MacBook and macOS 27 or later."}},{"@type":"Question","name":"Does Chargectl collect any data?","acceptedAnswer":{"@type":"Answer","text":"No. It has no account and no analytics. It contacts GitHub only to check for new releases, and you can turn that off in Settings › Updates."}},{"@type":"Question","name":"How do I uninstall it?","acceptedAnswer":{"@type":"Answer","text":"Settings › Uninstall Chargectl restores normal charging and your macOS limit, and removes every file Chargectl added. Dragging the app to the Trash does the same within a few minutes."}}]}</script>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg: #f6f6f7; --text: #1d1d1f; --muted: #5b5b61; --line: rgb(0 0 0 / 0.08);
+      --card: #ffffff; --code: #ffffff; --accent: #1e9440; --accent-ink: #ffffff;
+      --shadow: 0 24px 60px -24px rgb(0 0 0 / 0.25);
+      --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 24px; --s6: 32px; --s7: 48px; --s8: 72px; --s9: 112px;
+      --r1: 8px; --r2: 12px; --r3: 18px;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0f0f11; --text: #f2f2f4; --muted: #a0a0a8; --line: rgb(255 255 255 / 0.09);
+        --card: #17171a; --code: #17171a; --accent: #32d74b; --accent-ink: #052b0e;
+        --shadow: 0 24px 60px -24px rgb(0 0 0 / 0.8);
+      }
+    }
+    * { box-sizing: border-box; }
+    html { scroll-padding-top: 72px; }
+    body {
+      margin: 0; background: var(--bg); color: var(--text);
+      font: 17px/1.55 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+    a { color: inherit; }
+    a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 6px; }
+    img { display: block; max-width: 100%; height: auto; }
+    .wrap { width: min(1120px, 100% - 2 * var(--s5)); margin-inline: auto; }
+    header { position: sticky; top: 0; z-index: 2; background: color-mix(in srgb, var(--bg) 86%, transparent); backdrop-filter: saturate(1.4) blur(14px); border-bottom: 1px solid var(--line); }
+    header .wrap { display: flex; align-items: center; gap: var(--s5); height: 56px; }
+    .brand { display: flex; align-items: center; gap: var(--s2); font-weight: 600; text-decoration: none; margin-right: auto; }
+    .brand img { width: 28px; height: 28px; border-radius: 7px; }
+    nav { display: flex; gap: var(--s5); font-size: 15px; }
+    nav a { color: var(--muted); text-decoration: none; }
+    nav a:hover { color: var(--text); }
+    .hero { display: grid; grid-template-columns: 1fr; gap: var(--s7); padding: var(--s8) 0 var(--s7); align-items: center; }
+    .hero > *, .points > *, .feature > * { min-width: 0; }
+    h1 { font-size: clamp(36px, 6vw, 60px); line-height: 1.04; letter-spacing: -0.035em; margin: 0 0 var(--s4); font-weight: 700; }
+    .lede { font-size: clamp(18px, 2vw, 20px); color: var(--muted); max-width: 34em; margin: 0 0 var(--s6); }
+    .facts { display: flex; flex-wrap: wrap; gap: var(--s2) var(--s4); font-size: 14px; color: var(--muted); margin: var(--s4) 0 0; padding: 0; list-style: none; }
+    .facts li::before { content: ""; display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); margin-right: var(--s2); vertical-align: 2px; }
+    .install { display: flex; align-items: center; gap: var(--s3); background: var(--code); border: 1px solid var(--line); border-radius: var(--r2); padding: var(--s3) var(--s3) var(--s3) var(--s4); max-width: 34em; }
+    .install code { font: 14.5px/1.4 ui-monospace, "SF Mono", Menlo, monospace; overflow-x: auto; white-space: nowrap; flex: 1; }
+    .install code::before { content: "$ "; color: var(--muted); }
+    .copy { font: inherit; font-size: 14px; font-weight: 600; border: 0; border-radius: var(--r1); padding: var(--s2) var(--s4); background: var(--accent); color: var(--accent-ink); cursor: pointer; min-height: 36px; }
+    .alt { margin: var(--s3) 0 0; font-size: 15px; color: var(--muted); }
+    .shot { border-radius: var(--r3); overflow: hidden; box-shadow: var(--shadow); border: 1px solid var(--line); background: var(--card); }
+    section { padding: var(--s8) 0; border-top: 1px solid var(--line); }
+    h2 { font-size: clamp(26px, 3.4vw, 36px); line-height: 1.15; letter-spacing: -0.02em; margin: 0 0 var(--s4); }
+    .points { display: grid; gap: var(--s6); grid-template-columns: 1fr; margin-top: var(--s6); }
+    .points h3 { font-size: 18px; margin: 0 0 var(--s2); }
+    .points p { margin: 0; color: var(--muted); }
+    .feature { display: grid; gap: var(--s6); grid-template-columns: 1fr; align-items: center; }
+    .feature + .feature { margin-top: var(--s8); }
+    .feature p { color: var(--muted); margin: 0; max-width: 30em; }
+    details { border-bottom: 1px solid var(--line); padding: var(--s4) 0; }
+    summary { cursor: pointer; font-weight: 600; font-size: 18px; list-style: none; display: flex; justify-content: space-between; gap: var(--s4); }
+    summary::-webkit-details-marker { display: none; }
+    summary::after { content: "+"; color: var(--muted); font-weight: 400; }
+    details[open] summary::after { content: "−"; }
+    details p { margin: var(--s3) 0 0; color: var(--muted); max-width: 44em; }
+    .faq { max-width: 52em; }
+    .end { text-align: left; }
+    footer { border-top: 1px solid var(--line); padding: var(--s6) 0 var(--s7); font-size: 14px; color: var(--muted); }
+    footer .wrap { display: flex; flex-wrap: wrap; gap: var(--s3) var(--s5); }
+    footer a { color: var(--muted); }
+    @media (min-width: 880px) {
+      .hero { grid-template-columns: 0.9fr 1.1fr; padding-top: var(--s9); }
+      .points { grid-template-columns: repeat(3, 1fr); }
+      .feature { grid-template-columns: 0.8fr 1.2fr; }
+      .feature.flip { grid-template-columns: 1.2fr 0.8fr; }
+      .feature.flip .text { order: 2; }
+    }
+    @media (max-width: 560px) { nav a.hide-sm { display: none; } }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="wrap">
+      <a class="brand" href="https://tyldra-org.github.io/chargectl/"><img src="assets/icon.png" alt="" width="28" height="28">Chargectl</a>
+      <nav aria-label="Page">
+        <a class="hide-sm" href="#features">Features</a>
+        <a class="hide-sm" href="#faq">FAQ</a>
+        <a href="https://github.com/tyldra-org/chargectl">GitHub</a>
+      </nav>
+    </div>
+  </header>
+  <main>
+    <div class="wrap hero">
+      <div>
+        <h1>Stop your MacBook charging at&nbsp;80%.</h1>
+        <p class="lede">Lithium-ion batteries wear faster when they sit at 100%. Chargectl stops charging at the limit you choose, from 20% to 100%, and your Mac runs on the charger while the battery rests.</p>
+        <div class="install">
+          <code id="cmd">brew install --cask tyldra-org/tools/chargectl</code>
+          <button class="copy" type="button" data-copy="cmd">Copy</button>
+        </div>
+        <p class="alt">Or <a href="https://github.com/tyldra-org/chargectl/releases/latest">download the app from GitHub</a>. Free and open source.</p>
+        <ul class="facts">
+          <li>Apple silicon MacBook Air and MacBook Pro</li>
+          <li>macOS 27 or later</li>
+          <li>Apache-2.0</li>
+        </ul>
+      </div>
+      <div class="shot">
+        <picture>
+          <source media="(prefers-color-scheme: dark)" srcset="assets/web/overview-dark.webp">
+          <img src="assets/web/overview-light.webp" width="1400" height="1008" alt="Chargectl's Overview page: the charge against an 80% limit, power from the charger to the Mac and the battery, battery health and the charge over the last hours" fetchpriority="high">
+        </picture>
+      </div>
+    </div>
+
+    <section aria-labelledby="why">
+      <div class="wrap">
+        <h2 id="why">Holds your limit, even when the app is closed</h2>
+        <div class="points">
+          <div>
+            <h3>Works with macOS’s own limit</h3>
+            <p>Chargectl sets the charge limit macOS already has, so your limit shows in System Settings › Battery and holds while the Mac sleeps.</p>
+          </div>
+          <div>
+            <h3>Goes below 80%</h3>
+            <p>macOS’s own setting starts at 80%. Chargectl sets limits down to 20%, for a Mac that stays on the charger all day.</p>
+          </div>
+          <div>
+            <h3>Leaves nothing behind</h3>
+            <p>Uninstall restores normal charging and your macOS limit, and removes every file Chargectl added.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="features" aria-label="Features">
+      <div class="wrap">
+        <div class="feature">
+          <div class="text">
+            <h2>Set the limit, sailing and Full by</h2>
+            <p>Drag the limit anywhere from 20% to 100%. Sailing lets the charge drift down a few percent before topping up again, so the battery isn’t charged all day. Full by charges to 100% just in time for a time you set, then goes back to your limit.</p>
+          </div>
+          <div class="shot"><picture>
+          <source media="(prefers-color-scheme: dark)" srcset="assets/web/control-dark.webp">
+          <img src="assets/web/control-light.webp" width="1400" height="1008" alt="Chargectl's Control page: the charge limit on a slider with the sailing range, Full by on a day track, and heat protection" loading="lazy" decoding="async">
+        </picture></div>
+        </div>
+        <div class="feature flip">
+          <div class="text">
+            <h2>Watch battery health over months</h2>
+            <p>One summary a day, kept for years: health, charge cycles, hours at 90% or more and the warmest moment, next to the last 24 hours of charge, temperature and power.</p>
+          </div>
+          <div class="shot"><picture>
+          <source media="(prefers-color-scheme: dark)" srcset="assets/web/history-dark.webp">
+          <img src="assets/web/history-light.webp" width="1400" height="1027" alt="Chargectl's History page: battery health over three months, cycles and the charge over the last 24 hours" loading="lazy" decoding="async">
+        </picture></div>
+        </div>
+        <div class="feature">
+          <div class="text">
+            <h2>Widgets in every size</h2>
+            <p>Charge, power, health, today, Full by, time left and quick controls on your desktop, plus Control Center controls for charge control, Top Up, Discharge and Full by.</p>
+          </div>
+          <div class="shot"><picture>
+          <source media="(prefers-color-scheme: dark)" srcset="assets/web/widgets-dark.webp">
+          <img src="assets/web/widgets-light.webp" width="1400" height="817" alt="Chargectl widgets on the desktop: the charge in large and medium sizes, controls, Full by, a ring, power, health, time left and today" loading="lazy" decoding="async">
+        </picture></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="faq" aria-labelledby="faq-title">
+      <div class="wrap faq">
+        <h2 id="faq-title">Questions</h2>
+        <details>
+          <summary>How do I stop my MacBook charging at 80%?</summary>
+          <p>Install Chargectl, open it, and pick 80% in the setup window, or later drag the white marker in its menu bar panel. When the battery reaches 80%, charging stops and your Mac runs on the charger until you unplug it.</p>
+        </details>
+        <details>
+          <summary>macOS already has a charge limit. Why use Chargectl?</summary>
+          <p>Recent macOS versions can limit charging from 80% to 100% in System Settings › Battery. Chargectl uses that same limit and adds limits down to 20%, sailing, Full by, heat protection, discharging to the limit, and a record of your battery’s health over months.</p>
+        </details>
+        <details>
+          <summary>How is Chargectl different from AlDente?</summary>
+          <p>Both stop a MacBook from charging to 100%. Chargectl is free and open source under the Apache-2.0 license, with no paid tier, and holds the limit through macOS’s own charge limit, so it keeps working while the Mac sleeps or the app is closed. Use one or the other: two charge limiters fight over the same settings.</p>
+        </details>
+        <details>
+          <summary>Does it work on Intel Macs or older versions of macOS?</summary>
+          <p>No. Chargectl needs an Apple silicon MacBook and macOS 27 or later.</p>
+        </details>
+        <details>
+          <summary>Does Chargectl collect any data?</summary>
+          <p>No. It has no account and no analytics. It contacts GitHub only to check for new releases, and you can turn that off in Settings › Updates.</p>
+        </details>
+        <details>
+          <summary>How do I uninstall it?</summary>
+          <p>Settings › Uninstall Chargectl restores normal charging and your macOS limit, and removes every file Chargectl added. Dragging the app to the Trash does the same within a few minutes.</p>
+        </details>
+      </div>
+    </section>
+
+    <section aria-labelledby="get">
+      <div class="wrap end">
+        <h2 id="get">Install Chargectl</h2>
+        <div class="install">
+          <code id="cmd2">brew install --cask tyldra-org/tools/chargectl</code>
+          <button class="copy" type="button" data-copy="cmd2">Copy</button>
+        </div>
+        <p class="alt">Or <a href="https://github.com/tyldra-org/chargectl/releases/latest">download the app from GitHub</a>. Then open Chargectl from Applications; a short setup installs its helper and picks your limit.</p>
+      </div>
+    </section>
+  </main>
+  <footer>
+    <div class="wrap">
+      <span>Chargectl is open source under the Apache-2.0 license. Not affiliated with Apple.</span>
+      <a href="https://github.com/tyldra-org/chargectl">Source</a>
+      <a href="https://github.com/tyldra-org/chargectl/releases">Releases</a>
+      <a href="https://github.com/tyldra-org/chargectl/blob/main/CHANGELOG.md">Changelog</a>
+      <a href="https://github.com/tyldra-org/chargectl/blob/main/SECURITY.md">Security</a>
+    </div>
+  </footer>
+  <script>
+    for (const button of document.querySelectorAll("[data-copy]")) {
+      button.addEventListener("click", async () => {
+        const text = document.getElementById(button.dataset.copy).textContent;
+        try {
+          await navigator.clipboard.writeText(text);
+          button.textContent = "Copied";
+        } catch {
+          button.textContent = "Select and copy";
+        }
+        setTimeout(() => { button.textContent = "Copy"; }, 1800);
+      });
+    }
+  </script>
+</body>
+</html>

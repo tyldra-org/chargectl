@@ -95,6 +95,7 @@ Run `./scripts/check.sh` once before saying the work is done.
 | `scripts/` | Build, test, install, uninstall and `check.sh` |
 | `project.yml` | XcodeGen spec; the `.xcodeproj` is generated and not committed |
 | `.github/` | Workflows (CI and tag-triggered release) and templates |
+| `docs/` | The website, tyldra-org.github.io/chargectl (GitHub Pages from `main`'s `docs/`), and the README's images. `docs/assets/web/` holds WebP copies of the screenshots for the site |
 
 ## Conventions
 

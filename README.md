@@ -5,7 +5,7 @@
 <h1 align="center">Chargectl</h1>
 
 <p align="center">
-  <strong>Battery charge limits for Apple silicon MacBooks, from the menu bar.</strong>
+  <strong>Stop your MacBook charging at 80%, or any limit you choose, to slow battery wear.</strong>
 </p>
 
 <p align="center">
@@ -16,11 +16,13 @@
 </p>
 
 <p align="center">
+  <a href="https://tyldra-org.github.io/chargectl/">Website</a> ·
   <a href="#quickstart">Quickstart</a> ·
   <a href="#features">Features</a> ·
   <a href="#screenshots">Screenshots</a> ·
   <a href="#widgets">Widgets</a> ·
   <a href="#how-it-works">How it works</a> ·
+  <a href="#faq">FAQ</a> ·
   <a href="#install-and-uninstall">Install</a> ·
   <a href="CONTRIBUTING.md">Contributing</a> ·
   <a href="SECURITY.md">Security</a>
@@ -35,11 +37,12 @@
 
 ---
 
-Lithium-ion batteries wear faster when they sit at 100%. Chargectl stops charging
-at the limit you choose, anywhere from 20% to 100%, and keeps your Mac running on
-the charger while the battery rests. It works with macOS's own charge limit
-instead of around it, shows what the charger, the Mac and the battery are doing
-each second, and keeps working while the app is closed.
+Lithium-ion batteries wear faster when they sit at 100%. Chargectl is a free,
+open-source menu bar app for Apple silicon MacBook Air and MacBook Pro. It stops
+charging at the limit you choose, anywhere from 20% to 100%, and keeps your Mac
+running on the charger while the battery rests. It works with macOS's own charge
+limit instead of around it, shows what the charger, the Mac and the battery are
+doing each second, and keeps working while the app is closed.
 
 ## Quickstart
 
@@ -220,6 +223,32 @@ it when it stops, when you turn charge control off and when you uninstall.
 Readings come from the `AppleSmartBattery` registry entry and live SMC keys
 (`B0AC`, `B0AV`, `PDTR`, `PSTR`, `VD0R`, `ID0R`, `TB0T`) and need no privileges.
 
+## FAQ
+
+### How do I stop my MacBook charging at 80%?
+
+Install Chargectl, open it, and pick 80% in the setup window, or later drag the white marker in its menu bar panel. When the battery reaches 80%, charging stops and your Mac runs on the charger until you unplug it.
+
+### macOS already has a charge limit. Why use Chargectl?
+
+Recent macOS versions can limit charging from 80% to 100% in System Settings › Battery. Chargectl uses that same limit and adds limits down to 20%, sailing, Full by, heat protection, discharging to the limit, and a record of your battery's health over months.
+
+### How is Chargectl different from AlDente?
+
+Both stop a MacBook from charging to 100%. Chargectl is free and open source under the Apache-2.0 license, with no paid tier, and holds the limit through macOS's own charge limit, so it keeps working while the Mac sleeps or the app is closed. Use one or the other: two charge limiters fight over the same settings.
+
+### Does it work on Intel Macs or older versions of macOS?
+
+No. Chargectl needs an Apple silicon MacBook and macOS 27 or later.
+
+### Does Chargectl collect any data?
+
+No. It has no account and no analytics. It contacts GitHub only to check for new releases, and you can turn that off in Settings › Updates.
+
+### How do I uninstall it?
+
+Settings › Uninstall Chargectl restores normal charging and your macOS limit, and removes every file Chargectl added. Dragging the app to the Trash does the same within a few minutes.
+
 ## Install and uninstall
 
 ### Homebrew
@@ -287,9 +316,10 @@ administrator.
   preferences and SMC keys. A macOS or firmware update can change them.
 - The helper runs as root. [SECURITY.md](SECURITY.md) describes what it can do and
   who can talk to it.
-- Releases are signed ad hoc and not notarized. The Homebrew cask removes the
-  quarantine flag after install so the app opens; a downloaded zip needs
-  **Open Anyway** once.
+- Releases are signed with Chargectl's own certificate, not an Apple developer
+  certificate, and are not notarized. The Homebrew cask removes the quarantine
+  flag after install so the app opens; a downloaded zip needs **Open Anyway**
+  once.
 - Only Apple silicon MacBooks on macOS 27 are supported and tested.
 
 ## Development
