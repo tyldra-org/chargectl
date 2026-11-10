@@ -27,6 +27,7 @@ newly matching skills before continuing. Human contributors do not need them.
 | Swift, SwiftUI, AppKit, XPC, concurrency, Xcode and XcodeGen | `swift-development` |
 | Dashboard and menu bar panel look, layout, color | `design` |
 | Reviewing a diff, branch or pull request | `code-review` plus `swift-development` |
+| CI and release workflows, `scripts/check.sh`, `scripts/ci-scope.sh`, the cask, README, CONTRIBUTING, SECURITY | `open-source-repo` |
 | Only when the user asks to simplify code or for a strict review | `code-quality` |
 | Any Git command: status, diff, staging, commits, branches, history | `git` |
 | GitHub work: issues, pull requests, Actions and CI logs, releases | `github` |
@@ -42,12 +43,14 @@ newly matching skills before continuing. Human contributors do not need them.
 | Test | `./scripts/test.sh` (some suites: `CHARGECTL_TEST_SUITES='ChargePolicyTests' ./scripts/test.sh`) |
 | The jobs and test suites CI picks for your branch | `./scripts/ci-scope.sh areas origin/main`, `./scripts/ci-scope.sh tests origin/main` |
 | Format check | `xcrun swift-format lint --strict --recursive App Daemon Shared Tests Widgets` |
-| Everything CI runs | `./scripts/check.sh` (`--list` shows stages; one stage: `./scripts/check.sh test`) |
+| Everything CI runs | `./scripts/check.sh` (`--list` shows stages; one stage: `./scripts/check.sh test`). A missing tool (`shellcheck`, `actionlint`, `zizmor`, `brew`) is skipped and named; CI runs `--all`, where a skip fails |
 | Fix formatting | `xcrun swift-format format --in-place --recursive App Daemon Shared Tests Widgets` |
 | Package a release zip | `./scripts/package.sh` |
 | Print the Homebrew cask | `./scripts/cask.sh <version> <sha256>` |
 | Check the cask as the tap's CI does | `./scripts/check.sh cask` |
 | Retake the README screenshots | `./scripts/screenshots.sh` (after `./scripts/build.sh Debug`; see CONTRIBUTING.md) |
+| Render the dashboard pages, menu bar panel and widgets to PNG files, light and dark, with sample data | `"${TMPDIR:-/tmp}/Chargectl-DerivedData/Build/Products/Debug/Chargectl.app/Contents/MacOS/Chargectl" --render-design <folder> --only <name prefix>` after `./scripts/build.sh Debug`. It never talks to the helper; shot names are in `App/Debug/DesignRender.swift` |
+| Try a changed release workflow without publishing (only when the user asks) | `gh workflow run release.yml --ref <branch>` |
 
 The build and test scripts regenerate the Xcode project from `project.yml`
 first, so edit `project.yml`, never the generated `.xcodeproj`.
@@ -58,6 +61,9 @@ request:
 ```sh
 CHARGECTL_TEST_SUITES="$(./scripts/ci-scope.sh tests origin/main | cut -d= -f2)" ./scripts/test.sh
 ```
+
+A new kind of file goes in a list in `scripts/ci-scope.sh` with a case in
+`scripts/ci-scope.test.sh`. A path that no list names makes CI run every check.
 
 Run `./scripts/check.sh` once before saying the work is done.
 
@@ -81,7 +87,7 @@ Run `./scripts/check.sh` once before saying the work is done.
 | `Daemon/` | `Chargectl Service` (target `chargectld`): control loop, SMC and macOS limit adapters, XPC service |
 | `Widgets/` | Widget extension: widgets for every size, Control Center controls; `Widgets/Views` is also drawn by the app for design renders |
 | `Shared/` | Code built into both: SMC access, battery readings, `ChargePolicy`, XPC models |
-| `Tests/` | Swift Testing suites (`ChargectlTests` target) for the policy, charge estimate, release and shared models |
+| `Tests/` | Swift Testing suites (`ChargectlTests` target). The target builds `Shared` and `Daemon` only; `App` and `Widgets` are not in it, so testable logic belongs in `Shared` |
 | `scripts/` | Build, test, install, uninstall and `check.sh` |
 | `project.yml` | XcodeGen spec; the `.xcodeproj` is generated and not committed |
 | `.github/` | Workflows (CI and tag-triggered release) and templates |
