@@ -42,6 +42,8 @@ nonisolated enum ChargePolicy {
     /// Limits PowerUIAgent's API accepts for macOS's own charge limit.
     static let macOSLimitRange = 80...100
     static let macOSLimitAPIFloor = 80
+    /// How long the battery must be idle before a hold or sailing level follows a rising reading.
+    static let settledAfter: TimeInterval = 2 * 60
 
     static func decide(
         _ input: PolicyInput, settings: ChargeSettings, state: ControlState, now: Date
@@ -75,21 +77,33 @@ nonisolated enum ChargePolicy {
         }
 
         let justPluggedIn = !state.wasPluggedIn
+        // Refreshed at most every 30 seconds, so a charge does not rewrite the state each tick.
+        if input.isCharging, state.lastChargingAt.map({ now.timeIntervalSince($0) >= 30 }) ?? true {
+            state.lastChargingAt = now
+        }
+        let settled =
+            !input.isCharging && !state.overchargeCut
+            && (state.lastChargingAt.map { now.timeIntervalSince($0) >= Self.settledAfter } ?? true)
         var hold: Int?
+        var holdPending = false
         if state.mode == .automatic, !settings.autoDischarge, input.percent > settings.limit, settings.limit < 100 {
             if let level = state.holdLevel {
                 // The hold drops when the battery runs down on its own. With macOS's limit holding
                 // it, the hold also rises when the reading creeps up without charging, as it does
                 // after a restart: a macOS limit below the reading would discharge the battery.
                 // Charging past the hold is an overshoot, handled below.
-                let follows = input.canSetMacOSLimit && !input.isCharging
+                let follows = input.canSetMacOSLimit && settled
                 hold = follows ? input.percent : min(level, input.percent)
-            } else if !state.wasPluggedIn || settingsChanged || !(input.isCharging || state.overchargeCut) {
+            } else if !state.wasPluggedIn || settingsChanged || settled {
                 // Above the limit with automatic discharge off, the charge is held where it is:
                 // after plugging in, after a settings change, after the helper starts, or when
-                // macOS stopped a little past the limit. Only charging past the limit is an
-                // overshoot, handled below.
+                // macOS stopped a little past the limit and the battery has settled. A charge
+                // still climbing past the limit is an overshoot and is brought back to it.
                 hold = input.percent
+            } else {
+                // Past the limit, but the battery was charging moments ago: hold only once it
+                // settles. Until then it stays on the charger, and charging cuts wall power.
+                holdPending = true
             }
         }
         state.wasPluggedIn = true
@@ -117,7 +131,7 @@ nonisolated enum ChargePolicy {
             // ahead of the battery all the way to the limit. It follows the charge down, and up
             // only when nothing is charging, as when the reading creeps up after a restart.
             if let level = state.sailingLevel {
-                let follows = input.canSetMacOSLimit && !input.isCharging && !state.overchargeCut
+                let follows = input.canSetMacOSLimit && settled
                 state.sailingLevel = follows ? input.percent : min(level, input.percent)
             } else {
                 state.sailingLevel = input.percent
@@ -126,7 +140,8 @@ nonisolated enum ChargePolicy {
             state.sailingLevel = nil
         }
         var result = target(
-            input.percent, settings: settings, state: state, native: native, floor: input.macOSLimitFloor)
+            input.percent, settings: settings, state: state, native: native, floor: input.macOSLimitFloor,
+            holdPending: holdPending)
         guardAgainstOvercharge(&result, input: input, settings: settings, state: &state)
         state.adapterEnabled = result.adapterEnabled
         return ChargeDecision(state: state, activity: result.activity, event: event, macOSLimit: result.macOSLimit)
@@ -223,7 +238,8 @@ nonisolated enum ChargePolicy {
     }
 
     private static func target(
-        _ percent: Int, settings: ChargeSettings, state: ControlState, native: Bool, floor: Int
+        _ percent: Int, settings: ChargeSettings, state: ControlState, native: Bool, floor: Int,
+        holdPending: Bool = false
     ) -> Target {
         let floor = min(max(floor, ChargeSettings.limitRange.lowerBound), macOSLimitAPIFloor)
         /// A macOS limit clamped to what can be set, or nil when it cannot be set at all.
@@ -274,6 +290,9 @@ nonisolated enum ChargePolicy {
         }
         if canHold(limit) {
             if percent > limit {
+                if holdPending {
+                    return Target(adapterEnabled: true, activity: .holdingAbove(percent), macOSLimit: macOS(limit))
+                }
                 // At 80% or more macOS discharges to its limit itself. Below that, wall power is cut
                 // and the limit is set only on arrival.
                 if limit >= macOSLimitAPIFloor {
