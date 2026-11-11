@@ -126,16 +126,27 @@ helper. Update them when the app's look changes:
 ## Commit messages and pull request titles
 
 This project uses [Conventional Commits](https://www.conventionalcommits.org/).
-Pull requests are squash merged and the pull request title becomes the commit
-subject, so the title should follow the format:
+Pull requests are squash merged: the pull request title becomes the commit
+subject, and the maintainer who merges writes the commit body. Your
+description stays on the pull request. Write the title as:
 
 ```text
-type(optional-scope): short imperative description
+type(optional-scope): short imperative summary
 ```
+
+- One change, named by what it does: `fix(sync): keep the limit after
+  sleep`, not `fix: update sync code`. A title with two actions ("fix X and
+  add Y") describes two changes; split them.
+- Lowercase after the colon, no period, under 64 characters.
 
 Allowed types: `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`,
 `build`, `ci`, `chore`, `revert`. Mark breaking changes with `!` after the type
 or scope and explain the migration in the body.
+
+Commits on your branch follow the same subject rules. When a commit needs a
+body, write a few plain sentences: what the code does now and what goes
+wrong, then what the commit changes. No list of files, no testing notes, no
+Markdown.
 
 ## Files only maintainers change
 

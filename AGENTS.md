@@ -105,8 +105,16 @@ Run `./scripts/check.sh` once before saying the work is done.
   daemon only reads hardware and applies decisions.
 - Log what the hardware did (`PowerObserver`) separately from what Chargectl
   decided.
-- Conventional commits: `type(scope?): description`. Pull requests are squash
-  merged with the PR title as the commit subject.
+- Conventional commits: `type(scope?): description`, one change per commit.
+  Body, unless the subject says it all: what the code does now and what goes
+  wrong, then the change as an order to the code, in three sentences or
+  fewer. No file lists, testing notes or Markdown. The full rules are in the
+  `git` skill.
+- Pull requests are squash merged with the PR title as the commit subject
+  and a body the merger passes with `gh pr merge --body-file`, never the
+  PR description. PR descriptions open with one to three sentences on the
+  problem and the change; a longer write-up goes in a collapsed
+  `<details>` block naming the model and tool that did the work.
 - Every pull request closes an issue: find or open it first and put
   `Closes #<n>` in the body. The required `linked-issue` check fails without
   one; only Dependabot is exempt.
