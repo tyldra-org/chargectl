@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **Changing macOS's limit below 80% no longer starts a charge.** Chargectl
+  set such a limit by asking macOS for 80% first, and on the charger that
+  started a charge toward 80% that macOS finished after the lower limit was
+  set. Limits below 80% are now changed directly.
 - **Plugging in inside the sailing range no longer charges to the limit.**
   macOS started charging toward the limit the moment the charger was
   connected and kept going after Chargectl lowered its limit, while the

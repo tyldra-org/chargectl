@@ -103,9 +103,20 @@ nonisolated final class MacOSChargeLimit: @unchecked Sendable {
             return
         }
         guard limit < ChargePolicy.macOSLimitAPIFloor else { return try setThroughAPI(limit) }
+        // With the limit already on, change the preferences directly. On the charger, a request
+        // for 80% starts a charge toward 80% whenever the battery is below it, and macOS keeps
+        // charging after the limit is lowered again.
+        if try current().isEnabled, try writePreferences(limit) { return }
         // Make an allowed 80% request so PowerUIAgent owns an enabled limit, then
         // write the lower value into its preferences and have it reload them.
         try setThroughAPI(ChargePolicy.macOSLimitAPIFloor)
+        if try writePreferences(limit) { return }
+        throw LimitError.notApplied(requested: limit, actual: try current().limit)
+    }
+
+    /// Writes the limit into PowerUIAgent's preferences, has it reload them, and waits up to two
+    /// seconds for it to report the new value. Returns whether it did.
+    private func writePreferences(_ limit: Int) throws -> Bool {
         let host = Self.preferencesHost
         CFPreferencesSetValue(Self.limitKey, limit as CFNumber, Self.preferencesDomain, kCFPreferencesCurrentUser, host)
         guard CFPreferencesSynchronize(Self.preferencesDomain, kCFPreferencesCurrentUser, host) else {
@@ -113,10 +124,10 @@ nonisolated final class MacOSChargeLimit: @unchecked Sendable {
         }
         notify_post(Self.reloadNotification)
         for _ in 0..<20 {
-            if try current().limit == limit { return }
+            if try current().limit == limit { return true }
             usleep(100_000)
         }
-        throw LimitError.notApplied(requested: limit, actual: try current().limit)
+        return false
     }
 
     /// PowerUIAgent's preferences as they are, for the log.
