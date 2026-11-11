@@ -81,6 +81,9 @@ Run `./scripts/check.sh` once before saying the work is done.
 - Any other command that changes GitHub state (`gh repo edit`, `gh label`,
   `gh release create`, `gh secret`, `gh api -X POST|PUT|PATCH|DELETE`),
   unless the user asks in this conversation.
+- Edits to the files CONTRIBUTING lists under "Files only maintainers change",
+  without write access to the repository: the `protected-files` check fails
+  the pull request.
 
 ## Where things live
 
