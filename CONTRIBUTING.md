@@ -7,8 +7,8 @@ This guide explains how to propose a change and what makes it easy to accept.
 - Read the [Code of Conduct](CODE_OF_CONDUCT.md). It applies everywhere the
   project operates.
 - Search [existing issues](https://github.com/tyldra-org/chargectl/issues) first.
-- For anything larger than a small fix, open an issue to agree on the approach
-  before writing code.
+- Every pull request starts from an issue. Find one or open one; for anything
+  larger than a small fix, agree on the approach there before writing code.
 - Report security problems privately through [SECURITY.md](SECURITY.md), never
   in a public issue.
 - Issues labelled `good first issue` and `help wanted` are ready for outside
@@ -139,6 +139,9 @@ or scope and explain the migration in the body.
 
 ## Pull requests
 
+- Name the issue it resolves in the description: `Closes #<number>`. The
+  `linked-issue` check fails without one. Dependabot's pull requests are the
+  only exception.
 - Fill in the pull request template, including how you verified the change.
 - Keep pull requests small; they are reviewed faster and more thoroughly.
 - All required checks must pass before merge.
