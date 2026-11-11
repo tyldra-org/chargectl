@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.2.6] - 2026-11-11
+
+Plugging in inside the sailing range no longer charges the battery to the
+limit and past it.
+
 ### Fixed
 
 - **Changing macOS's limit below 80% no longer starts a charge.** Chargectl
@@ -431,7 +436,8 @@ MacBooks, from the menu bar.
   hands charging back to macOS and removes every file Chargectl added.
 - **Homebrew.** `brew install --cask tyldra-org/tools/chargectl`.
 
-[Unreleased]: https://github.com/tyldra-org/chargectl/compare/v0.2.5...HEAD
+[Unreleased]: https://github.com/tyldra-org/chargectl/compare/v0.2.6...HEAD
+[0.2.6]: https://github.com/tyldra-org/chargectl/compare/v0.2.5...v0.2.6
 [0.2.5]: https://github.com/tyldra-org/chargectl/compare/v0.2.4...v0.2.5
 [0.2.4]: https://github.com/tyldra-org/chargectl/compare/v0.2.3...v0.2.4
 [0.2.3]: https://github.com/tyldra-org/chargectl/compare/v0.2.2...v0.2.3
