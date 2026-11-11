@@ -37,7 +37,7 @@
 
 ---
 
-Chargectl is a free, open-source menu bar app that limits how far your MacBook
+Chargectl is a free, open-source Mac app that limits how far your MacBook
 charges. Lithium-ion batteries wear faster when they sit at 100%, so Chargectl
 stops charging at the limit you choose, anywhere from 20% to 100%, and keeps your
 Mac running on the charger while the battery rests. It works with macOS's own
