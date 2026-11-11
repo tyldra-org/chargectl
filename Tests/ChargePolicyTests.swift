@@ -377,6 +377,51 @@ import Testing
         #expect(unplugged(50).macOSLimit == 70)
     }
 
+    /// The rest of the reported case: macOS kept charging past 70%. A reading without current in
+    /// the middle of that charge must not start a hold above the limit, and a hold must not
+    /// follow the charge up; the charge is brought back to the limit instead.
+    @Test func aChargeClimbingPastTheLimitIsNotHeld() {
+        var settings = ChargeSettings.limit(70, sailing: 8)
+        settings.autoDischarge = false
+        func at(_ seconds: TimeInterval, _ percent: Int, charging: Bool, _ state: ControlState) -> ChargeDecision {
+            ChargePolicy.decide(
+                PolicyInput(
+                    percent: percent, isPluggedIn: true, temperature: 30, canSetMacOSLimit: true,
+                    isCharging: charging, macOSLimitFloor: 20),
+                settings: settings, state: state, now: now.addingTimeInterval(seconds))
+        }
+        let holding = at(0, 70, charging: true, ControlState())
+        let climbing = at(3, 71, charging: true, holding.state)
+        #expect(climbing.state.holdLevel == nil)
+        #expect(!climbing.state.adapterEnabled)
+        let gap = at(6, 71, charging: false, climbing.state)
+        #expect(gap.state.holdLevel == nil)
+        #expect(!gap.state.adapterEnabled)
+        let back = at(300, 70, charging: false, gap.state)
+        #expect(back.state.adapterEnabled)
+        #expect(back.macOSLimit == 70)
+        #expect(back.activity == .holding(70))
+    }
+
+    @Test func aHoldFollowsARisingReadingOnlyOnceTheBatteryHasSettled() {
+        var settings = ChargeSettings.limit(60, sailing: 5)
+        settings.autoDischarge = false
+        func at(_ seconds: TimeInterval, _ percent: Int, charging: Bool, _ state: ControlState) -> ChargeDecision {
+            ChargePolicy.decide(
+                PolicyInput(
+                    percent: percent, isPluggedIn: true, temperature: 30, canSetMacOSLimit: true,
+                    isCharging: charging, macOSLimitFloor: 20),
+                settings: settings, state: state, now: now.addingTimeInterval(seconds))
+        }
+        let plugged = at(0, 75, charging: false, ControlState())
+        #expect(plugged.state.holdLevel == 75)
+        let charging = at(3, 75, charging: true, plugged.state)
+        let gap = at(6, 76, charging: false, charging.state)
+        #expect(gap.state.holdLevel == 75)
+        let settledLater = at(400, 76, charging: false, gap.state)
+        #expect(settledLater.state.holdLevel == 76)
+    }
+
     @Test func autoDischargeOffBelow80HoldsTheCurrentCharge() {
         var settings = ChargeSettings.limit(60, sailing: 5)
         settings.autoDischarge = false
@@ -449,8 +494,15 @@ import Testing
         settings.autoDischarge = false
         let atLimit = plugged(60, charging: true, settings: settings, state: ControlState())
         let past = plugged(61, charging: false, settings: settings, state: atLimit.state)
-        #expect(past.state.holdLevel == 61)
         #expect(past.state.adapterEnabled)
+        #expect(past.activity == .holdingAbove(61))
+        let settled = ChargePolicy.decide(
+            PolicyInput(
+                percent: 61, isPluggedIn: true, temperature: 30, canSetMacOSLimit: true, isCharging: false,
+                macOSLimitFloor: 20),
+            settings: settings, state: past.state, now: now.addingTimeInterval(ChargePolicy.settledAfter))
+        #expect(settled.state.holdLevel == 61)
+        #expect(settled.state.adapterEnabled)
     }
 
     /// After a restart the gauge read 62% while the hold was 61%; macOS's limit at 61% discharged

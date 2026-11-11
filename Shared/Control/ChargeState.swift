@@ -74,6 +74,10 @@ nonisolated struct ControlState: Codable, Equatable, Sendable {
     /// The charge macOS holds while sailing. It follows the charge down, and up only when the
     /// battery is not charging; charging past it is an overshoot. nil when not sailing.
     var sailingLevel: Int?
+    /// When the battery was last seen charging. A hold or sailing level follows a rising
+    /// reading only after the battery has been idle for a while: a single reading without
+    /// current in the middle of a charge is not a settled battery.
+    var lastChargingAt: Date?
 
     var holdLevel: Int? { phase.holdLevel }
     var isSailing: Bool { phase.isSailing }
@@ -110,11 +114,12 @@ nonisolated struct ControlState: Codable, Equatable, Sendable {
         lastAutoDischarge = try container.decodeIfPresent(Bool.self, forKey: .lastAutoDischarge)
         skippedDeadline = try container.decodeIfPresent(Date.self, forKey: .skippedDeadline)
         sailingLevel = try container.decodeIfPresent(Int.self, forKey: .sailingLevel)
+        lastChargingAt = try container.decodeIfPresent(Date.self, forKey: .lastChargingAt)
     }
 
     private enum CodingKeys: String, CodingKey {
         case mode, adapterEnabled, heatPaused, phase, wasPluggedIn, overchargeCut, lastLimit, lastAutoDischarge
-        case skippedDeadline, sailingLevel
+        case skippedDeadline, sailingLevel, lastChargingAt
     }
 
     private enum LegacyKeys: String, CodingKey {

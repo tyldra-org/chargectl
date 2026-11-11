@@ -15,6 +15,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   status said "Sailing on the charger". On battery inside the range, macOS's
   limit now follows the charge, and a charge that starts anyway stops at the
   level Chargectl is holding.
+- **A charge that runs past the limit is no longer held there.** A moment
+  without current in such a charge made Chargectl hold at whatever level it
+  had reached, and the hold then rose with the charge. A hold now follows a
+  rising charge only after the battery has rested for two minutes; until
+  then, charging past the limit cuts wall power.
 
 ## [0.2.5] - 2026-11-10
 
