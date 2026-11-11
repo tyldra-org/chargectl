@@ -64,6 +64,7 @@ nonisolated enum ChargePolicy {
             state.phase = .charging
             state.overchargeCut = false
             state.wasPluggedIn = false
+            state.sailingLevel = nil
             // Set macOS's limit even on battery, so System Settings shows it and charging
             // stops at the right point the moment the charger is connected.
             let limit = unpluggedMacOSLimit(settings: settings, mode: state.mode, input: input)
@@ -110,6 +111,20 @@ nonisolated enum ChargePolicy {
             sailing = false
         }
         state.phase = hold.map(HoldPhase.holdingAbove) ?? (sailing ? .sailing : .charging)
+        if state.phase == .sailing {
+            // macOS keeps charging a session it started even when its limit is lowered to the
+            // charge, so the level must not follow a rising charge: that would raise the limit
+            // ahead of the battery all the way to the limit. It follows the charge down, and up
+            // only when nothing is charging, as when the reading creeps up after a restart.
+            if let level = state.sailingLevel {
+                let follows = input.canSetMacOSLimit && !input.isCharging && !state.overchargeCut
+                state.sailingLevel = follows ? input.percent : min(level, input.percent)
+            } else {
+                state.sailingLevel = input.percent
+            }
+        } else {
+            state.sailingLevel = nil
+        }
         var result = target(
             input.percent, settings: settings, state: state, native: native, floor: input.macOSLimitFloor)
         guardAgainstOvercharge(&result, input: input, settings: settings, state: &state)
@@ -123,8 +138,10 @@ nonisolated enum ChargePolicy {
     private static func guardAgainstOvercharge(
         _ result: inout Target, input: PolicyInput, settings: ChargeSettings, state: inout ControlState
     ) {
+        var sailingCeiling: Int?
+        if case .sailingHold = result.activity { sailingCeiling = state.sailingLevel }
         guard state.mode == .automatic, !state.heatPaused, settings.limit < 100,
-            let ceiling = state.holdLevel
+            let ceiling = state.holdLevel ?? sailingCeiling
                 ?? (result.adapterEnabled ? result.macOSLimit.map { max($0, settings.limit) } : nil)
         else {
             state.overchargeCut = false
@@ -147,7 +164,11 @@ nonisolated enum ChargePolicy {
         switch mode {
         case .topUp, .calibrate, .fullBy: target = 100
         case .discharge: return nil
-        case .automatic: target = settings.limit
+        case .automatic:
+            // Inside the sailing band, a limit at the charge itself: plugged in below its limit,
+            // macOS starts a charge at once and lowering the limit afterwards does not stop it.
+            let insideBand = input.percent > settings.lowerBound && input.percent < settings.limit
+            target = insideBand ? input.percent : settings.limit
         }
         return min(max(target, floor), macOSLimitRange.upperBound)
     }
@@ -263,10 +284,11 @@ nonisolated enum ChargePolicy {
             if percent == limit {
                 return Target(adapterEnabled: true, activity: .holding(limit), macOSLimit: macOS(limit))
             }
-            if state.isSailing, percent > settings.lowerBound, canHold(percent) {
+            let level = state.sailingLevel ?? percent
+            if state.isSailing, percent > settings.lowerBound, canHold(level) {
                 return Target(
                     adapterEnabled: true, activity: .sailingHold(percent, resumeAt: settings.lowerBound),
-                    macOSLimit: macOS(percent))
+                    macOSLimit: macOS(level))
             }
             return Target(adapterEnabled: true, activity: .charging(to: limit), macOSLimit: macOS(limit))
         }

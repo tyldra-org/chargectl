@@ -331,6 +331,52 @@ import Testing
         #expect(atLowerBound.activity == .charging(to: 55))
     }
 
+    /// The reported case: limit 70%, sailing 8%, plugged in at 67%. macOS had already started
+    /// charging toward 70% and kept going after its limit was lowered to 67%. The sailing level
+    /// stays at 67% instead of following that charge up, and the overshoot cuts wall power.
+    @Test func sailingNeverRaisesTheLevelWhileCharging() {
+        let settings = ChargeSettings.limit(70, sailing: 8)
+        let pluggedIn = plugged(67, charging: true, settings: settings, state: ControlState())
+        #expect(pluggedIn.macOSLimit == 67)
+        #expect(pluggedIn.activity == .sailingHold(67, resumeAt: 62))
+        let overshoot = plugged(68, charging: true, settings: settings, state: pluggedIn.state)
+        #expect(overshoot.macOSLimit == 67)
+        #expect(!overshoot.state.adapterEnabled)
+        #expect(overshoot.activity == .stoppedOvercharge(67))
+        let cut = plugged(68, charging: false, settings: settings, state: overshoot.state)
+        #expect(!cut.state.adapterEnabled)
+        let back = plugged(67, charging: false, settings: settings, state: cut.state)
+        #expect(back.state.adapterEnabled)
+        #expect(back.macOSLimit == 67)
+        #expect(back.activity == .sailingHold(67, resumeAt: 62))
+    }
+
+    @Test func sailingLevelFollowsTheChargeDownAndUpOnlyWhenIdle() {
+        let settings = ChargeSettings.limit(70, sailing: 8)
+        let start = plugged(67, charging: false, settings: settings, state: ControlState())
+        let lower = plugged(66, charging: false, settings: settings, state: start.state)
+        #expect(lower.macOSLimit == 66)
+        let creep = plugged(67, charging: false, settings: settings, state: lower.state)
+        #expect(creep.macOSLimit == 67)
+        #expect(creep.state.adapterEnabled)
+    }
+
+    /// On battery inside the sailing band, macOS's limit is the charge itself, so plugging in
+    /// does not start a charge macOS would then finish.
+    @Test func onBatteryInsideTheBandTheMacOSLimitIsTheCharge() {
+        func unplugged(_ percent: Int) -> ChargeDecision {
+            ChargePolicy.decide(
+                PolicyInput(
+                    percent: percent, isPluggedIn: false, temperature: 30, canSetMacOSLimit: true,
+                    macOSLimitFloor: 20),
+                settings: .limit(70, sailing: 8), state: ControlState(), now: now)
+        }
+        #expect(unplugged(67).macOSLimit == 67)
+        #expect(unplugged(70).macOSLimit == 70)
+        #expect(unplugged(62).macOSLimit == 70)
+        #expect(unplugged(50).macOSLimit == 70)
+    }
+
     @Test func autoDischargeOffBelow80HoldsTheCurrentCharge() {
         var settings = ChargeSettings.limit(60, sailing: 5)
         settings.autoDischarge = false

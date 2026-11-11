@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **Plugging in inside the sailing range no longer charges to the limit.**
+  macOS started charging toward the limit the moment the charger was
+  connected and kept going after Chargectl lowered its limit, while the
+  status said "Sailing on the charger". On battery inside the range, macOS's
+  limit now follows the charge, and a charge that starts anyway stops at the
+  level Chargectl is holding.
+
 ## [0.2.5] - 2026-11-10
 
 Login Items lists the helper as "Chargectl Service" again.
