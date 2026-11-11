@@ -137,6 +137,22 @@ Allowed types: `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`,
 `build`, `ci`, `chore`, `revert`. Mark breaking changes with `!` after the type
 or scope and explain the migration in the body.
 
+## Files only maintainers change
+
+Pull requests from contributors without write access cannot change these; the
+`protected-files` check fails if they do. Open an issue describing the change
+instead.
+
+- `.github/`: workflows, issue forms, the pull request template and Dependabot.
+- `LICENSE`, `SECURITY.md`, `CODE_OF_CONDUCT.md`, `CONTRIBUTING.md` and other
+  policy files.
+- `AGENTS.md`.
+- `scripts/check.sh` and `scripts/ci-scope.sh`, which decide what CI checks.
+- The release and signing scripts: `package.sh`, `signing.sh`, `version.sh`,
+  `import-release-certificate.sh`, `make-release-certificate.sh`, `cask.sh`,
+  `check-cask.sh` and `release-notes.sh` in `scripts/`.
+- The `.entitlements` files, which set what the app and widgets may do.
+
 ## Pull requests
 
 - Name the issue it resolves in the description: `Closes #<number>`. The
