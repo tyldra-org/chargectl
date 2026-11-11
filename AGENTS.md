@@ -73,7 +73,7 @@ Run `./scripts/check.sh` once before saying the work is done.
   unless the user asks. They change how the Mac charges.
 - Anything that writes SMC keys or PowerUIAgent preferences outside the app.
 - Commits, pushes of a work branch, pull requests, merges through the
-  required `ci` check, and issue work for the change, unless the user asks,
+  required checks, and issue work for the change, unless the user asks,
   in the conversation or in standing instructions (for example an automatic
   mode in their own agent files).
 - A force push, a rewrite of pushed history, a tag or a release, unless the
@@ -104,6 +104,9 @@ Run `./scripts/check.sh` once before saying the work is done.
   decided.
 - Conventional commits: `type(scope?): description`. Pull requests are squash
   merged with the PR title as the commit subject.
+- Every pull request closes an issue: find or open it first and put
+  `Closes #<n>` in the body. The required `linked-issue` check fails without
+  one; only Dependabot is exempt.
 - Keep changes focused; do not reformat or refactor unrelated code.
 - Pin GitHub Actions to full commit SHAs with the tag in a trailing comment.
 - Add a `CHANGELOG.md` entry under `Unreleased` for user-visible changes.
