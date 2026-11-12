@@ -30,14 +30,64 @@ enum WidgetLoader {
     static func load(now: Date = .now) async -> BatteryEntry {
         let battery = try? BatteryReader(smc: try? SMC()).read(now: now)
         let client = DaemonClient()
-        guard let status = try? await client.status() else { return BatteryEntry(date: now, battery: battery) }
+        guard let status = try? await client.status() else {
+            // The helper did not answer. While it restarts for an update or after a macOS update,
+            // show what it last said instead of asking to install it; only a silence longer than
+            // HelperSnapshot.lifetime means it is gone.
+            var entry = BatteryEntry(date: now, battery: battery)
+            if let last = HelperSnapshot.load(now: now) {
+                entry.status = last.status
+                entry.history = last.history
+                entry.daily = last.daily
+                entry.events = last.events
+                entry.isStale = true
+            }
+            return entry
+        }
         var entry = BatteryEntry(date: now, battery: battery, status: status)
         entry.history = (try? await client.history()) ?? []
         if DaemonIdentity.hasDailyHistory(status.version) { entry.daily = (try? await client.daily()) ?? [] }
         entry.events = Array(
             ((try? await client.logs()) ?? []).filter { $0.source == .chargectl || $0.level == .warning }.suffix(3)
                 .reversed())
+        HelperSnapshot(
+            date: now, status: status, history: entry.history, daily: entry.daily, events: entry.events
+        ).save()
         return entry
+    }
+}
+
+/// What the helper last said, kept in the widgets' own container so a short gap, such as the
+/// helper restarting into an update, does not show "needs the helper". Uninstalling deletes the
+/// container.
+nonisolated struct HelperSnapshot: Codable, Sendable {
+    /// How long the last answer stands in for a helper that does not answer.
+    static let lifetime: TimeInterval = 15 * 60
+
+    var date: Date
+    var status: DaemonStatus
+    var history: [HistorySample]
+    var daily: [DailySample]
+    var events: [LogEntry]
+
+    private static var url: URL? {
+        FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first?
+            .appendingPathComponent("helper-snapshot.json")
+    }
+
+    func save() {
+        guard let url = Self.url else { return }
+        try? FileManager.default.createDirectory(
+            at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try? Coding.encode(self).write(to: url, options: .atomic)
+    }
+
+    static func load(now: Date) -> HelperSnapshot? {
+        guard let url, let data = try? Data(contentsOf: url),
+            let snapshot = try? Coding.decode(HelperSnapshot.self, from: data),
+            now.timeIntervalSince(snapshot.date) < lifetime
+        else { return nil }
+        return snapshot
     }
 }
 
@@ -52,11 +102,13 @@ nonisolated struct BatteryProvider: TimelineProvider {
         Task { completion(await WidgetLoader.load()) }
     }
 
-    /// One entry, read again in five minutes; the app asks for a reload whenever something changes.
+    /// One entry, read again in five minutes, or in one while the helper is not answering; the
+    /// app asks for a reload whenever something changes.
     func getTimeline(in context: Context, completion: @escaping @Sendable (Timeline<BatteryEntry>) -> Void) {
         Task {
             let entry = await WidgetLoader.load()
-            completion(Timeline(entries: [entry], policy: .after(entry.date.addingTimeInterval(5 * 60))))
+            let wait: TimeInterval = entry.status == nil || entry.isStale ? 60 : 5 * 60
+            completion(Timeline(entries: [entry], policy: .after(entry.date.addingTimeInterval(wait))))
         }
     }
 }

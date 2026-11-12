@@ -6,8 +6,10 @@ import WidgetKit
 nonisolated struct BatteryEntry: TimelineEntry, Sendable {
     var date: Date
     var battery: BatterySnapshot?
-    /// nil when the helper is not installed or not reachable.
+    /// nil when the helper is not installed, or has not answered for HelperSnapshot.lifetime.
     var status: DaemonStatus?
+    /// The status is the helper's last answer, because it did not answer this time.
+    var isStale = false
     /// The last 24 hours, a sample a minute.
     var history: [HistorySample] = []
     /// One sample a day.
