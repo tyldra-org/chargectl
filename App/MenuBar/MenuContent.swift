@@ -4,6 +4,7 @@ import SwiftUI
 /// The panel under the menu bar ring: charge at a glance, the limit, a few switches and jobs.
 struct MenuContent: View {
     let model: AppModel
+    private let updater = Updater.shared
     @Environment(\.openWindow) private var openWindow
     @AppStorage(PreferenceKey.temperatureUnit) private var unit = TemperatureUnit.systemDefault
     private let confirmations = Confirmations.shared
@@ -293,8 +294,25 @@ struct MenuContent: View {
             Rectangle().fill(Theme.line).frame(height: 1).padding(.bottom, 6)
             FooterRow(title: "Open Chargectl", symbol: "macwindow", shortcut: "O") { openDashboard(.overview) }
             FooterRow(title: "Settings…", symbol: "gearshape", shortcut: ",") { openDashboard(.settings) }
+            updateRow
             Rectangle().fill(Theme.line).frame(height: 1).padding(.vertical, 5)
             FooterRow(title: "Quit Chargectl", symbol: "power") { Dashboard.quit() }
+        }
+    }
+
+    /// A new version waiting to be installed, as other Mac apps show it in their menus.
+    @ViewBuilder private var updateRow: some View {
+        switch updater.phase {
+        case .available(let version):
+            FooterRow(title: "Restart to Update", symbol: "arrow.down.circle.fill", detail: version, tint: Theme.accent)
+            {
+                Task { await updater.installAvailable() }
+            }
+        case .installing(let version):
+            FooterRow(title: "Installing \(version)…", symbol: "arrow.down.circle", detail: nil, tint: nil) {}
+                .disabled(true)
+        default:
+            EmptyView()
         }
     }
 
@@ -493,6 +511,10 @@ private struct FooterRow: View {
     let title: String
     let symbol: String
     var shortcut: String?
+    /// Shown at the trailing edge instead of a shortcut, such as a version number.
+    var detail: String?
+    /// The icon's colour when the row is not highlighted.
+    var tint: Color?
     let action: () -> Void
     @State private var isHovered = false
 
@@ -501,11 +523,16 @@ private struct FooterRow: View {
             HStack(spacing: 9) {
                 Image(systemName: symbol)
                     .font(.system(size: 12))
-                    .foregroundStyle(isHovered ? .white : .secondary)
+                    .foregroundStyle(
+                        isHovered ? AnyShapeStyle(.white) : tint.map(AnyShapeStyle.init) ?? AnyShapeStyle(.secondary)
+                    )
                     .frame(width: 16)
                 Text(title).font(.system(size: 13))
                 Spacer()
-                if let shortcut {
+                if let detail {
+                    Text(detail).font(.system(size: 12, design: .monospaced)).foregroundStyle(
+                        isHovered ? Color.white.opacity(0.85) : Color.secondary)
+                } else if let shortcut {
                     Text("⌘\(shortcut)").font(.system(size: 12)).foregroundStyle(
                         isHovered ? Color.white.opacity(0.85) : Color.secondary)
                 }
