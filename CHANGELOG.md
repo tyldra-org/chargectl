@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Security
+
+- **Releases are signed with Chargectl's own certificate.** The helper now
+  replaces itself only with a helper carrying that signature and takes
+  commands only from an app carrying it, and the updater accepts only such a
+  release. Updates after this one no longer ask for the administrator
+  password; this one asks a last time, to install a signed helper.
+
 ## [0.2.6] - 2026-11-11
 
 Plugging in inside the sailing range no longer charges the battery to the
