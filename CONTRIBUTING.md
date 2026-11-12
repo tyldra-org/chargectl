@@ -140,6 +140,16 @@ Allowed types: `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`,
 `build`, `ci`, `chore`, `revert`. Mark breaking changes with `!` after the type
 or scope and explain the migration in the body.
 
+## Labels and trust
+
+Issues and pull requests carry an `area:` label for the part of Chargectl
+they touch, such as `area: charging` or `area: widgets`; pull requests get
+theirs from the files they change. Anyone may open a pull request. People
+the maintainer trusts, after a merged pull request or a confirmed bug report
+with a fix, are listed in [`.github/VOUCHED.td`](.github/VOUCHED.td), and
+their pull requests are marked `contributor: vouched`. Issues and pull
+requests from people denounced there close automatically.
+
 ## Files only maintainers change
 
 Only the maintainer changes these. A pull request from anyone else that

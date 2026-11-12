@@ -41,6 +41,7 @@ everything=$(areas true true true true true)
 expect "$nothing" classify README.md CHANGELOG.md docs/assets/icon.png LICENSE
 expect "$nothing" classify .github/PULL_REQUEST_TEMPLATE.md .github/ISSUE_TEMPLATE/bug_report.yml
 expect "$nothing" classify .github/dependabot.yml .gitignore docs/assets/screenshots/overview.png
+expect "$nothing" classify .github/VOUCHED.td .github/labeler.yml
 expect "$(areas false true false false false)" classify App/Dashboard/OverviewPage.swift
 expect "$(areas false true false false false)" classify App/Resources/AppIcon.icon/icon.json Daemon/Resources/Info.plist
 expect "$(areas false true true false false)" classify project.yml

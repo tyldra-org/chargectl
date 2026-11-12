@@ -1,5 +1,5 @@
 name: Feature request
-description: Propose a new feature or improvement.
+description: Something Chargectl should do, or do differently.
 title: "feat: "
 labels:
   - enhancement
@@ -10,11 +10,24 @@ body:
       value: |
         Describe the problem first. A clear problem statement is more useful
         than a specific solution.
+  - type: dropdown
+    id: area
+    attributes:
+      label: Where in Chargectl
+      options:
+        - Charging (the limit, sailing, Full by, discharging)
+        - Menu bar
+        - Dashboard window
+        - Widgets, Control Center or Shortcuts
+        - Updates
+        - Something new
+    validations:
+      required: true
   - type: textarea
     id: problem
     attributes:
       label: Problem
-      description: What are you trying to do, and what gets in the way?
+      description: What are you trying to do with your battery or charger, and what gets in the way?
     validations:
       required: true
   - type: textarea
