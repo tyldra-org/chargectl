@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **Restart to Update in the menu bar.** When a new version is waiting, the
+  menu bar panel shows **Restart to Update** under Settings, and Settings ›
+  Updates has the same button.
+
 ### Fixed
 
 - **Widgets no longer ask to install the helper while it restarts.** A widget

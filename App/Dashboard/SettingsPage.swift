@@ -429,7 +429,7 @@ struct SettingsPage: View {
                         .background(Theme.accent, in: Capsule())
                 }
                 Text(
-                    "Downloaded from GitHub and checked against its published checksum and code signature before it installs."
+                    "Chargectl restarts into the new version. It is downloaded from GitHub and checked against its published checksum and code signature first."
                 )
                 .font(.system(size: 12))
                 .foregroundStyle(.secondary)
@@ -440,7 +440,7 @@ struct SettingsPage: View {
                     Button {
                         Task { await updater.installAvailable() }
                     } label: {
-                        Label("Install \(version)", systemImage: "arrow.down.to.line")
+                        Label("Restart to Update", systemImage: "arrow.down.to.line")
                     }
                     .buttonStyle(SoftButtonStyle(kind: .primary, small: true))
                     .padding(.top, 6)
