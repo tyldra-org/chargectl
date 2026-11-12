@@ -1,5 +1,7 @@
 # Area labels for pull requests, by the paths they change. The labeler
 # workflow reads this file from main. Every label here exists on GitHub.
+# A release pull request (branch chore/release-<version>) only bumps
+# project.yml and CHANGELOG.md, so it gets "area: release" and nothing else.
 "area: charging":
   - changed-files:
       - any-glob-to-any-file:
@@ -57,19 +59,22 @@
           - Shared/Update/**
 
 "area: release":
-  - changed-files:
-      - any-glob-to-any-file:
-          - .github/workflows/release.yml
-          - scripts/package.sh
-          - scripts/release-notes.sh
-          - scripts/version.sh
-          - scripts/signing.sh
-          - scripts/cask.sh
-          - scripts/check-cask.sh
-          - scripts/import-release-certificate.sh
-          - scripts/make-release-certificate.sh
+  - any:
+      - head-branch: ["^chore/release-"]
+      - changed-files:
+          - any-glob-to-any-file:
+              - .github/workflows/release.yml
+              - scripts/package.sh
+              - scripts/release-notes.sh
+              - scripts/version.sh
+              - scripts/signing.sh
+              - scripts/cask.sh
+              - scripts/check-cask.sh
+              - scripts/import-release-certificate.sh
+              - scripts/make-release-certificate.sh
 
 "area: ci":
+  - head-branch: ["^(?!chore/release-)"]
   - changed-files:
       - any-glob-to-any-file:
           - .github/workflows/ci.yml
@@ -85,8 +90,10 @@
           - scripts/test.sh
           - project.yml
 
+# Every user-facing change adds a CHANGELOG entry, so CHANGELOG.md alone
+# doesn't make a pull request documentation.
 documentation:
-  - changed-files:
-      - any-glob-to-any-file:
-          - "**/*.md"
-          - docs/**
+  - any:
+      - changed-files:
+          - all-globs-to-any-file: ["**/*.md", "!CHANGELOG.md"]
+          - any-glob-to-any-file: docs/**
