@@ -32,13 +32,14 @@ try it on your own Mac. `./scripts/uninstall.sh` removes it again.
 
 `install.sh` signs with a Developer ID or Apple Development certificate when one
 is in your keychain (see [`scripts/signing.sh`](scripts/signing.sh)); otherwise
-the build is signed ad hoc, as releases are.
+the build is signed ad hoc. Releases are signed with the release certificate.
 
-- **Ad hoc:** Install Helper copies the helper to
+- **Ad hoc or release certificate:** Install Helper copies the helper to
   `/Library/PrivilegedHelperTools` and writes a launchd job to
   `/Library/LaunchDaemons` that runs that root-owned copy, with your
-  administrator password. macOS ties a background item's approval to an ad-hoc
-  build, so the Login Items route would stop the helper after every update; a
+  administrator password. Without an Apple team, macOS ties a background
+  item's approval to one build, so the Login Items route would stop the helper
+  after every update; a
   launchd job keeps working. Login Items lists it as "Chargectl Service", the
   copy's file name, apart from Chargectl: macOS ties a launchd job to its app
   (`AssociatedBundleIdentifiers`) only when both are signed by the same Apple
@@ -48,7 +49,9 @@ the build is signed ad hoc, as releases are.
   creates a self-signed code-signing certificate and prints the commands that
   store it as the release workflow's secrets. Releases are then signed with it,
   its SHA-1 is built into the app and the helper, and updates replace the helper
-  without a password. Keep the `.p12` private and backed up.
+  without a password. Keep the `.p12` private and backed up. The release
+  workflow fails in this repository when the secrets are missing or hold a
+  different certificate ([`scripts/import-release-certificate.sh`](scripts/import-release-certificate.sh)).
 - **With a team:** Install Helper registers the helper with SMAppService. It is
   listed under Chargectl in Login Items, you turn it on once, and the approval
   carries over to updates. The helper only accepts the Chargectl app signed by

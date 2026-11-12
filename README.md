@@ -342,9 +342,9 @@ administrator.
   preferences and SMC keys. A macOS or firmware update can change them.
 - The helper runs as root. [SECURITY.md](SECURITY.md) describes what it can do and
   who can talk to it.
-- Releases are signed ad hoc and not notarized. The Homebrew cask removes the
-  quarantine flag after install so the app opens; a downloaded zip needs
-  **Open Anyway** once.
+- Releases are signed with Chargectl's own certificate, not an Apple developer
+  one, and are not notarized. The Homebrew cask removes the quarantine flag
+  after install so the app opens; a downloaded zip needs **Open Anyway** once.
 - Only Apple silicon MacBooks on macOS 27 are supported and tested.
 
 ## Development

@@ -74,8 +74,8 @@ Requires an Apple silicon MacBook on macOS 27 or later.
 
 <br>
 
-Chargectl is signed ad hoc and not notarized, so macOS blocks the first launch of a
-downloaded copy. Open it once, then choose **Open Anyway** in System Settings › Privacy &
+Chargectl is signed with its own certificate, not an Apple developer one, and is not
+notarized, so macOS blocks the first launch of a downloaded copy. Open it once, then choose **Open Anyway** in System Settings › Privacy &
 Security. Copies installed with Homebrew open normally.
 
 </details>

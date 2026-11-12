@@ -18,9 +18,9 @@ enum ServiceInstallError: LocalizedError {
 ///
 /// - Signed with a Team ID: SMAppService. Login Items lists the helper under Chargectl, the user
 ///   turns it on once, and the approval belongs to the team, so updates keep working.
-/// - Signed ad hoc, as releases are now: a launchd plist installed with the administrator
-///   password, the way charge limiters installed helpers before SMAppService. SMAppService ties
-///   an ad-hoc helper's approval to that exact build, so after every update macOS refuses to start
+/// - Signed without a team, ad hoc or with Chargectl's release certificate as releases are: a
+///   launchd plist installed with the administrator password, the way charge limiters installed
+///   helpers before SMAppService. SMAppService ties such a helper's approval to that exact build, so after every update macOS refuses to start
 ///   it ("Launch Constraint Violation"), and registering again does not refresh the approval. The
 ///   plist runs a root-owned copy of the helper (HelperInstall), which an update replaces only
 ///   when the new helper is signed with Chargectl's release certificate; otherwise the app asks
