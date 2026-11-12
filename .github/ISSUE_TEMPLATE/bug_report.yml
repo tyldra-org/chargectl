@@ -1,5 +1,5 @@
 name: Bug report
-description: Report something that does not work as documented.
+description: Chargectl charged, stopped or showed something it should not have.
 title: "bug: "
 labels:
   - bug
@@ -8,13 +8,27 @@ body:
   - type: markdown
     attributes:
       value: |
-        Thanks for the report. Security vulnerabilities must be reported
-        privately; see SECURITY.md. Search existing issues before filing.
+        Report security problems privately (SECURITY.md), not here. For a charging
+        problem, say what the battery percentage did and when you plugged in or out.
+  - type: dropdown
+    id: area
+    attributes:
+      label: Where in Chargectl
+      options:
+        - Charging (the limit, sailing, Full by, discharging)
+        - The helper (installing, updating, Login Items)
+        - Menu bar
+        - Dashboard window
+        - Widgets, Control Center or Shortcuts
+        - Updates
+        - Something else
+    validations:
+      required: true
   - type: textarea
     id: description
     attributes:
       label: What happened
-      description: A clear description of the bug.
+      placeholder: Plugged in at 67% with a 70% limit; it charged to 74% instead of holding.
     validations:
       required: true
   - type: textarea
@@ -27,32 +41,56 @@ body:
     id: reproduction
     attributes:
       label: Steps to reproduce
-      description: The smallest set of steps or code that shows the problem.
       placeholder: |
         1.
         2.
         3.
     validations:
       required: true
+  - type: textarea
+    id: settings
+    attributes:
+      label: Your settings
+      description: The Control page as it was.
+      placeholder: Limit 70%, sailing 8%, discharge to the limit off, heat protection off, Full by off
+    validations:
+      required: true
   - type: input
     id: version
     attributes:
-      label: Version
-      description: Commit SHA of Chargectl you built.
+      label: Chargectl version
+      description: Settings › Updates shows it. If you built it yourself, the commit.
+      placeholder: "0.2.7"
     validations:
       required: true
-  - type: textarea
-    id: environment
+  - type: input
+    id: mac
     attributes:
-      label: Environment
-      description: Mac model, macOS version and charger. Say if another charge limiter is installed.
+      label: Mac and macOS version
+      placeholder: MacBook Air 13-inch M3, macOS 27.1
+    validations:
+      required: true
+  - type: input
+    id: charger
+    attributes:
+      label: Charger
+      description: The Overview page shows its wattage.
+      placeholder: Apple 35W USB-C
+  - type: dropdown
+    id: other-limiter
+    attributes:
+      label: Another charge limiter installed?
+      options:
+        - "No"
+        - AlDente
+        - Another app or script
     validations:
       required: true
   - type: textarea
     id: logs
     attributes:
-      label: Logs and output
-      description: Paste the relevant lines from the Logs page, or the output of ./scripts/install.sh --logs.
+      label: Logs
+      description: Logs page › Copy, the lines from around when it happened.
       render: text
   - type: checkboxes
     id: checks

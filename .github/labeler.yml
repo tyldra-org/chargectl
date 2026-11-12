@@ -1,0 +1,92 @@
+# Area labels for pull requests, by the paths they change. The labeler
+# workflow reads this file from main. Every label here exists on GitHub.
+"area: charging":
+  - changed-files:
+      - any-glob-to-any-file:
+          - Shared/Control/**
+          - Shared/Battery/**
+          - Shared/SMC/**
+          - Daemon/ChargeController.swift
+          - Daemon/ControllerSeams.swift
+          - Daemon/AdapterSwitch.swift
+          - Daemon/MacOSChargeLimit.swift
+          - Daemon/SleepWatcher.swift
+
+"area: helper":
+  - changed-files:
+      - any-glob-to-any-file:
+          - Daemon/main.swift
+          - Daemon/DaemonService.swift
+          - Daemon/ProgramUpdate.swift
+          - Daemon/Store.swift
+          - Daemon/StatusBoard.swift
+          - Daemon/UserCleanup.swift
+          - Daemon/AppProcesses.swift
+          - Daemon/Resources/**
+          - Shared/XPC/**
+          - Shared/HelperInstall.swift
+          - Shared/HelperStartRule.swift
+          - Shared/UninstallCleanup.swift
+          - App/ServiceInstaller.swift
+          - scripts/install.sh
+          - scripts/uninstall.sh
+
+"area: dashboard":
+  - changed-files:
+      - any-glob-to-any-file:
+          - App/Dashboard/**
+          - App/Welcome/**
+          - App/Design/**
+
+"area: menu bar":
+  - changed-files:
+      - any-glob-to-any-file:
+          - App/MenuBar/**
+
+"area: widgets":
+  - changed-files:
+      - any-glob-to-any-file:
+          - Widgets/**
+          - App/Intents.swift
+          - App/Shortcuts.swift
+
+"area: updates":
+  - changed-files:
+      - any-glob-to-any-file:
+          - App/Updater.swift
+          - Shared/Update/**
+
+"area: release":
+  - changed-files:
+      - any-glob-to-any-file:
+          - .github/workflows/release.yml
+          - scripts/package.sh
+          - scripts/release-notes.sh
+          - scripts/version.sh
+          - scripts/signing.sh
+          - scripts/cask.sh
+          - scripts/check-cask.sh
+          - scripts/import-release-certificate.sh
+          - scripts/make-release-certificate.sh
+
+"area: ci":
+  - changed-files:
+      - any-glob-to-any-file:
+          - .github/workflows/ci.yml
+          - .github/workflows/linked-issue.yml
+          - .github/workflows/protected-files.yml
+          - .github/workflows/contributors.yml
+          - .github/workflows/labeler.yml
+          - .github/workflows/dependabot-auto-merge.yml
+          - scripts/check.sh
+          - scripts/ci-scope.sh
+          - scripts/ci-scope.test.sh
+          - scripts/build.sh
+          - scripts/test.sh
+          - project.yml
+
+documentation:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "**/*.md"
+          - docs/**
