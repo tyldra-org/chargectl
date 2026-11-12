@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.2.7] - 2026-11-11
+
+Releases are signed with Chargectl's own certificate, so updates after this
+one replace the helper without asking for your password.
+
 ### Added
 
 - **Restart to Update in the menu bar.** When a new version is waiting, the
@@ -458,7 +463,8 @@ MacBooks, from the menu bar.
   hands charging back to macOS and removes every file Chargectl added.
 - **Homebrew.** `brew install --cask tyldra-org/tools/chargectl`.
 
-[Unreleased]: https://github.com/tyldra-org/chargectl/compare/v0.2.6...HEAD
+[Unreleased]: https://github.com/tyldra-org/chargectl/compare/v0.2.7...HEAD
+[0.2.7]: https://github.com/tyldra-org/chargectl/compare/v0.2.6...v0.2.7
 [0.2.6]: https://github.com/tyldra-org/chargectl/compare/v0.2.5...v0.2.6
 [0.2.5]: https://github.com/tyldra-org/chargectl/compare/v0.2.4...v0.2.5
 [0.2.4]: https://github.com/tyldra-org/chargectl/compare/v0.2.3...v0.2.4
