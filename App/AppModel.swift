@@ -295,6 +295,8 @@ final class AppModel {
     }
 
     private struct WidgetState: Equatable {
+        /// Whether the helper answers, so the widgets refresh as soon as it is back.
+        var helperAnswers: Bool
         var activity: ChargeActivity?
         var mode: ChargeMode?
         var settings: ChargeSettings?
@@ -307,7 +309,8 @@ final class AppModel {
     /// at once.
     private func reloadWidgetsIfNeeded() {
         let state = WidgetState(
-            activity: status?.activity, mode: status?.mode, settings: status?.settings,
+            helperAnswers: service == .running, activity: status?.activity, mode: status?.mode,
+            settings: status?.settings,
             isPluggedIn: battery?.isPluggedIn, charge: battery.map { $0.percent / 5 })
         guard state != lastWidgetState else { return }
         let first = lastWidgetState == nil

@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **Widgets no longer ask to install the helper while it restarts.** A widget
+  that refreshed while the helper was restarting, for an update or after a
+  macOS update, showed "needs the helper" for up to five minutes. Widgets now
+  show the helper's last answer for up to 15 minutes, check again every
+  minute meanwhile, and refresh as soon as the app sees the helper again.
+
 ### Security
 
 - **Releases are signed with Chargectl's own certificate.** The helper now
