@@ -107,9 +107,12 @@ Run `./scripts/check.sh` once before saying the work is done.
   decided.
 - Conventional commits: `type(scope?): description`. Pull requests are squash
   merged with the PR title as the commit subject.
-- Every pull request closes an issue: find or open it first and put
+- A pull request closes an issue: find or open it first and put
   `Closes #<n>` in the body. The required `linked-issue` check fails without
-  one; only Dependabot is exempt.
+  one, except for Markdown-only changes and pull requests from the maintainers
+  in `.github/MAINTAINERS` or Dependabot. Maintainers open an issue when the
+  work is worth tracking on its own: a bug report, a feature, or work spread
+  over several pull requests.
 - Keep changes focused; do not reformat or refactor unrelated code.
 - Pin GitHub Actions to full commit SHAs with the tag in a trailing comment.
 - Add a `CHANGELOG.md` entry under `Unreleased` for user-visible changes.

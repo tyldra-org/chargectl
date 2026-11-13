@@ -49,7 +49,7 @@ is_docs() {
   case $1 in
     *.md | docs/* | LICENSE | .gitignore) return 0 ;;
     .github/ISSUE_TEMPLATE/* | .github/CODEOWNERS | .github/dependabot.yml) return 0 ;;
-    .github/VOUCHED.td | .github/labeler.yml) return 0 ;;
+    .github/VOUCHED.td | .github/labeler.yml | .github/MAINTAINERS) return 0 ;;
   esac
   return 1
 }

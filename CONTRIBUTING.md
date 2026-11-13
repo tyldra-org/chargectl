@@ -152,7 +152,8 @@ requests from people denounced there close automatically.
 
 ## Files only maintainers change
 
-Only the maintainer changes these. A pull request from anyone else that
+Only the maintainers in [`.github/MAINTAINERS`](.github/MAINTAINERS) change
+these. A pull request from anyone else that
 touches one fails the `protected-files` check and cannot merge, whatever its
 review says. Open an issue describing the change instead.
 
@@ -168,9 +169,11 @@ review says. Open an issue describing the change instead.
 
 ## Pull requests
 
-- Name the issue it resolves in the description: `Closes #<number>`. The
-  `linked-issue` check fails without one. Dependabot's pull requests are the
-  only exception.
+- Open an issue first, so the change is agreed before you write it, and name
+  it in the description: `Closes #<number>`. The `linked-issue` check fails
+  without one, unless the pull request changes Markdown files only, such as a
+  typo fix. Pull requests from the maintainers in
+  [`.github/MAINTAINERS`](.github/MAINTAINERS) and from Dependabot need none.
 - Fill in the pull request template, including how you verified the change.
 - Keep pull requests small; they are reviewed faster and more thoroughly.
 - All required checks must pass before merge.
