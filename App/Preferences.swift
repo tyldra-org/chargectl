@@ -13,6 +13,8 @@ enum PreferenceKey {
     static let notifyProblems = "notify.problems"
     static let notifyJobs = "notify.jobs"
     static let notifyLimit = "notify.limit"
+    /// The version that last started; a different one means Chargectl was updated.
+    static let lastLaunchedVersion = "lastLaunchedVersion"
 }
 
 enum AppearanceMode: String, CaseIterable, Identifiable {

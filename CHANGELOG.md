@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **Widgets are no longer empty after an update or a reinstall.** macOS kept
+  running the widgets from the copy of Chargectl that was replaced or moved
+  to the Trash, so the widget gallery and the widgets on the desktop showed
+  blank cards until the Mac restarted. Chargectl now stops that old process
+  when it opens, and macOS starts the widgets from the new copy.
+
 ## [0.2.7] - 2026-11-11
 
 Releases are signed with Chargectl's own certificate, so updates after this
