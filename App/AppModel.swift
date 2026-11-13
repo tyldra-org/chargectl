@@ -86,6 +86,7 @@ final class AppModel {
                 try? await Task.sleep(for: Self.refreshInterval)
             }
         }
+        WidgetExtension.replaceStale()
         Updater.shared.start()
     }
 
