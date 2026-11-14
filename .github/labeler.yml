@@ -1,5 +1,6 @@
-# Area labels for pull requests, by the paths they change. The labeler
-# workflow reads this file from main. Every label here exists on GitHub.
+# Area labels for pull requests, by the paths they change. The labeler job in
+# workflows/pull-requests.yml reads this file from main. Every label here
+# exists on GitHub.
 # A release pull request (branch chore/release-<version>) only bumps
 # project.yml and CHANGELOG.md, so it gets "area: release" and nothing else.
 "area: charging":
@@ -79,9 +80,7 @@
       - any-glob-to-any-file:
           - .github/workflows/ci.yml
           - .github/workflows/linked-issue.yml
-          - .github/workflows/protected-files.yml
-          - .github/workflows/contributors.yml
-          - .github/workflows/labeler.yml
+          - .github/workflows/pull-requests.yml
           - .github/workflows/dependabot-auto-merge.yml
           - scripts/check.sh
           - scripts/ci-scope.sh
