@@ -180,6 +180,26 @@ review says. Open an issue describing the change instead.
 - A maintainer will review, usually within a few working days. If there is no
   response after a week, a polite ping on the pull request is welcome.
 
+## Releasing
+
+1. Set `MARKETING_VERSION` in [`project.yml`](project.yml) and move the
+   `Unreleased` entries in [`CHANGELOG.md`](CHANGELOG.md) under the new version.
+2. Merge that to `main`, then tag it:
+
+   ```sh
+   git tag -a v0.2.0 -m "Chargectl 0.2.0" && git push origin v0.2.0
+   ```
+
+The [release workflow](.github/workflows/release.yml) checks that the tag
+matches `project.yml`, runs the tests, and builds and attests
+`Chargectl-<version>.zip`, while the cask check runs on another runner. Once
+both are done, it publishes the release with notes from the changelog, and
+opens a pull request that updates the cask in
+[tyldra-org/homebrew-tools](https://github.com/tyldra-org/homebrew-tools).
+Running the workflow by hand from the Actions tab is a dry run: the same checks
+and signed build, with nothing published. `./scripts/package.sh` builds the same
+zip locally.
+
 ## Licensing
 
 Contributions are licensed under the project license, Apache-2.0 (see

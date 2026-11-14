@@ -5,7 +5,7 @@
 <h1 align="center">Chargectl</h1>
 
 <p align="center">
-  <strong>Battery charge limiter for Mac. Stop your MacBook charging at 80%, or any limit you choose.</strong>
+  <strong>Battery charge limiter for Mac, with limits below 80%</strong>
 </p>
 
 <p align="center">
@@ -37,15 +37,13 @@
 
 ---
 
-Chargectl is a free, open-source Mac app that limits how far your MacBook
-charges. Lithium-ion batteries wear faster when they sit at 100%, so Chargectl
-stops charging at the limit you choose, anywhere from 20% to 100%, and keeps your
-Mac running on the charger while the battery rests. It works with macOS's own
-charge limit instead of around it, shows what the charger, the Mac and the battery
-are doing each second, and keeps working while the app is closed.
-
-It runs on Apple silicon MacBooks, including MacBook Air and MacBook Pro, with
-macOS 27 or later.
+Chargectl is a free, open-source battery charge limiter for Apple silicon
+MacBooks, including MacBook Air and MacBook Pro, on macOS 27. macOS's own Charge
+Limit goes no lower than 80% and still charges to 100% now and then. Chargectl
+takes any limit from 20% to 100%, brings the battery back when macOS charges past
+it, and keeps the Mac running on the charger while the battery rests. It shows
+what the charger, the Mac and the battery are doing each second, and keeps
+working while the app is closed.
 
 ## Quickstart
 
@@ -230,9 +228,30 @@ Readings come from the `AppleSmartBattery` registry entry and live SMC keys
 
 ### How do I stop my MacBook charging at 80%?
 
-Install Chargectl and pick 80% during setup, or later drag the white marker in its
-menu bar panel. When the battery reaches 80%, charging stops and the Mac runs on
-the charger.
+macOS 26.4 and later can do it without an app: open System Settings › Battery,
+click the info button next to Charging and choose a Charge Limit from 80% to
+100%. Chargectl uses that same setting, so a limit chosen in either place shows
+in both. Install Chargectl when you want a limit below 80%, sailing, Full by or
+heat protection.
+
+### Can I set a charge limit below 80%?
+
+Yes. Chargectl takes any limit from 20% to 100%: drag the white marker in its
+menu bar panel, or use the Control page. Below 80%, it cuts wall power until the
+battery is down to the limit, then holds it there on the charger.
+
+### Why does my Mac still charge to 100% with a charge limit set?
+
+macOS charges to 100% now and then to keep its battery estimate accurate, and
+"Charge to Full Now" does the same. Chargectl's overcharge guard notices and
+brings the battery back down to your limit.
+
+### Does Chargectl work on macOS 27?
+
+Yes, it requires macOS 27. There, the SMC keys that pause charging are reserved
+for Apple's own software, so an app can no longer pause charging by writing them.
+Chargectl uses macOS's own charge limit and the wall-power switch instead, as
+[How it works](#how-it-works) explains.
 
 ### Does limiting the charge help my battery?
 
@@ -240,13 +259,6 @@ Keeping a lithium-ion battery full for long stretches wears it faster. That is
 why macOS's Optimized Battery Charging holds at 80% until shortly before you
 usually unplug. A limit cuts that wear, though the battery still ages with time
 and charge cycles.
-
-### Doesn't macOS already have a charge limit?
-
-macOS can limit charging to between 80% and 100% in System Settings › Battery.
-Chargectl uses that same limit and adds limits down to 20%, sailing, Full by,
-heat protection and discharging to the limit. A limit set in either place shows
-in both.
 
 ### Is Chargectl an alternative to AlDente?
 
@@ -363,25 +375,8 @@ administrator.
 ./scripts/run.sh     # install a Debug build
 ```
 
-### Releasing
-
-1. Set `MARKETING_VERSION` in [`project.yml`](project.yml) and move the
-   `Unreleased` entries in [`CHANGELOG.md`](CHANGELOG.md) under the new version.
-2. Merge that to `main`, then tag it:
-
-   ```sh
-   git tag -a v0.2.0 -m "Chargectl 0.2.0" && git push origin v0.2.0
-   ```
-
-The [release workflow](.github/workflows/release.yml) checks that the tag
-matches `project.yml`, runs the tests, and builds and attests
-`Chargectl-<version>.zip`, while the cask check runs on another runner. Once
-both are done, it publishes the release with notes from the changelog, and
-opens a pull request that updates the cask in
-[tyldra-org/homebrew-tools](https://github.com/tyldra-org/homebrew-tools).
-Running the workflow by hand from the Actions tab is a dry run: the same checks
-and signed build, with nothing published. `./scripts/package.sh` builds the same
-zip locally.
+The maintainer publishes releases; the steps are in
+[CONTRIBUTING.md](CONTRIBUTING.md#releasing).
 
 Charging decisions live in [`ChargePolicy`](Shared/Control/ChargePolicy.swift),
 a pure function tested without hardware. Read [CONTRIBUTING.md](CONTRIBUTING.md)
