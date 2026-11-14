@@ -79,7 +79,6 @@
   - changed-files:
       - any-glob-to-any-file:
           - .github/workflows/ci.yml
-          - .github/workflows/linked-issue.yml
           - .github/workflows/pull-requests.yml
           - .github/workflows/dependabot-auto-merge.yml
           - scripts/check.sh
