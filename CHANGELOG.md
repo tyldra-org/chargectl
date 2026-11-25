@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.2.10] - 2026-11-25
+
 ### Changed
 
 - **Top Up, Calibrate and Full by keep your limit in macOS.** To charge to
@@ -512,7 +514,8 @@ MacBooks, from the menu bar.
   hands charging back to macOS and removes every file Chargectl added.
 - **Homebrew.** `brew install --cask tyldra-org/tools/chargectl`.
 
-[Unreleased]: https://github.com/tyldra-org/chargectl/compare/v0.2.9...HEAD
+[Unreleased]: https://github.com/tyldra-org/chargectl/compare/v0.2.10...HEAD
+[0.2.10]: https://github.com/tyldra-org/chargectl/compare/v0.2.9...v0.2.10
 [0.2.9]: https://github.com/tyldra-org/chargectl/compare/v0.2.8...v0.2.9
 [0.2.8]: https://github.com/tyldra-org/chargectl/compare/v0.2.7...v0.2.8
 [0.2.7]: https://github.com/tyldra-org/chargectl/compare/v0.2.6...v0.2.7
