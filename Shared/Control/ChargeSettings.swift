@@ -17,6 +17,8 @@ nonisolated enum MagSafeLEDMode: String, Codable, CaseIterable, Identifiable, Se
 /// older files keep working.
 nonisolated struct ChargeSettings: Codable, Equatable, Sendable {
     static let limitRange = 20...100
+    /// Months between automatic calibrations.
+    static let calibrationMonthsRange = 2...3
     static let sailingRange = 0...20
     /// °C
     static let heatThresholdRange = 25.0...45.0
@@ -34,6 +36,9 @@ nonisolated struct ChargeSettings: Codable, Equatable, Sendable {
     var magSafeLED = MagSafeLEDMode.system
     /// A full charge by a set time, or nil.
     var fullBy: FullBySchedule?
+    /// Run Calibrate every this many months, or nil for never: the first time the Mac is on the
+    /// charger after that long since the last calibration, or since this was turned on.
+    var calibrateEveryMonths: Int?
 
     /// Charging resumes at or below this percentage.
     var lowerBound: Int { max(limit - sailing, Self.limitRange.lowerBound) }
@@ -56,6 +61,7 @@ nonisolated struct ChargeSettings: Codable, Equatable, Sendable {
         magSafeLED =
             try container.decodeIfPresent(MagSafeLEDMode.self, forKey: .magSafeLED) ?? defaults.magSafeLED
         fullBy = try container.decodeIfPresent(FullBySchedule.self, forKey: .fullBy)
+        calibrateEveryMonths = try container.decodeIfPresent(Int.self, forKey: .calibrateEveryMonths)
         self = normalized()
     }
 
@@ -66,6 +72,9 @@ nonisolated struct ChargeSettings: Codable, Equatable, Sendable {
         copy.sailing = min(max(sailing, Self.sailingRange.lowerBound), Self.sailingRange.upperBound)
         copy.heatThreshold = min(
             max(heatThreshold, Self.heatThresholdRange.lowerBound), Self.heatThresholdRange.upperBound)
+        copy.calibrateEveryMonths = calibrateEveryMonths.map {
+            min(max($0, Self.calibrationMonthsRange.lowerBound), Self.calibrationMonthsRange.upperBound)
+        }
         if var schedule = fullBy {
             schedule.hour = min(max(schedule.hour, 0), 23)
             schedule.minute = min(max(schedule.minute, 0), 59)
@@ -86,6 +95,7 @@ nonisolated struct ChargeSettings: Codable, Equatable, Sendable {
             "discharge asleep \(holdAsleep ? "on" : "off")",
             "LED \(magSafeLED.title)",
             "full by \(fullBy?.summary ?? "off")",
+            "auto calibration \(calibrateEveryMonths.map { "every \($0) months" } ?? "off")",
         ].joined(separator: " · ")
     }
 }

@@ -500,6 +500,60 @@ import Testing
             settings: settings, state: state, now: now)
     }
 
+    @Test func automaticCalibrationStartsTwoMonthsAfterItIsTurnedOn() {
+        var settings = ChargeSettings.limit(70, sailing: 5)
+        settings.calibrateEveryMonths = 2
+        func at(_ days: Double, _ percent: Int, pluggedIn: Bool = true, _ state: ControlState) -> ChargeDecision {
+            ChargePolicy.decide(
+                PolicyInput(percent: percent, isPluggedIn: pluggedIn, temperature: 30),
+                settings: settings, state: state, now: now.addingTimeInterval(days * 24 * 60 * 60))
+        }
+        let turnedOn = at(0, 70, ControlState())
+        #expect(turnedOn.state.calibrationCountedFrom == now)
+        #expect(turnedOn.state.mode == .automatic)
+        let early = at(59, 70, turnedOn.state)
+        #expect(early.state.mode == .automatic)
+        let unplugged = at(61, 70, pluggedIn: false, early.state)
+        #expect(unplugged.state.mode == .automatic)
+        let due = at(61, 70, unplugged.state)
+        #expect(due.state.mode == .calibrate(.draining, since: now.addingTimeInterval(61 * 24 * 60 * 60)))
+        #expect(due.event?.hasPrefix("automatic calibration started") == true)
+        #expect(!due.state.adapterEnabled)
+    }
+
+    /// The next one counts from when the last one ends, also when it was started by hand or stopped.
+    @Test func automaticCalibrationCountsFromTheLastCalibration() {
+        var settings = ChargeSettings.limit(70, sailing: 5)
+        settings.calibrateEveryMonths = 2
+        var state = ControlState(mode: .calibrate(.holding, since: now))
+        state.calibrationCountedFrom = now.addingTimeInterval(-90 * 24 * 60 * 60)
+        let finished = ChargePolicy.decide(
+            PolicyInput(percent: 100, isPluggedIn: true, temperature: 30), settings: settings, state: state,
+            now: now.addingTimeInterval(ChargePolicy.calibrationHold))
+        #expect(finished.state.mode == .automatic)
+        #expect(finished.state.calibrationCountedFrom == now.addingTimeInterval(ChargePolicy.calibrationHold))
+        let nextDay = ChargePolicy.decide(
+            PolicyInput(percent: 80, isPluggedIn: true, temperature: 30), settings: settings, state: finished.state,
+            now: now.addingTimeInterval(24 * 60 * 60))
+        #expect(nextDay.state.mode == .automatic)
+    }
+
+    @Test func automaticCalibrationIsEveryTwoOrThreeMonths() {
+        let json = #"{"limit":70,"calibrateEveryMonths":7}"#
+        let settings = try? Coding.decode(ChargeSettings.self, from: Data(json.utf8))
+        #expect(settings?.calibrateEveryMonths == 3)
+        let old = try? Coding.decode(ChargeSettings.self, from: Data(#"{"limit":70}"#.utf8))
+        #expect(old?.calibrateEveryMonths == nil)
+    }
+
+    @Test func turningAutomaticCalibrationOffForgetsTheCount() {
+        var state = ControlState()
+        state.calibrationCountedFrom = now.addingTimeInterval(-90 * 24 * 60 * 60)
+        let off = decide(70, settings: .limit(70, sailing: 5), state: state)
+        #expect(off.state.calibrationCountedFrom == nil)
+        #expect(off.state.mode == .automatic)
+    }
+
     /// macOS's occasional charge to 100%: the battery keeps charging well past the limit.
     @Test func chargingPastTheLimitCutsWallPowerUntilBackAtIt() {
         var settings = ChargeSettings.limit(80, sailing: 5)
