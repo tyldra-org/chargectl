@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- **Quit Chargectl now hands charging back to macOS.** Quitting from the menu
+  bar stops the background helper as well: wall power is reconnected and your
+  own macOS charge limit and MagSafe light come back. Opening Chargectl again
+  starts the helper and takes over. Closing the dashboard, logging out and
+  shutting down leave the helper running as before.
+
 ### Fixed
 
 - **No more 20-minute loop between 70% and 71%.** macOS's charge limit can end

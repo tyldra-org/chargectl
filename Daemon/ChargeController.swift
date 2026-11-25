@@ -86,6 +86,9 @@ final class ChargeController {
     private var isFirstRun: Bool
     /// Set once the app uninstalls Chargectl: nothing is written to disk after that.
     private var isRemoved = false
+    /// Chargectl was quit: macOS manages charging, and the helper does nothing until the app opens
+    /// again and resumes it. Kept on disk, so a helper launchd starts at boot stays idle too.
+    private var isHandedBack: Bool
 
     convenience init(store: Store) {
         let smc = try? SMC()
@@ -112,6 +115,7 @@ final class ChargeController {
         historyLines = history.count
         logLines = logs.count
         savedMacOSLimit = store.load(MacOSChargeLimit.Setting.self, from: .macOSLimit)
+        isHandedBack = store.load(Bool.self, from: .handedBack) ?? false
         let executable = Self.ownExecutablePath()
         let arguments = CommandLine.arguments
         executablePath = executable
@@ -133,20 +137,25 @@ final class ChargeController {
         } else {
             log("no wall-power key on this Mac; charge control is off", level: .warning)
         }
+        if isHandedBack { log("Chargectl is not open; macOS manages charging until it opens", source: .chargectl) }
         sleepWatcher = SleepWatcher(
             willSleep: { [weak self] in self?.prepareForSleep() },
             didWake: { [weak self] in self?.tick() })
-        let timer = Timer(timeInterval: Self.tickInterval, repeats: true) { [weak self] _ in
-            MainActor.assumeIsolated { self?.tick() }
-        }
-        RunLoop.main.add(timer, forMode: .common)
-        self.timer = timer
+        startTimer()
         DispatchQueue.global(qos: .userInitiated).async {
             let limit = MacOSChargeLimit()
             DispatchQueue.main.async {
                 MainActor.assumeIsolated { self.finishStarting(macOSLimit: limit) }
             }
         }
+    }
+
+    private func startTimer() {
+        let timer = Timer(timeInterval: Self.tickInterval, repeats: true) { [weak self] _ in
+            MainActor.assumeIsolated { self?.tick() }
+        }
+        RunLoop.main.add(timer, forMode: .common)
+        self.timer = timer
     }
 
     /// Called by start() once macOS's limit is loaded; tests call it directly.
@@ -169,7 +178,7 @@ final class ChargeController {
     }
 
     func tick(now: Date = .now) {
-        guard isReady, !isRemoved else { return }
+        guard isReady, !isRemoved, !isHandedBack else { return }
         defer { publish() }
         if followAppUpdates() { return }
         let battery: BatterySnapshot
@@ -539,6 +548,8 @@ final class ChargeController {
         switch command {
         case .uninstall: return removeEverything()
         case .removeService: return removeService()
+        case .handBack: return handBack()
+        case .resume: return resume()
         default: break
         }
         guard adapter != nil else { return "This Mac has no wall-power key, so charging cannot be controlled." }
@@ -577,7 +588,7 @@ final class ChargeController {
             state.mode = .automatic
             save(settings, to: .settings)
             log("settings reset: \(settings.summary)", source: .chargectl)
-        case .uninstall, .removeService:
+        case .uninstall, .removeService, .handBack, .resume:
             break
         }
         save(state, to: .state)
@@ -592,7 +603,36 @@ final class ChargeController {
         timer?.invalidate()
         if let adapter, (try? adapter.isConnected()) == false { try? adapter.set(connected: true) }
         if appliedLED == .off { try? smc?.write(SMCKey.magSafeLED, bytes: [0]) }
-        if !isRemoved { log("stopped; wall power reconnected", source: .chargectl) }
+        if !isRemoved, !isHandedBack { log("stopped; wall power reconnected", source: .chargectl) }
+    }
+
+    /// Chargectl was quit: reconnects wall power, restores the user's macOS charge limit and the
+    /// MagSafe LED, and stops the helper. It stays stopped, or idle when launchd starts it at boot,
+    /// until the app opens again and sends resume.
+    private func handBack() -> String? {
+        guard !isHandedBack else { return nil }
+        restoreSystemDefaults()
+        state.adapterEnabled = true
+        save(state, to: .state)
+        isHandedBack = true
+        store.save(true, to: .handedBack)
+        activity = .off
+        log("Chargectl quit; macOS manages charging until it opens again", source: .chargectl)
+        publish()
+        // Only the root service can unload its own launchd job; tests run as the user.
+        if getuid() == 0 { bootOutSoon() }
+        return nil
+    }
+
+    /// The app opened again after handBack: takes charging back from macOS.
+    private func resume() -> String? {
+        guard isHandedBack else { return nil }
+        isHandedBack = false
+        store.remove(.handedBack)
+        log("Chargectl opened; charge control resumed", source: .chargectl)
+        if let timer, !timer.isValid { startTimer() }
+        tick()
+        return nil
     }
 
     /// Hands charging back to macOS and deletes every file the daemon wrote. The app then
@@ -740,7 +780,7 @@ final class ChargeController {
     }
 
     func prepareForSleep() {
-        guard let adapter else { return }
+        guard let adapter, !isHandedBack else { return }
         let connected = (try? adapter.isConnected()) ?? true
         if holdsLimitWithWallPower, let battery = lastBattery, battery.isPluggedIn,
             battery.percent >= max(settings.lowerBound, Self.sleepReserve)

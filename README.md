@@ -268,8 +268,12 @@ fight over the same settings.
 
 ### Does it keep working when the app is closed or the Mac is asleep?
 
-Yes. A small helper controls charging in the background, so quitting the app
-changes nothing. While the Mac sleeps, macOS holds the limit.
+Yes. A small helper controls charging in the background, so closing the
+dashboard changes nothing. While the Mac sleeps, macOS holds the limit.
+
+**Quit Chargectl** in the menu bar stops the helper too: wall power comes back,
+and your own macOS charge limit and MagSafe light settings take over again.
+Opening Chargectl starts the helper and takes charging back.
 
 ### Does it work on Intel Macs?
 

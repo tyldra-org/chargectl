@@ -71,6 +71,39 @@ import Testing
         #expect(rig.wallPower.connected)
     }
 
+    /// Quitting Chargectl hands charging back to macOS: wall power on, the user's macOS limit back,
+    /// and nothing changes until the app opens again, also after the helper restarts.
+    @Test func quittingHandsChargingBackUntilTheAppOpens() {
+        let rig = Rig(settings: .limit(60, sailing: 5))
+        defer { rig.remove() }
+        rig.battery.percent = 70
+        rig.start()
+        #expect(!rig.wallPower.connected)
+        #expect(rig.controller.perform(.handBack) == nil)
+        #expect(rig.wallPower.connected)
+        #expect(rig.macOSLimit.setting == .default)
+        #expect(rig.controller.status().activity == .off)
+        rig.controller.tick()
+        #expect(rig.wallPower.connected)
+        let restarted = ChargeController(store: rig.store, smc: nil, battery: rig.battery, wallPower: rig.wallPower)
+        restarted.finishStarting(macOSLimit: rig.macOSLimit)
+        #expect(rig.wallPower.connected)
+        #expect(restarted.perform(.resume) == nil)
+        #expect(!rig.wallPower.connected)
+        #expect(rig.store.load(Bool.self, from: .handedBack) == nil)
+    }
+
+    @Test func resumeWithoutQuittingChangesNothing() {
+        let rig = Rig(settings: .limit(60, sailing: 5))
+        defer { rig.remove() }
+        rig.battery.percent = 70
+        rig.start()
+        let logged = rig.controller.logEntries().count
+        #expect(rig.controller.perform(.resume) == nil)
+        #expect(rig.controller.logEntries().count == logged)
+        #expect(!rig.wallPower.connected)
+    }
+
     /// Without a reading nothing can be decided; the Mac must not keep running on its battery.
     @Test func wallPowerComesBackWhenTheBatteryCannotBeRead() {
         let rig = Rig(settings: .limit(60, sailing: 5))
