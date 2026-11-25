@@ -33,6 +33,8 @@ nonisolated struct BatterySnapshot: Codable, Equatable, Sendable {
     /// Minutes, when the battery is charging or discharging.
     var minutesToFull: Int?
     var minutesToEmpty: Int?
+    /// mV of each cell, from the SMC; nil when it does not report them.
+    var cellVoltages: [Int]? = nil
 
     /// Readings taken from the SMC at the same moment; they update every second, unlike the registry.
     nonisolated struct LiveReadings: Sendable {

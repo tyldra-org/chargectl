@@ -28,7 +28,7 @@ final class BatteryReader {
         var properties: Unmanaged<CFMutableDictionary>?
         guard IORegistryEntryCreateCFProperties(service, &properties, kCFAllocatorDefault, 0) == KERN_SUCCESS,
             let registry = properties?.takeRetainedValue() as? [String: Any],
-            let snapshot = BatterySnapshot.parse(
+            var snapshot = BatterySnapshot.parse(
                 registry: registry,
                 chargerAttached: chargerAttached(),
                 temperature: float(SMCKey.batteryTemperature),
@@ -37,7 +37,18 @@ final class BatteryReader {
                 date: now,
                 live: liveReadings())
         else { throw BatteryReadError.unreadable }
+        snapshot.cellVoltages = cellVoltages()
         return snapshot
+    }
+
+    /// mV of each cell, in order, until a key is missing; nil when there are fewer than two.
+    private func cellVoltages() -> [Int]? {
+        var cells: [Int] = []
+        for key in SMCKey.cellVoltages {
+            guard let value = integer(key), value > 0 else { break }
+            cells.append(value)
+        }
+        return cells.count >= 2 ? cells : nil
     }
 
     private func liveReadings() -> BatterySnapshot.LiveReadings {

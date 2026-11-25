@@ -51,6 +51,9 @@ final class AppModel {
     private(set) var daily: [DailySample] = []
     /// Plugged in, yet the battery runs down: the charger cannot run the Mac.
     private(set) var isChargerWeak = false
+    /// The cells have stayed far apart at rest (CellBalance).
+    private(set) var cellsDrifted = false
+    @ObservationIgnored private var wideCellReadings = 0
     private(set) var macOSLimit: Int?
     private(set) var macOSDrains = false
     private(set) var conflictingApp: String?
@@ -199,6 +202,13 @@ final class AppModel {
         }
         if let problem = status?.controlProblem { notices.append(Notice(text: problem)) }
         if isChargerWeak { notices.append(Notice(text: StatusEvent.weakCharger(battery?.adapterWatts).body)) }
+        if cellsDrifted, let spread = CellBalance.spread(battery?.cellVoltages) {
+            notices.append(
+                Notice(
+                    text:
+                        "The battery's cells are \(spread) mV apart at rest. Healthy cells stay within a few millivolts; a gap that stays this wide can mean a cell is wearing out. If it grows, have the battery checked."
+                ))
+        }
         if let error = status?.lastError { notices.append(Notice(text: error)) }
         if let message { notices.append(Notice(text: message)) }
         return notices
@@ -213,6 +223,10 @@ final class AppModel {
                 chargerCheck.observe(
                     battery, wallPowerCut: status?.adapterEnabled == false, drainsOnPurpose: isDraining, now: .now)
                 if chargerCheck.isWeak != isChargerWeak { isChargerWeak = chargerCheck.isWeak }
+                wideCellReadings = CellBalance.wideReadings(
+                    after: wideCellReadings, cells: battery.cellVoltages, current: battery.current)
+                let drifted = wideCellReadings >= CellBalance.warningReadings
+                if drifted != cellsDrifted { cellsDrifted = drifted }
             }
         } catch {
             batteryError = "\(error)"

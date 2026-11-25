@@ -29,6 +29,8 @@ nonisolated struct HistorySample: Codable, Equatable, Sendable {
     var wallPower: Double?
     /// W, positive while charging.
     var batteryPower: Double?
+    /// The charger is connected, also while wall power is cut. Helpers before 0.3.0 leave it out.
+    var pluggedIn: Bool? = nil
 }
 
 nonisolated struct LogEntry: Codable, Equatable, Identifiable, Sendable {

@@ -56,6 +56,16 @@ struct LongTermHealth: View {
                         stat("Cycles", "\(latest.cycleCount)", cycleChange(points))
                         stat("At 90% or more", highChargeAverage(points), "a day, on average")
                         stat("Warmest", warmest(points).0, warmest(points).1)
+                        let savings = BatteryWear.savings(points)
+                        stat(
+                            "Ageing avoided", Self.avoided(savings),
+                            savings.map {
+                                "estimate, \(Int(($0.lessWear * 100).rounded()))% less wear"
+                            } ?? "estimate, after a day"
+                        )
+                        .help(
+                            "Estimated from the charge and temperature each minute, against macOS charging to 100% whenever it is plugged in. Batteries age faster at a high charge and when warm."
+                        )
                     }
                     .padding(.top, 12)
                     .overlay(alignment: .top) { Rectangle().fill(Theme.line).frame(height: 1) }
@@ -160,6 +170,14 @@ struct LongTermHealth: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityElement(children: .combine)
+    }
+
+    /// Days or months of macOS's default ageing avoided.
+    static func avoided(_ savings: BatteryWear.Savings?) -> String {
+        guard let days = savings?.daysAvoided else { return "–" }
+        if days < 1 { return String(format: "%.0f h", days * 24) }
+        if days < 60 { return String(format: "%.0f d", days) }
+        return String(format: "%.1f mo", days / 30)
     }
 
     private func healthChange(_ points: [DailySample]) -> String {

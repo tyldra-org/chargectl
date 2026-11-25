@@ -258,14 +258,26 @@ struct OverviewPage: View {
                     HealthCell(
                         title: "Capacity", value: battery.fullChargeCapacity.formatted(), unit: "mAh"
                     ) {
-                        Text(
-                            String(
-                                format: "%.2f V · %@", battery.voltage,
-                                abs(battery.current) < 0.005 ? "0 A" : String(format: "%+.2f A", battery.current))
-                        )
-                        .font(.system(size: 11.5))
-                        .foregroundStyle(.secondary)
-                        .monospacedDigit()
+                        if let cells = battery.cellVoltages, let spread = CellBalance.spread(cells) {
+                            HStack(spacing: 6) {
+                                Circle().fill(model.cellsDrifted ? Theme.warn : Theme.accent).frame(width: 6, height: 6)
+                                Text("\(cells.count) cells, \(spread) mV apart")
+                                    .font(.system(size: 11.5))
+                                    .foregroundStyle(.secondary)
+                                    .monospacedDigit()
+                            }
+                            .help(cells.map { "\($0) mV" }.joined(separator: " · "))
+                        } else {
+                            Text(
+                                String(
+                                    format: "%.2f V · %@", battery.voltage,
+                                    abs(battery.current) < 0.005
+                                        ? "0 A" : String(format: "%+.2f A", battery.current))
+                            )
+                            .font(.system(size: 11.5))
+                            .foregroundStyle(.secondary)
+                            .monospacedDigit()
+                        }
                     }
                 }
             }

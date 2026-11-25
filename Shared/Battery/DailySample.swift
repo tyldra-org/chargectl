@@ -17,6 +17,10 @@ nonisolated struct DailySample: Codable, Equatable, Sendable {
     /// °C
     var averageTemperature: Double?
     var maxTemperature: Double?
+    /// Estimated wear that day (BatteryWear), and under macOS's default. Days recorded before 0.3.0
+    /// have none.
+    var wearActual: Double? = nil
+    var wearBaseline: Double? = nil
 
     /// Health as a fraction of the design capacity.
     var health: Double? {
@@ -34,12 +38,13 @@ nonisolated struct DailySample: Codable, Equatable, Sendable {
         let inDay = samples.filter { $0.date >= day && $0.date < end }
         guard !inDay.isEmpty else { return nil }
         let temperatures = inDay.compactMap(\.temperature)
+        let wear = BatteryWear.totals(samples: samples, from: day, to: end)
         return DailySample(
             day: day, fullChargeCapacity: battery.fullChargeCapacity, designCapacity: battery.designCapacity,
             cycleCount: battery.cycleCount, minutesRecorded: inDay.count,
-            minutesPlugged: inDay.filter { ($0.wallPower ?? 0) > 0.5 }.count,
+            minutesPlugged: inDay.filter { $0.pluggedIn ?? (($0.wallPower ?? 0) > 0.5) }.count,
             minutesHighCharge: inDay.filter { $0.percent >= highCharge }.count,
             averageTemperature: temperatures.isEmpty ? nil : temperatures.reduce(0, +) / Double(temperatures.count),
-            maxTemperature: temperatures.max())
+            maxTemperature: temperatures.max(), wearActual: wear?.actual, wearBaseline: wear?.baseline)
     }
 }

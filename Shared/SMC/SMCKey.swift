@@ -23,6 +23,8 @@ nonisolated enum SMCKey {
     static let chargerAttached = "AC-W"
     /// MagSafe LED state (ui8): 0 lets macOS decide, 1 turns it off.
     static let magSafeLED = "ACLC"
+    /// Each cell's voltage in mV (ui16), first cell first; a Mac has as many as it has cells.
+    static let cellVoltages = ["BC1V", "BC2V", "BC3V", "BC4V", "BC5V", "BC6V"]
 }
 
 /// The keys that connect or disconnect wall power, newest firmware first, with the

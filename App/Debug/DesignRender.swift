@@ -409,7 +409,8 @@
                 current: charging ? 2.13 : draining ? -1.03 : 0, temperature: 28.5, adapterWatts: 35,
                 adapterName: "35 W USB-C Power Adapter", wallPower: draining ? 0 : charging ? 35.1 : 9.6,
                 systemPower: draining ? 12.4 : charging ? 8.1 : 9.4, chargerVoltage: draining ? nil : 19.8,
-                chargerCurrent: draining ? nil : 1.77, adapterVoltage: 20, minutesToFull: nil, minutesToEmpty: nil)
+                chargerCurrent: draining ? nil : 1.77, adapterVoltage: 20, minutesToFull: nil, minutesToEmpty: nil,
+                cellVoltages: [3961, 3958, 3956])
             var settings = ChargeSettings()
             settings.fullBy = FullBySchedule(hour: 8, minute: 0, weekdays: FullBySchedule.weekdaysOnly)
             settings.heatProtection = heat || tiles
@@ -450,7 +451,8 @@
                     minutesPlugged: 900 + (back % 5) * 60,
                     minutesHighCharge: travel ? 160 + (back % 3) * 30 : (back % 4 == 0 ? 25 : 0),
                     averageTemperature: 29 + 2 * sin(Double(back) * 0.3),
-                    maxTemperature: 32 + 3 * sin(Double(back) * 0.21) + (travel ? 2 : 0))
+                    maxTemperature: 32 + 3 * sin(Double(back) * 0.21) + (travel ? 2 : 0),
+                    wearActual: 1440 * (travel ? 1.6 : 0.95), wearBaseline: 1440 * 2.1)
             }
         }
 
