@@ -65,6 +65,10 @@ nonisolated enum DaemonCommand: String, Codable, CaseIterable, Sendable {
     case uninstall
     /// Restore charging and stop the service, keeping its data.
     case removeService
+    /// Chargectl quit: restore charging, hand it to macOS and stop the service until the app opens.
+    case handBack
+    /// The app opened: take charging back after handBack. Does nothing otherwise.
+    case resume
 }
 
 /// XPC surface of the root daemon. Payloads are JSON so both sides share Codable types.

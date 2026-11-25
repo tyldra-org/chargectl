@@ -14,6 +14,8 @@ struct Store {
         case logs
         case macOSLimit
         case daily
+        /// Present while Chargectl is quit and macOS manages charging.
+        case handedBack
     }
 
     static let system = Store(

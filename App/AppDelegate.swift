@@ -2,8 +2,9 @@ import AppKit
 import SwiftUI
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
-    /// Set by the menu bar's Quit item. Anything else that asks the app to quit (⌘Q, the Dock's
-    /// Quit) only closes the dashboard, because charge control lives in the menu bar.
+    /// Set by the menu bar's Quit item, which also stops the helper and hands charging back to
+    /// macOS. Anything else that asks the app to quit (⌘Q, the Dock's Quit) only closes the
+    /// dashboard, because charge control lives in the menu bar.
     static var quitRequested = false
 
     func applicationWillFinishLaunching(_ notification: Notification) {
@@ -11,7 +12,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
-        if Self.quitRequested || Self.isSystemQuit { return .terminateNow }
+        if Self.isSystemQuit { return .terminateNow }
+        if Self.quitRequested {
+            // Quitting Chargectl stops the helper too and hands charging back to macOS; opening
+            // the app starts the helper again. Log out and shut down leave the helper running.
+            HelperHandBack.isPending = true
+            Task {
+                try? await DaemonClient().perform(.handBack)
+                sender.reply(toApplicationShouldTerminate: true)
+            }
+            return .terminateLater
+        }
         Dashboard.close()
         return .terminateCancel
     }
@@ -43,6 +54,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             event.eventClass == AEEventClass(kCoreEventClass), event.eventID == AEEventID(kAEQuitApplication)
         else { return false }
         return event.attributeDescriptor(forKeyword: AEKeyword(kAEQuitReason)) != nil
+    }
+}
+
+/// Whether the last Quit stopped the helper. The next launch then starts it again at once rather
+/// than after the usual grace for a helper that is restarting.
+enum HelperHandBack {
+    private static let key = "helperHandedBack"
+
+    static var isPending: Bool {
+        get { UserDefaults.standard.bool(forKey: key) }
+        set { UserDefaults.standard.set(newValue, forKey: key) }
     }
 }
 

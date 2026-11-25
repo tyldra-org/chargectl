@@ -256,6 +256,12 @@ final class AppModel {
             if service != .running { message = nil }
             service = .running
             unreachableSince = nil
+            if !didResumeHelper {
+                didResumeHelper = true
+                // A helper that Quit stopped waits for the app before it controls charging again.
+                try? await client.perform(.resume)
+                HelperHandBack.isPending = false
+            }
         } catch {
             status = nil
             switch installer.registration {
@@ -393,6 +399,8 @@ final class AppModel {
     private(set) var isInstallingService = false
     @ObservationIgnored private var unreachableSince: Date?
     @ObservationIgnored private var didRepairHelper = false
+    /// Resume is sent once per launch, the first time the helper answers.
+    @ObservationIgnored private var didResumeHelper = false
     @ObservationIgnored private var isStartingHelper = false
     @ObservationIgnored private var lastStartAttempt: Date?
     private static let startRetryInterval: TimeInterval = 30
@@ -422,7 +430,12 @@ final class AppModel {
                 }
             }
         case .appService:
-            let stopped = unreachableSince.map { Date.now.timeIntervalSince($0) > Self.helperStartGrace } ?? false
+            // After Quit stopped the helper there is nothing to wait for.
+            let stopped =
+                unreachableSince.map {
+                    HelperHandBack.isPending || Date.now.timeIntervalSince($0) > Self.helperStartGrace
+                }
+                ?? false
             let outdated = versionMismatchSince.map { Date.now.timeIntervalSince($0) > Self.helperStartGrace } ?? false
             guard !didRepairHelper, stopped || outdated else { return }
             didRepairHelper = true
