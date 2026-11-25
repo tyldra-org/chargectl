@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **No more 20-minute loop between 70% and 71%.** macOS's charge limit can end
+  a charge a point or two past the limit, because it measures against its own
+  charge figure rather than the one on screen. Chargectl took that as macOS
+  charging past the limit, ran the Mac on battery back to the limit, and macOS
+  charged again as soon as wall power came back. Chargectl now lets macOS
+  finish a charge up to two points past the limit and keeps the Mac on the
+  charger there. Only a charge well past the limit, such as macOS's occasional
+  charge to 100%, still cuts wall power. With automatic discharge off, the Mac
+  no longer runs on battery for those last points.
+
 - **Widgets are no longer empty after an update or a reinstall.** macOS kept
   running the widgets from the copy of Chargectl that was replaced or moved
   to the Trash, so the widget gallery and the widgets on the desktop showed
