@@ -13,6 +13,8 @@ enum PreferenceKey {
     static let notifyProblems = "notify.problems"
     static let notifyJobs = "notify.jobs"
     static let notifyLimit = "notify.limit"
+    /// The smart limit looks in the calendar for trips.
+    static let calendarTrips = "calendarTrips"
     /// The calibration tip shown with a limit below 80% was answered; it does not come back.
     static let calibrationTipDismissed = "calibrationTipDismissed"
     /// The version that last started; a different one means Chargectl was updated.

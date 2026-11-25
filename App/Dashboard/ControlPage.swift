@@ -6,6 +6,7 @@ struct ControlPage: View {
     @State private var draftLimit: Int?
     @State private var confirmingOff = false
     @AppStorage(PreferenceKey.calibrationTipDismissed) private var calibrationTipDismissed = false
+    @AppStorage(PreferenceKey.calendarTrips) private var calendarTrips = false
 
     var body: some View {
         if let settings = model.settings, model.isControllable {
@@ -122,10 +123,37 @@ struct ControlPage: View {
                     ) {
                         switchFor(\.autoDischarge, on: "Discharge to limit on", off: "Discharge to limit off")
                     }
+                    SettingRow(title: "Smart limit", detail: smartLimitDetail(settings)) {
+                        switchFor(\.smartLimit, on: "Smart limit on", off: "Smart limit off")
+                    }
+                    if settings.smartLimit {
+                        SettingRow(
+                            title: "Charge to your limit before trips",
+                            detail: Text(
+                                "Looks in your calendar for flights, trains and trips in the next day, and holds \(Text("\(settings.limit)%").foregroundStyle(.primary)) until they start."
+                            ), indented: true
+                        ) {
+                            Toggle(
+                                "",
+                                isOn: Binding(
+                                    get: { calendarTrips && CalendarTrips.isAuthorized },
+                                    set: { on in setCalendarTrips(on) })
+                            )
+                            .toggleStyle(GlowSwitchStyle())
+                            .labelsHidden()
+                            .accessibilityLabel("Charge to your limit before trips")
+                        }
+                        .transition(.opacity)
+                    }
                 }
                 .padding(.top, 6)
-                RuleSentence(settings: settings, limit: limit, unit: unit)
-                    .padding(.top, 10)
+                // With the smart limit on, the rule is about the level it holds now.
+                RuleSentence(
+                    settings: settings,
+                    limit: settings.smartLimit ? min(limit, model.status?.smartLimit?.target ?? limit) : limit,
+                    unit: unit
+                )
+                .padding(.top, 10)
                 if settings.limit < ChargePolicy.macOSLimitAPIFloor, settings.calibrateEveryMonths == nil,
                     !calibrationTipDismissed
                 {
@@ -140,6 +168,43 @@ struct ControlPage: View {
                     .transition(.opacity)
                 }
             }
+        }
+    }
+
+    /// What the smart limit has learned and what it holds.
+    private func smartLimitDetail(_ settings: ChargeSettings) -> Text {
+        let limit = Text("\(settings.limit)%").foregroundStyle(.primary)
+        guard let smart = model.status?.smartLimit else {
+            return Text(
+                "Learns how much charge you use off the charger and holds only that much plus a reserve, never above \(limit)."
+            )
+        }
+        guard let target = smart.target, let usual = smart.usual else {
+            return Text(
+                "Learns how much charge you use off the charger. \(smart.sessions) of \(SmartLimit.minimumSessions) times unplugged recorded; it can start after \(SmartLimit.minimumSessions)."
+            )
+        }
+        let held = Text("\(target)%").foregroundStyle(.primary)
+        if smart.boosted {
+            return Text("\(settings.smartLimit ? "Holding" : "Would hold") \(held) for a trip in your calendar.")
+        }
+        return Text(
+            "\(settings.smartLimit ? "Holding" : "Would hold") \(held) now: off the charger you use up to \(usual)%, plus \(SmartLimit.reserve)% in reserve. Never above \(limit)."
+        )
+    }
+
+    private func setCalendarTrips(_ on: Bool) {
+        guard on else {
+            calendarTrips = false
+            model.checkCalendarTrips()
+            Confirmations.shared.show("Calendar trips off")
+            return
+        }
+        Task {
+            let granted = await CalendarTrips.shared.requestAccess()
+            calendarTrips = granted
+            model.checkCalendarTrips()
+            Confirmations.shared.show(granted ? "Calendar trips on" : "Calendar access not allowed")
         }
     }
 

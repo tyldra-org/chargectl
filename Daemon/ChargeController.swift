@@ -16,6 +16,8 @@ final class ChargeController {
     private static let failedReadsBeforeReconnect = 3
     /// Days kept in the long-term record: ten years.
     private static let dailyLimit = 3650
+    /// A stretch off the charger longer than this is dropped: the helper was likely stopped.
+    private static let longestSession: TimeInterval = 72 * 60 * 60
     /// The lowest charge the Mac may sleep at with wall power cut (see prepareForSleep).
     static let sleepReserve = 30
 
@@ -57,6 +59,11 @@ final class ChargeController {
     private var controlCheck = ControlCheck()
     /// One sample a day, oldest first.
     private var daily: [DailySample]
+    /// Stretches off the charger, oldest first, and when the current one began.
+    private var sessions: [UnplugSession]
+    private var unplugged: UnplugStart?
+    /// The smart limit's level for now, from sessions.
+    private var smartLimit: SmartLimit.Status?
     private var appliedLED: MagSafeLEDMode?
     private var timer: Timer?
     private var sleepWatcher: SleepWatcher?
@@ -111,6 +118,8 @@ final class ChargeController {
         if state.holdLevel != nil { state.phase = .sailing }
         history = store.loadLines(HistorySample.self, from: .history)
         daily = store.loadLines(DailySample.self, from: .daily)
+        sessions = store.loadLines(UnplugSession.self, from: .sessions)
+        unplugged = store.load(UnplugStart.self, from: .unplugged)
         logs = store.loadLines(LogEntry.self, from: .logs)
         historyLines = history.count
         logLines = logs.count
@@ -199,6 +208,9 @@ final class ChargeController {
             return
         }
         lastBattery = battery
+        trackUnplugged(battery, now: now)
+        smartLimit = SmartLimit.status(
+            sessions: sessions, now: now, maximum: settings.limit, tripUntil: settings.tripUntil)
         // One read of macOS's limit per tick: each is a call to PowerUIAgent.
         let macOSSetting = macOSLimit.flatMap { try? $0.current() }
         optimizedCharging = macOSLimit?.isOptimizedChargingEnabled()
@@ -521,7 +533,7 @@ final class ChargeController {
             version: DaemonIdentity.version, settings: settings, mode: state.mode, activity: activity,
             adapterEnabled: state.adapterEnabled, adapterKey: adapter?.key, lastError: lastError,
             optimizedChargingEnabled: optimizedCharging, controlProblem: controlCheck.problem,
-            skippedFullBy: state.skippedDeadline.flatMap { $0 > .now ? $0 : nil })
+            skippedFullBy: state.skippedDeadline.flatMap { $0 > .now ? $0 : nil }, smartLimit: smartLimit)
     }
 
     /// Hands the app's view of the helper to the XPC service.
@@ -559,9 +571,10 @@ final class ChargeController {
             state.mode = .topUp
             log("top up to 100% started", source: .chargectl)
         case .discharge:
-            guard percent > settings.limit else { return "The battery is already at or below \(settings.limit)%." }
-            state.mode = .discharge(to: settings.limit)
-            log("discharge to \(settings.limit)% started", source: .chargectl)
+            let limit = effectiveSettings.limit
+            guard percent > limit else { return "The battery is already at or below \(limit)%." }
+            state.mode = .discharge(to: limit)
+            log("discharge to \(limit)% started", source: .chargectl)
         case .calibrate:
             state.mode = .calibrate(.draining, since: .now)
             log("calibration started: draining to \(ChargePolicy.calibrationFloor)%", source: .chargectl)
@@ -616,6 +629,10 @@ final class ChargeController {
         save(state, to: .state)
         isHandedBack = true
         store.save(true, to: .handedBack)
+        // Nothing is watched while macOS manages charging, so a stretch off the charger now could
+        // not be measured to its end.
+        unplugged = nil
+        store.remove(.unplugged)
         activity = .off
         log("Chargectl quit; macOS manages charging until it opens again", source: .chargectl)
         publish()
@@ -710,15 +727,43 @@ final class ChargeController {
     /// The limit is kept by switching wall power rather than by macOS's own limit, which does not
     /// go this low on this Mac or is not available.
     private var holdsLimitWithWallPower: Bool {
-        effectiveSettings.isEnabled && state.mode == .automatic && settings.limit < 100
-            && (macOSLimit == nil || settings.limit < macOSLimitFloor)
+        effectiveSettings.isEnabled && state.mode == .automatic && effectiveSettings.limit < 100
+            && (macOSLimit == nil || effectiveSettings.limit < macOSLimitFloor)
     }
 
     /// Reports the adapter as missing when this Mac cannot be controlled, so the policy turns off.
+    /// With the smart limit on, the limit is its level for now, never above the user's limit.
     private var effectiveSettings: ChargeSettings {
         var settings = settings
         if adapter == nil { settings.isEnabled = false }
+        if settings.smartLimit, let target = smartLimit?.target { settings.limit = min(settings.limit, target) }
         return settings
+    }
+
+    /// Records each stretch off the charger. The charger counts as connected while wall power is
+    /// cut on purpose, so those are not stretches.
+    private func trackUnplugged(_ battery: BatterySnapshot, now: Date) {
+        if !battery.isPluggedIn {
+            guard unplugged == nil else { return }
+            let start = UnplugStart(date: now, percent: battery.percent)
+            unplugged = start
+            save(start, to: .unplugged)
+            return
+        }
+        guard let start = unplugged else { return }
+        unplugged = nil
+        if !isRemoved { store.remove(.unplugged) }
+        let length = now.timeIntervalSince(start.date)
+        // A helper that was stopped meanwhile cannot tell when the charger came back.
+        guard length >= SmartLimit.shortestSession, length <= Self.longestSession else { return }
+        let session = UnplugSession(
+            start: start.date, startPercent: start.percent, end: now, endPercent: battery.percent)
+        sessions.append(session)
+        append(session, to: .sessions)
+        if sessions.count > SmartLimit.keptSessions + 50 {
+            sessions.removeFirst(sessions.count - SmartLimit.keptSessions)
+            if !isRemoved { store.replaceLines(sessions, in: .sessions) }
+        }
     }
 
     /// Returns false when macOS refused a limit below 80% for the first time: from then on such
@@ -783,7 +828,7 @@ final class ChargeController {
         guard let adapter, !isHandedBack else { return }
         let connected = (try? adapter.isConnected()) ?? true
         if holdsLimitWithWallPower, let battery = lastBattery, battery.isPluggedIn,
-            battery.percent >= max(settings.lowerBound, Self.sleepReserve)
+            battery.percent >= max(effectiveSettings.lowerBound, Self.sleepReserve)
         {
             // macOS's own limit cannot hold this one while the Mac sleeps, so with the charger's
             // power on it would charge to macOS's limit or full. Cut, the battery only drifts down
@@ -793,7 +838,7 @@ final class ChargeController {
                 state.adapterEnabled = false
                 save(state, to: .state)
             }
-            log("sleeping with wall power cut to keep the \(settings.limit)% limit", source: .chargectl)
+            log("sleeping with wall power cut to keep the \(effectiveSettings.limit)% limit", source: .chargectl)
             return
         }
         guard !connected else { return }
@@ -883,4 +928,10 @@ final class ChargeController {
         lastError = message
         log(message, level: .warning)
     }
+}
+
+/// When the charger was unplugged and the charge then.
+nonisolated struct UnplugStart: Codable, Equatable, Sendable {
+    var date: Date
+    var percent: Int
 }

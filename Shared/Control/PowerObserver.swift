@@ -108,6 +108,12 @@ extension ChargeSettings {
         if fullBy != old.fullBy {
             lines.append("full by \(old.fullBy?.summary ?? "off") → \(fullBy?.summary ?? "off")")
         }
+        if smartLimit != old.smartLimit { lines.append("smart limit \(onOff(old.smartLimit)) → \(onOff(smartLimit))") }
+        if tripUntil != old.tripUntil {
+            lines.append(
+                tripUntil.map { "calendar trip at \($0.formatted(date: .abbreviated, time: .shortened))" }
+                    ?? "no calendar trip ahead")
+        }
         if calibrateEveryMonths != old.calibrateEveryMonths {
             func text(_ months: Int?) -> String { months.map { "every \($0) months" } ?? "off" }
             lines.append("auto calibration \(text(old.calibrateEveryMonths)) → \(text(calibrateEveryMonths))")

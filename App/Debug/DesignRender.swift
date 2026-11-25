@@ -81,6 +81,10 @@
                     })
             }
             shots.append(
+                Shot(name: "control-smart-limit", size: dashboard) {
+                    AnyView(DashboardView(model: Sample.model(smartLimit: true), initialPage: .control))
+                })
+            shots.append(
                 Shot(name: "control-low-limit", size: dashboard) {
                     AnyView(DashboardView(model: Sample.model(limit: 70), initialPage: .control))
                 })
@@ -399,7 +403,7 @@
         static func model(
             percent: Int = 61, service: ServiceState = .running, heat: Bool = false, enabled: Bool = true,
             tiles: Bool = false, warning: Bool = false, mode: ChargeMode = .automatic, manyLogs: Bool = false,
-            limit: Int = 80, calibrateEveryMonths: Int? = nil
+            limit: Int = 80, calibrateEveryMonths: Int? = nil, smartLimit: Bool = false
         ) -> AppModel {
             let charging = mode == .automatic && percent < 80
             let draining = mode != .automatic
@@ -418,6 +422,7 @@
             settings.isEnabled = enabled
             settings.limit = limit
             settings.calibrateEveryMonths = calibrateEveryMonths
+            settings.smartLimit = smartLimit
             let activity: ChargeActivity =
                 switch mode {
                 case .discharge(let target): .discharging(to: target)
@@ -428,7 +433,8 @@
                 ? DaemonStatus(
                     version: DaemonIdentity.version, settings: settings, mode: mode,
                     activity: enabled ? activity : .off,
-                    adapterEnabled: !draining, adapterKey: "CHIE", lastError: nil, optimizedChargingEnabled: false)
+                    adapterEnabled: !draining, adapterKey: "CHIE", lastError: nil, optimizedChargingEnabled: false,
+                    smartLimit: SmartLimit.Status(target: 55, usual: 34, sessions: 23))
                 : nil
             return AppModel(
                 preview: battery, status: status, service: service, history: history(),

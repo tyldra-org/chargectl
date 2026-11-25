@@ -16,6 +16,10 @@ struct Store {
         case daily
         /// Present while Chargectl is quit and macOS manages charging.
         case handedBack
+        /// Stretches off the charger, for the smart limit (UnplugSession).
+        case sessions
+        /// When the charger was unplugged, while it is.
+        case unplugged
     }
 
     static let system = Store(

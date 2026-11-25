@@ -34,6 +34,8 @@ final class AppModel {
     /// third second.
     private static let refreshInterval = Duration.seconds(1)
     private static let serviceEvery = 3
+    /// Seconds between looks at the calendar for trips.
+    private static let calendarEvery = 15 * 60
     /// How long an installed helper may be unreachable while it starts or restarts.
     private static let helperStartGrace: TimeInterval = 20
     private static let conflictingApps = [
@@ -85,6 +87,7 @@ final class AppModel {
                 } else {
                     self?.readBattery()
                 }
+                if tick % Self.calendarEvery == 5 { self?.checkCalendarTrips() }
                 tick += 1
                 try? await Task.sleep(for: Self.refreshInterval)
             }
@@ -357,6 +360,16 @@ final class AppModel {
     func loadLogs() async {
         if isPreview { return }
         logs = (try? await client.logs()) ?? []
+    }
+
+    /// Keeps the helper's trip time in step with the calendar while the smart limit uses it, and
+    /// clears it otherwise.
+    func checkCalendarTrips() {
+        guard let settings = status?.settings, !isPreview else { return }
+        let uses = settings.smartLimit && UserDefaults.standard.bool(forKey: PreferenceKey.calendarTrips)
+        let trip = uses ? CalendarTrips.shared.nextTrip() : nil
+        guard trip != settings.tripUntil else { return }
+        update { $0.tripUntil = trip }
     }
 
     func update(_ change: (inout ChargeSettings) -> Void) {
