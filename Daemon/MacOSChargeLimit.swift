@@ -33,6 +33,8 @@ nonisolated final class MacOSChargeLimit: @unchecked Sendable {
     /// PowerUIAgent applies whatever this key holds when it reloads them.
     nonisolated(unsafe) private static let preferencesDomain = "com.apple.smartcharging.topoffprotection" as CFString
     nonisolated(unsafe) private static let limitKey = "mclLimitValue" as CFString
+    /// Present while a temporary override is in force (PowerUIAgent's spelling).
+    nonisolated(unsafe) private static let overrideKey = "MCLOverridenUntilDate" as CFString
     private static let reloadNotification = "com.apple.smartcharging.defaultschanged"
 
     private typealias InitFunction = @convention(c) (AnyObject, Selector, NSString) -> AnyObject?
@@ -92,6 +94,7 @@ nonisolated final class MacOSChargeLimit: @unchecked Sendable {
         if setting.isEnabled {
             try set(limit: setting.limit)
         } else {
+            try clearOverride()
             try call("disableMCL:")
         }
     }
@@ -99,7 +102,12 @@ nonisolated final class MacOSChargeLimit: @unchecked Sendable {
     func set(limit: Int) throws {
         if limit >= ChargePolicy.macOSLimitRange.upperBound {
             // Charging to 100% is macOS's limit switched off; see MacOSLimitTarget.
-            if try current().isEnabled { try call("disableMCL:") }
+            guard try current().isEnabled else { return }
+            // A temporary override keeps the user's limit in macOS: PowerUIAgent saves it and puts
+            // it back by itself the next morning, also when Chargectl stops partway through a job.
+            // macOS then reports its limit as off at 100%.
+            if overrideTarget(to: limit), try !current().isEnabled { return }
+            try call("disableMCL:")
             return
         }
         guard limit < ChargePolicy.macOSLimitAPIFloor else { return try setThroughAPI(limit) }
@@ -152,6 +160,31 @@ nonisolated final class MacOSChargeLimit: @unchecked Sendable {
         let existing = CFPreferencesCopyValue(
             limitKey, preferencesDomain, kCFPreferencesCurrentUser, kCFPreferencesCurrentHost)
         return existing == nil ? kCFPreferencesAnyHost : kCFPreferencesCurrentHost
+    }
+
+    /// Asks PowerUIAgent to charge to `limit` for now. It accepts only the limits it offers
+    /// (80, 85, 90, 95 and 100) and records the override with the limit to return to.
+    private func overrideTarget(to limit: Int) -> Bool {
+        let selector = "temporarilyOverrideMCLTargetSoC:error:"
+        guard (client as? NSObject)?.responds(to: Selector(selector)) == true else { return false }
+        var error: NSError?
+        return Self.function(client, selector, SetFunction.self)(client, Selector(selector), UInt8(limit), &error)
+            && error == nil
+    }
+
+    /// Ends an override from overrideTarget(to:). An override reads like the limit switched off,
+    /// so PowerUIAgent's own record of it decides. Setting any accepted limit ends it; switching
+    /// the limit off alone would leave PowerUIAgent to put the saved limit back later.
+    private func clearOverride() throws {
+        guard Self.isOverridden else { return }
+        try setThroughAPI(ChargePolicy.macOSLimitAPIFloor)
+    }
+
+    private static var isOverridden: Bool {
+        [kCFPreferencesAnyHost, kCFPreferencesCurrentHost].contains { host in
+            CFPreferencesSynchronize(preferencesDomain, kCFPreferencesCurrentUser, host)
+            return CFPreferencesCopyValue(overrideKey, preferencesDomain, kCFPreferencesCurrentUser, host) != nil
+        }
     }
 
     private func setThroughAPI(_ limit: Int) throws {
