@@ -80,6 +80,7 @@ switch options and drag the white marker to change the limit.
 | | |
 | --- | --- |
 | **Charge limit, 20% to 100%** | Charging stops at the limit and the Mac runs on the charger. The battery is not used to hold it. |
+| **Smart limit (beta)** | Learns how much charge you use each time you unplug, and holds that plus a 20% reserve, from 50% up to your limit. With calendar trips on, holds your full limit before flights, trains and trips in the next day. Off unless you turn it on. |
 | **Sailing** | After reaching the limit, the charge may drift down a few percent before charging resumes, so the battery is not topped up all day. |
 | **Above the limit** | Plugged in above the limit, either hold the current charge or discharge down to the limit. |
 | **Overcharge guard** | When macOS charges past the limit anyway (its occasional charge to 100%, or "Charge to Full Now"), Chargectl brings the battery back. |
@@ -92,9 +93,10 @@ switch options and drag the white marker to change the limit.
 | **Energy by app** | The apps using significant energy, averaged over the last minute, with each app's helpers and commands counted for it. |
 | **History and logs** | 24 hours of charge, temperature and power, and a log of what the battery and Chargectl did. |
 | **Health over time** | One summary a day, kept for years: health, cycles, hours at 90% or more and the warmest moment. |
+| **Ageing avoided** | An estimate of the battery ageing Chargectl saved, from the charge and temperature each minute, against macOS charging to 100% whenever plugged in. |
 | **Widgets and controls** | Widgets in every size for the charge, power, health, today, Full by, time left and quick controls; Control Center controls for charge control, Top Up, Discharge and Full by. |
 | **Shortcuts and notifications** | Shortcuts actions for the limit, jobs and Full by. Notifications for problems, finished jobs and the limit. |
-| **Checks** | Warns when the charger is too weak to run the Mac, or when cutting wall power stops working after an update. |
+| **Checks** | Warns when the charger is too weak to run the Mac, when cutting wall power stops working after an update, or when the battery's cells stay far apart at rest. |
 | **Automatic updates** | New releases install themselves while Chargectl's windows are closed, checked against their checksum and code signature. On by default; Settings › Updates. |
 | **Clean removal** | Uninstall restores normal charging and your macOS limit, and removes every file Chargectl added, including its caches, widget data and Dock tile. Dragging the app to the Trash does the same within a few minutes, through the helper. |
 

@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-11-25
+
 ### Added
 
 - **Ageing avoided.** History › Battery health over time estimates how much
@@ -534,7 +536,8 @@ MacBooks, from the menu bar.
   hands charging back to macOS and removes every file Chargectl added.
 - **Homebrew.** `brew install --cask tyldra-org/tools/chargectl`.
 
-[Unreleased]: https://github.com/tyldra-org/chargectl/compare/v0.2.10...HEAD
+[Unreleased]: https://github.com/tyldra-org/chargectl/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/tyldra-org/chargectl/compare/v0.2.10...v0.3.0
 [0.2.10]: https://github.com/tyldra-org/chargectl/compare/v0.2.9...v0.2.10
 [0.2.9]: https://github.com/tyldra-org/chargectl/compare/v0.2.8...v0.2.9
 [0.2.8]: https://github.com/tyldra-org/chargectl/compare/v0.2.7...v0.2.8
