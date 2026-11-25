@@ -331,24 +331,27 @@ import Testing
         #expect(atLowerBound.activity == .charging(to: 55))
     }
 
-    /// The reported case: limit 70%, sailing 8%, plugged in at 67%. macOS had already started
-    /// charging toward 70% and kept going after its limit was lowered to 67%. The sailing level
-    /// stays at 67% instead of following that charge up, and the overshoot cuts wall power.
+    /// After a reported case: limit 70%, sailing 8%, plugged in inside the band (63% here). macOS
+    /// had already started charging and kept going after its limit was lowered to 63%. The sailing
+    /// level stays at 63% instead of following that charge up; a charge well past it cuts wall power.
     @Test func sailingNeverRaisesTheLevelWhileCharging() {
         let settings = ChargeSettings.limit(70, sailing: 8)
-        let pluggedIn = plugged(67, charging: true, settings: settings, state: ControlState())
-        #expect(pluggedIn.macOSLimit == 67)
-        #expect(pluggedIn.activity == .sailingHold(67, resumeAt: 62))
-        let overshoot = plugged(68, charging: true, settings: settings, state: pluggedIn.state)
-        #expect(overshoot.macOSLimit == 67)
+        let pluggedIn = plugged(63, charging: true, settings: settings, state: ControlState())
+        #expect(pluggedIn.macOSLimit == 63)
+        #expect(pluggedIn.activity == .sailingHold(63, resumeAt: 62))
+        let finishing = plugged(65, charging: true, settings: settings, state: pluggedIn.state)
+        #expect(finishing.macOSLimit == 63)
+        #expect(finishing.state.adapterEnabled)
+        let overshoot = plugged(66, charging: true, settings: settings, state: finishing.state)
+        #expect(overshoot.macOSLimit == 63)
         #expect(!overshoot.state.adapterEnabled)
-        #expect(overshoot.activity == .stoppedOvercharge(67))
-        let cut = plugged(68, charging: false, settings: settings, state: overshoot.state)
+        #expect(overshoot.activity == .stoppedOvercharge(63))
+        let cut = plugged(66, charging: false, settings: settings, state: overshoot.state)
         #expect(!cut.state.adapterEnabled)
-        let back = plugged(67, charging: false, settings: settings, state: cut.state)
+        let back = plugged(63, charging: false, settings: settings, state: cut.state)
         #expect(back.state.adapterEnabled)
-        #expect(back.macOSLimit == 67)
-        #expect(back.activity == .sailingHold(67, resumeAt: 62))
+        #expect(back.macOSLimit == 63)
+        #expect(back.activity == .sailingHold(63, resumeAt: 62))
     }
 
     @Test func sailingLevelFollowsTheChargeDownAndUpOnlyWhenIdle() {
@@ -377,9 +380,10 @@ import Testing
         #expect(unplugged(50).macOSLimit == 70)
     }
 
-    /// The rest of the reported case: macOS kept charging past 70%. A reading without current in
-    /// the middle of that charge must not start a hold above the limit, and a hold must not
-    /// follow the charge up; the charge is brought back to the limit instead.
+    /// The rest of that case: macOS kept charging past 70%. Its limit is measured against its own
+    /// charge figure, which can sit below the gauge, so it ends a point or two past 70%. That charge
+    /// is left to finish on the charger and is not held: a hold would raise macOS's limit to the
+    /// reading and start the next charge. Only a charge well past the limit cuts wall power.
     @Test func aChargeClimbingPastTheLimitIsNotHeld() {
         var settings = ChargeSettings.limit(70, sailing: 8)
         settings.autoDischarge = false
@@ -391,16 +395,57 @@ import Testing
                 settings: settings, state: state, now: now.addingTimeInterval(seconds))
         }
         let holding = at(0, 70, charging: true, ControlState())
-        let climbing = at(3, 71, charging: true, holding.state)
+        let climbing = at(3, 72, charging: true, holding.state)
         #expect(climbing.state.holdLevel == nil)
-        #expect(!climbing.state.adapterEnabled)
-        let gap = at(6, 71, charging: false, climbing.state)
-        #expect(gap.state.holdLevel == nil)
-        #expect(!gap.state.adapterEnabled)
-        let back = at(300, 70, charging: false, gap.state)
+        #expect(climbing.state.adapterEnabled)
+        #expect(climbing.macOSLimit == 70)
+        let settled = at(400, 72, charging: false, climbing.state)
+        #expect(settled.state.holdLevel == nil)
+        #expect(settled.state.adapterEnabled)
+        #expect(settled.macOSLimit == 70)
+        #expect(settled.activity == .holdingAbove(72))
+        let runaway = at(403, 73, charging: true, settled.state)
+        #expect(!runaway.state.adapterEnabled)
+        #expect(runaway.activity == .stoppedOvercharge(70))
+        let back = at(900, 70, charging: false, runaway.state)
         #expect(back.state.adapterEnabled)
         #expect(back.macOSLimit == 70)
         #expect(back.activity == .holding(70))
+    }
+
+    /// The loop from the helper's log: limit 70%, sailing 10%, automatic discharge off. Each time
+    /// wall power came back at 70%, macOS charged to 71%, the helper cut wall power and ran the Mac
+    /// on battery back to 70%, every 20 minutes. Now the charge ends on the charger.
+    @Test func macOSChargingAPointPastTheLimitDoesNotLoop() {
+        var settings = ChargeSettings.limit(70, sailing: 10)
+        settings.autoDischarge = false
+        var state = ControlState(phase: .sailing)
+        state.wasPluggedIn = true
+        state.sailingLevel = 70
+        state.lastLimit = 70
+        state.lastAutoDischarge = false
+        let reconnected = plugged(70, charging: true, settings: settings, state: state)
+        #expect(reconnected.state.adapterEnabled)
+        let past = plugged(71, charging: true, settings: settings, state: reconnected.state)
+        #expect(past.state.adapterEnabled)
+        #expect(!past.state.overchargeCut)
+        #expect(past.macOSLimit == 70)
+        #expect(!past.activity.isDraining)
+    }
+
+    /// With automatic discharge on, running on battery to take back a point macOS charged past the
+    /// limit would only make macOS charge it again on reconnecting.
+    @Test func autoDischargeLeavesMacOSsOwnOvershoot() {
+        var state = ControlState(phase: .sailing)
+        state.wasPluggedIn = true
+        state.lastLimit = 70
+        state.lastAutoDischarge = true
+        let past = plugged(72, charging: false, settings: .limit(70, sailing: 10), state: state)
+        #expect(past.state.adapterEnabled)
+        #expect(past.macOSLimit == 70)
+        let lowered = plugged(72, charging: false, settings: .limit(65, sailing: 10), state: past.state)
+        #expect(!lowered.state.adapterEnabled)
+        #expect(lowered.activity == .aboveLimit(65))
     }
 
     @Test func aHoldFollowsARisingReadingOnlyOnceTheBatteryHasSettled() {
@@ -455,18 +500,20 @@ import Testing
             settings: settings, state: state, now: now)
     }
 
-    /// macOS's occasional charge to 100%: the battery keeps charging past the limit.
+    /// macOS's occasional charge to 100%: the battery keeps charging well past the limit.
     @Test func chargingPastTheLimitCutsWallPowerUntilBackAtIt() {
         var settings = ChargeSettings.limit(80, sailing: 5)
         settings.autoDischarge = false
         let atLimit = plugged(80, charging: false, settings: settings, state: ControlState())
         #expect(atLimit.state.adapterEnabled)
-        let overshoot = plugged(81, charging: true, settings: settings, state: atLimit.state)
+        let finishing = plugged(82, charging: true, settings: settings, state: atLimit.state)
+        #expect(finishing.state.adapterEnabled)
+        let overshoot = plugged(83, charging: true, settings: settings, state: finishing.state)
         #expect(overshoot.state.holdLevel == nil)
         #expect(overshoot.state.lastLimit == 80)
         #expect(!overshoot.state.adapterEnabled)
         #expect(overshoot.activity == .stoppedOvercharge(80))
-        let draining = plugged(81, charging: false, settings: settings, state: overshoot.state)
+        let draining = plugged(82, charging: false, settings: settings, state: overshoot.state)
         #expect(!draining.state.adapterEnabled)
         let back = plugged(80, charging: false, settings: settings, state: draining.state)
         #expect(back.state.adapterEnabled)
@@ -488,7 +535,8 @@ import Testing
         #expect(decision.activity == .holdingAbove(61))
     }
 
-    /// macOS stopped charging a percent past the limit: not an overshoot to discharge from.
+    /// macOS stopped charging a percent past the limit: not an overshoot to discharge from, and
+    /// macOS's limit stays where macOS stopped, so it does not start another charge.
     @Test func restingPastTheLimitHolds() {
         var settings = ChargeSettings.limit(60, sailing: 5)
         settings.autoDischarge = false
@@ -501,8 +549,10 @@ import Testing
                 percent: 61, isPluggedIn: true, temperature: 30, canSetMacOSLimit: true, isCharging: false,
                 macOSLimitFloor: 20),
             settings: settings, state: past.state, now: now.addingTimeInterval(ChargePolicy.settledAfter))
-        #expect(settled.state.holdLevel == 61)
+        #expect(settled.state.holdLevel == nil)
+        #expect(settled.macOSLimit == 60)
         #expect(settled.state.adapterEnabled)
+        #expect(settled.activity == .holdingAbove(61))
     }
 
     /// After a restart the gauge read 62% while the hold was 61%; macOS's limit at 61% discharged
