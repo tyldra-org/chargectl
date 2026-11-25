@@ -108,6 +108,10 @@ extension ChargeSettings {
         if fullBy != old.fullBy {
             lines.append("full by \(old.fullBy?.summary ?? "off") → \(fullBy?.summary ?? "off")")
         }
+        if calibrateEveryMonths != old.calibrateEveryMonths {
+            func text(_ months: Int?) -> String { months.map { "every \($0) months" } ?? "off" }
+            lines.append("auto calibration \(text(old.calibrateEveryMonths)) → \(text(calibrateEveryMonths))")
+        }
         return lines
     }
 }

@@ -5,6 +5,7 @@ struct ControlPage: View {
     @AppStorage(PreferenceKey.temperatureUnit) private var unit = TemperatureUnit.systemDefault
     @State private var draftLimit: Int?
     @State private var confirmingOff = false
+    @AppStorage(PreferenceKey.calibrationTipDismissed) private var calibrationTipDismissed = false
 
     var body: some View {
         if let settings = model.settings, model.isControllable {
@@ -21,6 +22,7 @@ struct ControlPage: View {
                             master(settings).settleIn(2)
                             heat(settings).dimmed(!settings.isEnabled).settleIn(4)
                             magSafe(settings).dimmed(!settings.isEnabled).settleIn(5)
+                            calibration(settings).dimmed(!settings.isEnabled).settleIn(6)
                         }
                     }
                 }
@@ -124,6 +126,19 @@ struct ControlPage: View {
                 .padding(.top, 6)
                 RuleSentence(settings: settings, limit: limit, unit: unit)
                     .padding(.top, 10)
+                if settings.limit < ChargePolicy.macOSLimitAPIFloor, settings.calibrateEveryMonths == nil,
+                    !calibrationTipDismissed
+                {
+                    CalibrationTip(
+                        turnOn: {
+                            setCalibration(ChargeSettings.calibrationMonthsRange.lowerBound)
+                            calibrationTipDismissed = true
+                        },
+                        dismiss: { withAnimation(.easeOut(duration: 0.2)) { calibrationTipDismissed = true } }
+                    )
+                    .padding(.top, 14)
+                    .transition(.opacity)
+                }
             }
         }
     }
@@ -234,6 +249,54 @@ struct ControlPage: View {
                 .padding(.top, 6)
             }
         }
+    }
+
+    // MARK: Calibration
+
+    private func calibration(_ settings: ChargeSettings) -> some View {
+        let months = settings.calibrateEveryMonths
+        return Panel {
+            VStack(alignment: .leading, spacing: 0) {
+                PanelHeader(title: "Calibration", symbol: "arrow.clockwise")
+                SettingRow(
+                    title: "Calibrate automatically",
+                    detail: Text(
+                        "Keeps the battery percentage accurate. The first time the Mac is on the charger once it’s due, the battery runs down to \(ChargePolicy.calibrationFloor)%, charges to 100%, rests for an hour, then goes back to \(Text("\(settings.limit)%").foregroundStyle(.primary)). Takes several hours."
+                    ), divider: false
+                ) {
+                    Toggle(
+                        "",
+                        isOn: Binding(
+                            get: { months != nil },
+                            set: { setCalibration($0 ? ChargeSettings.calibrationMonthsRange.lowerBound : nil) })
+                    )
+                    .toggleStyle(GlowSwitchStyle())
+                    .labelsHidden()
+                    .accessibilityLabel("Calibrate automatically")
+                }
+                .padding(.top, 6)
+                if let months {
+                    HStack {
+                        Text("How often").font(.system(size: 13, weight: .medium))
+                        Spacer()
+                        SlidingSegments(
+                            options: ChargeSettings.calibrationMonthsRange.map { ($0, "Every \($0) months") },
+                            selection: Binding(get: { months }, set: { setCalibration($0) }))
+                    }
+                    .padding(.vertical, 12)
+                    .overlay(alignment: .top) { Rectangle().fill(Theme.line).frame(height: 1) }
+                    .transition(.opacity.combined(with: .scale(scale: 0.98, anchor: .top)))
+                }
+            }
+            .animation(.spring(response: 0.4, dampingFraction: 0.85), value: months != nil)
+        }
+    }
+
+    private func setCalibration(_ months: Int?) {
+        withAnimation(.spring(response: 0.35, dampingFraction: 0.86)) {
+            model.update { $0.calibrateEveryMonths = months }
+        }
+        Confirmations.shared.show(months.map { "Calibration every \($0) months" } ?? "Automatic calibration off")
     }
 
     // MARK: Full by
@@ -413,6 +476,41 @@ struct ControlPage: View {
 }
 
 // MARK: - Parts
+
+/// Shown once, under a limit below 80%: macOS's own limit is set the unofficial way there, and the
+/// battery's percentage can drift from its real charge, so it offers automatic calibration.
+private struct CalibrationTip: View {
+    let turnOn: () -> Void
+    let dismiss: () -> Void
+
+    var body: some View {
+        HStack(alignment: .center, spacing: 12) {
+            Image(systemName: "lightbulb")
+                .font(.system(size: 14, weight: .medium))
+                .foregroundStyle(Theme.accent)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Keep the percentage accurate").font(.system(size: 12.5, weight: .semibold))
+                Text(
+                    "Below 80%, the percentage can drift from the battery’s real charge. Calibrating every 2 to 3 months keeps it accurate."
+                )
+                .font(.system(size: 12))
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 8)
+            Button("Not Now", action: dismiss)
+                .buttonStyle(.plain)
+                .font(.system(size: 12))
+                .foregroundStyle(.secondary)
+            Button("Calibrate Every 2 Months", action: turnOn)
+                .buttonStyle(SoftButtonStyle(small: true))
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .background(Theme.accentSoft, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .accessibilityElement(children: .contain)
+    }
+}
 
 private struct TightLabelStyle: LabelStyle {
     let tint: Color

@@ -48,6 +48,8 @@ nonisolated enum ChargePolicy {
     /// limit against its own charge figure, which can sit a point or two below the gauge, so a
     /// charge to 70% can end at 71% or 72%. Cutting wall power there only starts the charge again.
     static let overshootAllowance = 2
+    /// A month, for automatic calibration's schedule.
+    static let calibrationMonth: TimeInterval = 30 * 24 * 60 * 60
 
     static func decide(
         _ input: PolicyInput, settings: ChargeSettings, state: ControlState, now: Date
@@ -60,7 +62,11 @@ nonisolated enum ChargePolicy {
         let native = input.canSetMacOSLimit
 
         state.heatPaused = heatPaused(input.temperature, settings: settings, wasPaused: state.heatPaused)
-        let event = advance(&state.mode, percent: input.percent, fullBy: input.fullBy, now: now)
+        let wasCalibrating = state.mode.isCalibration
+        var event = advance(&state.mode, percent: input.percent, fullBy: input.fullBy, now: now)
+        let calibration = scheduleCalibration(
+            &state, wasCalibrating: wasCalibrating, canStart: event == nil, input: input, settings: settings, now: now)
+        event = event ?? calibration
         let settingsChanged = state.lastLimit != settings.limit || state.lastAutoDischarge != settings.autoDischarge
         state.lastLimit = settings.limit
         state.lastAutoDischarge = settings.autoDischarge
@@ -191,6 +197,32 @@ nonisolated enum ChargePolicy {
         guard state.overchargeCut else { return }
         result.adapterEnabled = false
         result.activity = .stoppedOvercharge(ceiling)
+    }
+
+    /// Keeps automatic calibration's count and starts a calibration once its months have passed,
+    /// the first time the Mac is on the charger. Returns a log line when one starts.
+    private static func scheduleCalibration(
+        _ state: inout ControlState, wasCalibrating: Bool, canStart: Bool, input: PolicyInput,
+        settings: ChargeSettings, now: Date
+    ) -> String? {
+        guard let months = settings.calibrateEveryMonths else {
+            state.calibrationCountedFrom = nil
+            return nil
+        }
+        if wasCalibrating || state.mode.isCalibration {
+            // Counted from when this one ends, whether it finished or was stopped.
+            state.calibrationCountedFrom = now
+            return nil
+        }
+        guard let from = state.calibrationCountedFrom else {
+            state.calibrationCountedFrom = now
+            return nil
+        }
+        guard canStart, state.mode == .automatic, input.isPluggedIn,
+            now.timeIntervalSince(from) >= Double(months) * calibrationMonth
+        else { return nil }
+        state.mode = .calibrate(.draining, since: now)
+        return "automatic calibration started: down to \(calibrationFloor)%, then up to 100%"
     }
 
     private static func unpluggedMacOSLimit(settings: ChargeSettings, mode: ChargeMode, input: PolicyInput) -> Int? {

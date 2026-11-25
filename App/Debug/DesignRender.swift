@@ -81,6 +81,15 @@
                     })
             }
             shots.append(
+                Shot(name: "control-low-limit", size: dashboard) {
+                    AnyView(DashboardView(model: Sample.model(limit: 70), initialPage: .control))
+                })
+            shots.append(
+                Shot(name: "control-calibration-scrolled", size: CGSize(width: 1080, height: 1560)) {
+                    AnyView(
+                        DashboardView(model: Sample.model(limit: 70, calibrateEveryMonths: 3), initialPage: .control))
+                })
+            shots.append(
                 Shot(name: "control-heat-off", size: dashboard) {
                     AnyView(DashboardView(model: Sample.model(heat: true, enabled: false), initialPage: .control))
                 })
@@ -389,7 +398,8 @@
     enum Sample {
         static func model(
             percent: Int = 61, service: ServiceState = .running, heat: Bool = false, enabled: Bool = true,
-            tiles: Bool = false, warning: Bool = false, mode: ChargeMode = .automatic, manyLogs: Bool = false
+            tiles: Bool = false, warning: Bool = false, mode: ChargeMode = .automatic, manyLogs: Bool = false,
+            limit: Int = 80, calibrateEveryMonths: Int? = nil
         ) -> AppModel {
             let charging = mode == .automatic && percent < 80
             let draining = mode != .automatic
@@ -405,6 +415,8 @@
             settings.heatProtection = heat || tiles
             settings.autoDischarge = tiles
             settings.isEnabled = enabled
+            settings.limit = limit
+            settings.calibrateEveryMonths = calibrateEveryMonths
             let activity: ChargeActivity =
                 switch mode {
                 case .discharge(let target): .discharging(to: target)

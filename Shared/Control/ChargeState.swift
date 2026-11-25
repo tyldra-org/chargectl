@@ -18,6 +18,11 @@ nonisolated enum ChargeMode: Codable, Equatable, Sendable {
     /// Charging to 100% for a Full by time, held there until it passes.
     case fullBy(Date)
 
+    var isCalibration: Bool {
+        if case .calibrate = self { return true }
+        return false
+    }
+
     var title: String {
         switch self {
         case .automatic: "automatic"
@@ -78,6 +83,9 @@ nonisolated struct ControlState: Codable, Equatable, Sendable {
     /// reading only after the battery has been idle for a while: a single reading without
     /// current in the middle of a charge is not a settled battery.
     var lastChargingAt: Date?
+    /// With automatic calibration on: when the last calibration ended, or when automatic
+    /// calibration was turned on. The next one starts that many months later. nil while it is off.
+    var calibrationCountedFrom: Date?
 
     var holdLevel: Int? { phase.holdLevel }
     var isSailing: Bool { phase.isSailing }
@@ -115,11 +123,12 @@ nonisolated struct ControlState: Codable, Equatable, Sendable {
         skippedDeadline = try container.decodeIfPresent(Date.self, forKey: .skippedDeadline)
         sailingLevel = try container.decodeIfPresent(Int.self, forKey: .sailingLevel)
         lastChargingAt = try container.decodeIfPresent(Date.self, forKey: .lastChargingAt)
+        calibrationCountedFrom = try container.decodeIfPresent(Date.self, forKey: .calibrationCountedFrom)
     }
 
     private enum CodingKeys: String, CodingKey {
         case mode, adapterEnabled, heatPaused, phase, wasPluggedIn, overchargeCut, lastLimit, lastAutoDischarge
-        case skippedDeadline, sailingLevel, lastChargingAt
+        case skippedDeadline, sailingLevel, lastChargingAt, calibrationCountedFrom
     }
 
     private enum LegacyKeys: String, CodingKey {

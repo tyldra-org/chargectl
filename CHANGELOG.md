@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **Automatic calibration every 2 or 3 months.** Control › Calibration can run
+  Calibrate on a schedule: the first time the Mac is on the charger once it is
+  due, the battery runs down to 15%, charges to 100%, rests for an hour and
+  goes back to your limit. It is off unless you turn it on, and counts from
+  the last calibration, including one you started yourself.
+- **A one-time tip for limits below 80%.** Below 80%, the battery's percentage
+  can drift from its real charge. The Control page offers automatic
+  calibration once, with Not Now to dismiss it for good.
+
 ## [0.2.8] - 2026-11-25
 
 ### Changed
