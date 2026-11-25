@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **Ageing avoided.** History › Battery health over time estimates how much
+  battery ageing Chargectl has saved, from the charge and temperature each
+  minute, against macOS charging to 100% whenever it is plugged in. Batteries
+  age faster at a high charge and when warm.
+- **Cell balance.** Overview shows how far apart the battery's cells are, and
+  Chargectl warns when they stay far apart at rest, which often comes before a
+  cell wears out.
+
 ## [0.2.10] - 2026-11-25
 
 ### Changed

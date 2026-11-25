@@ -820,7 +820,8 @@ final class ChargeController {
         if let last = history.last, now.timeIntervalSince(last.date) < Self.sampleInterval { return }
         let sample = HistorySample(
             date: now, percent: battery.percent, temperature: battery.temperature,
-            systemPower: battery.systemPower, wallPower: battery.wallPower, batteryPower: battery.batteryPower)
+            systemPower: battery.systemPower, wallPower: battery.wallPower, batteryPower: battery.batteryPower,
+            pluggedIn: battery.isPluggedIn)
         history.append(sample)
         let cutoff = now.addingTimeInterval(-Self.historyWindow)
         history.removeAll { $0.date < cutoff }
