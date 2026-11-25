@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- **Top Up, Calibrate and Full by keep your limit in macOS.** To charge to
+  100%, Chargectl now asks macOS for a temporary override instead of switching
+  macOS's charge limit off. macOS keeps your limit and puts it back by itself
+  the next morning, even if Chargectl stops partway through. Where macOS
+  refuses the override, Chargectl switches the limit off as before.
+
 ## [0.2.9] - 2026-11-25
 
 ### Added
