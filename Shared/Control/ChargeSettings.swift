@@ -39,6 +39,11 @@ nonisolated struct ChargeSettings: Codable, Equatable, Sendable {
     /// Run Calibrate every this many months, or nil for never: the first time the Mac is on the
     /// charger after that long since the last calibration, or since this was turned on.
     var calibrateEveryMonths: Int?
+    /// Hold what the user usually needs off the charger, up to limit (SmartLimit).
+    var smartLimit = false
+    /// A calendar trip starts then: the smart limit holds the full limit until it does. Set by the
+    /// app from the user's calendar.
+    var tripUntil: Date?
 
     /// Charging resumes at or below this percentage.
     var lowerBound: Int { max(limit - sailing, Self.limitRange.lowerBound) }
@@ -62,6 +67,8 @@ nonisolated struct ChargeSettings: Codable, Equatable, Sendable {
             try container.decodeIfPresent(MagSafeLEDMode.self, forKey: .magSafeLED) ?? defaults.magSafeLED
         fullBy = try container.decodeIfPresent(FullBySchedule.self, forKey: .fullBy)
         calibrateEveryMonths = try container.decodeIfPresent(Int.self, forKey: .calibrateEveryMonths)
+        smartLimit = try container.decodeIfPresent(Bool.self, forKey: .smartLimit) ?? defaults.smartLimit
+        tripUntil = try container.decodeIfPresent(Date.self, forKey: .tripUntil)
         self = normalized()
     }
 
@@ -96,6 +103,7 @@ nonisolated struct ChargeSettings: Codable, Equatable, Sendable {
             "LED \(magSafeLED.title)",
             "full by \(fullBy?.summary ?? "off")",
             "auto calibration \(calibrateEveryMonths.map { "every \($0) months" } ?? "off")",
+            "smart limit \(smartLimit ? "on" : "off")",
         ].joined(separator: " · ")
     }
 }

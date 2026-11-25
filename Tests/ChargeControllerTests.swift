@@ -12,6 +12,44 @@ import Testing
         #expect(rig.store.load(ChargeSettings.self, from: .settings)?.limit == 75)
     }
 
+    /// Each stretch off the charger is recorded, and with the smart limit on the helper works to its
+    /// level: here 10 points used each time, plus the reserve, rounded up to the 50% floor.
+    @Test func smartLimitLearnsFromStretchesOffTheCharger() {
+        var settings = ChargeSettings.limit(80, sailing: 0)
+        settings.smartLimit = true
+        let rig = Rig(settings: settings)
+        defer { rig.remove() }
+        rig.battery.percent = 70
+        rig.start()
+        var now = Date.now
+        for _ in 0..<6 {
+            rig.battery.pluggedIn = false
+            rig.controller.tick(now: now)
+            now += 3600
+            rig.battery.percent = 60
+            rig.battery.pluggedIn = true
+            rig.controller.tick(now: now)
+            now += 3600
+            rig.battery.percent = 70
+        }
+        let smart = rig.controller.status().smartLimit
+        #expect(smart?.sessions == 6)
+        #expect(smart?.usual == 10)
+        #expect(smart?.target == SmartLimit.lowest)
+        #expect(rig.store.loadLines(UnplugSession.self, from: .sessions).count == 6)
+        #expect(rig.controller.perform(.discharge) == nil)
+        #expect(rig.controller.logEntries().contains { $0.message == "discharge to 50% started" })
+    }
+
+    @Test func smartLimitOffKeepsTheUsersLimit() {
+        let rig = Rig(settings: .limit(80, sailing: 0))
+        defer { rig.remove() }
+        rig.battery.percent = 90
+        rig.start()
+        #expect(rig.controller.perform(.discharge) == nil)
+        #expect(rig.controller.logEntries().contains { $0.message == "discharge to 80% started" })
+    }
+
     @Test func firstRunWithTheMacOSLimitOffStartsAt100() {
         let rig = Rig(macOSLimit: .init(isEnabled: false, limit: 80))
         defer { rig.remove() }

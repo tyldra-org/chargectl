@@ -16,6 +16,8 @@ nonisolated struct DaemonStatus: Codable, Equatable, Sendable {
     /// The Full by time that was skipped or stopped, while it is still ahead. Helpers before 0.2.4
     /// do not send it.
     var skippedFullBy: Date? = nil
+    /// The smart limit's level and what it learned. Helpers before 0.3.0 do not send it.
+    var smartLimit: SmartLimit.Status? = nil
 }
 
 nonisolated struct HistorySample: Codable, Equatable, Sendable {

@@ -13,6 +13,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   battery ageing Chargectl has saved, from the charge and temperature each
   minute, against macOS charging to 100% whenever it is plugged in. Batteries
   age faster at a high charge and when warm.
+- **Smart limit (beta).** Off unless you turn it on in Control › Charging.
+  Instead of one number for every day, Chargectl records how much charge you
+  use each time you unplug, and holds what you use on nine days in ten plus a
+  20% reserve, from 50% up to your limit. Weekdays and weekends are counted
+  apart. It starts after 5 times unplugged and shows what it would hold before
+  you turn it on.
+- **Charge to your limit before trips.** With the smart limit on, Chargectl can
+  look in your calendar for flights, trains and trips in the next day and hold
+  your full limit until they start. Calendar access is asked for only when you
+  turn this on, and events stay on your Mac.
 - **Cell balance.** Overview shows how far apart the battery's cells are, and
   Chargectl warns when they stay far apart at rest, which often comes before a
   cell wears out.
