@@ -8,8 +8,7 @@ Each version's section is that release's notes on GitHub.
 
 <!--
 Section order: a one-sentence summary in bold (left out when the release has
-one entry), Action needed (always; "None. This release needs no changes
-from you." when there is nothing to do), Security, Highlights (3 to 5, only for large releases), then
+one entry), Security, Highlights (3 to 5, only for large releases), then
 Added, Changed, Deprecated, Removed, Fixed. Each entry is what a user now
 sees, with its pull request link. Credit outside contributors with
 "by @handle", which lists them under Contributors on the release.
@@ -18,10 +17,6 @@ sees, with its pull request link. Credit outside contributors with
 ## [Unreleased]
 
 ## [0.3.1] - 2026-11-25
-
-### Action needed
-
-None. This release needs no changes from you.
 
 ### Fixed
 
@@ -38,10 +33,6 @@ None. This release needs no changes from you.
 
 **Chargectl now estimates the battery ageing it has saved you, and can learn a
 limit from how you use your Mac.**
-
-### Action needed
-
-None. This release needs no changes from you.
 
 ### Added
 
@@ -65,10 +56,6 @@ None. This release needs no changes from you.
 
 ## [0.2.10] - 2026-11-25
 
-### Action needed
-
-None. This release needs no changes from you.
-
 ### Changed
 
 - **Top Up, Calibrate and Full by keep your limit in macOS.** To charge to
@@ -80,10 +67,6 @@ None. This release needs no changes from you.
 ## [0.2.9] - 2026-11-25
 
 **Chargectl can calibrate the battery gauge on a schedule.**
-
-### Action needed
-
-None. This release needs no changes from you.
 
 ### Added
 
@@ -101,14 +84,13 @@ None. This release needs no changes from you.
 **Quitting Chargectl now hands charging back to macOS, and a charge no longer
 loops between two points at the limit.**
 
-### Action needed
+### Changed
 
 - **Quit Chargectl now hands charging back to macOS.** Quitting from the menu
   bar stops the background helper as well: wall power is reconnected and your
-  own macOS charge limit and MagSafe light come back. To keep your limit held,
-  close the dashboard instead of quitting; closing it, logging out and shutting
-  down leave the helper running. Opening Chargectl again starts the helper and
-  takes over. ([#93](https://github.com/tyldra-org/chargectl/pull/93))
+  own macOS charge limit and MagSafe light come back. Opening Chargectl again
+  starts the helper and takes over. Closing the dashboard, logging out and
+  shutting down leave the helper running as before. ([#93](https://github.com/tyldra-org/chargectl/pull/93))
 
 ### Fixed
 
@@ -132,19 +114,13 @@ loops between two points at the limit.**
 **Updates after this one no longer ask for your password, and the menu bar
 offers Restart to Update.**
 
-### Action needed
-
-- **Enter your administrator password once more.** This update installs a
-  helper signed with Chargectl's own certificate and asks for the password a
-  last time. Later updates replace the helper without asking. ([#67](https://github.com/tyldra-org/chargectl/pull/67))
-
 ### Security
 
 - **Releases are signed with Chargectl's own certificate.** The helper now
   replaces itself only with a helper carrying that signature and takes
   commands only from an app carrying it, and the updater accepts only such a
   release. Updates after this one no longer ask for the administrator
-  password. ([#67](https://github.com/tyldra-org/chargectl/pull/67))
+  password; this one asks a last time, to install a signed helper. ([#67](https://github.com/tyldra-org/chargectl/pull/67))
 
 ### Added
 
@@ -164,10 +140,6 @@ offers Restart to Update.**
 
 **Plugging in inside the sailing range no longer charges the battery to the
 limit and past it.**
-
-### Action needed
-
-None. This release needs no changes from you.
 
 ### Fixed
 
@@ -189,10 +161,6 @@ None. This release needs no changes from you.
 
 ## [0.2.5] - 2026-11-10
 
-### Action needed
-
-None. This release needs no changes from you.
-
 ### Fixed
 
 - **Login Items lists the helper as "Chargectl Service" again**, instead of
@@ -206,10 +174,6 @@ None. This release needs no changes from you.
 
 **The Full By widget comes in every size, and a skipped full charge no longer
 shows as the next one.**
-
-### Action needed
-
-None. This release needs no changes from you.
 
 ### Added
 
@@ -241,10 +205,6 @@ None. This release needs no changes from you.
 
 **Uninstalling, or dragging Chargectl to the Trash, leaves nothing behind.**
 
-### Action needed
-
-None. This release needs no changes from you.
-
 ### Fixed
 
 - **Uninstall leaves nothing behind.** It now also removes the widgets'
@@ -262,10 +222,6 @@ None. This release needs no changes from you.
 ## [0.2.2] - 2026-11-08
 
 **Full by is set on a day track, and cards no longer stretch into empty space.**
-
-### Action needed
-
-None. This release needs no changes from you.
 
 ### Changed
 
@@ -294,10 +250,6 @@ None. This release needs no changes from you.
 
 **A new app icon, and the setup window loses its grey strip.**
 
-### Action needed
-
-None. This release needs no changes from you.
-
 ### Changed
 
 - **A new app icon.** It's the menu bar ring at Dock size: a green charge on a
@@ -316,13 +268,6 @@ None. This release needs no changes from you.
 helper now runs from a copy only root can change, and four charging bugs are
 fixed.
 
-### Action needed
-
-- **Restart your Mac once after updating.** A helper installed by an earlier
-  version moves to `/Library/PrivilegedHelperTools`, where only root can change
-  it, when the Mac next restarts. Until then it still runs from inside
-  Chargectl.app, which any program running as you could replace. ([#20](https://github.com/tyldra-org/chargectl/pull/20))
-
 ### Security
 
 - **Other programs can no longer replace the root helper.** launchd ran the
@@ -330,7 +275,8 @@ fixed.
   program running as you could replace that file and have it run as root
   without a password. Install Helper now copies the helper to
   `/Library/PrivilegedHelperTools`, owned by root, and launchd runs that copy.
-  ([#20](https://github.com/tyldra-org/chargectl/pull/20))
+  A helper installed by an earlier version moves itself there; this takes
+  effect when the Mac next restarts. ([#20](https://github.com/tyldra-org/chargectl/pull/20))
 - **Releases can be signed with Chargectl's own certificate.** Once they are,
   the updater accepts only that signature, the helper takes commands only from
   an app signed with it, and updates replace the helper without a password.
@@ -434,10 +380,6 @@ fixed.
 **The helper comes back by itself after a macOS update, and holding above the
 limit no longer discharges the battery.**
 
-### Action needed
-
-None. This release needs no changes from you.
-
 ### Fixed
 
 - **"Install the helper" after a macOS update.** A macOS update moves
@@ -455,10 +397,6 @@ None. This release needs no changes from you.
 
 ## [0.1.9] - 2026-10-27
 
-### Action needed
-
-None. This release needs no changes from you.
-
 ### Fixed
 
 - **Slow reopen after an automatic update.** The updated app now starts right
@@ -466,10 +404,6 @@ None. This release needs no changes from you.
   started after the update. ([#14](https://github.com/tyldra-org/chargectl/pull/14))
 
 ## [0.1.8] - 2026-10-27
-
-### Action needed
-
-None. This release needs no changes from you.
 
 ### Added
 
@@ -481,10 +415,6 @@ None. This release needs no changes from you.
   Updates. The Homebrew cask is marked as updating itself. ([#13](https://github.com/tyldra-org/chargectl/pull/13))
 
 ## [0.1.7] - 2026-10-27
-
-### Action needed
-
-None. This release needs no changes from you.
 
 ### Fixed
 
@@ -499,13 +429,6 @@ None. This release needs no changes from you.
 
 **Uninstall leaves nothing of Chargectl behind.**
 
-### Action needed
-
-- **Name the cask in full in Homebrew commands:**
-  `brew upgrade --cask tyldra-org/tools/chargectl`. Homebrew now loads casks
-  from other taps only when they are named in full, so the short name
-  `chargectl` no longer works. ([#11](https://github.com/tyldra-org/chargectl/pull/11))
-
 ### Fixed
 
 - **Dock tile.** Uninstall removes Chargectl from the Dock, whether pinned or
@@ -515,15 +438,14 @@ None. This release needs no changes from you.
   Homebrew's record of the cask. ([#11](https://github.com/tyldra-org/chargectl/pull/11))
 - **Crash reports.** Uninstall, `scripts/uninstall.sh` and `brew uninstall
   --zap` remove the crash reports macOS wrote for the helper. ([#11](https://github.com/tyldra-org/chargectl/pull/11))
+- **Homebrew commands.** Homebrew now loads casks from other taps only when they
+  are named in full, so the docs and the cask use `tyldra-org/tools/chargectl`.
+  ([#11](https://github.com/tyldra-org/chargectl/pull/11))
 
 ## [0.1.5] - 2026-10-21
 
 **The helper keeps working across updates and restarts, and holds the charge
 above the limit as it should.**
-
-### Action needed
-
-None. This release needs no changes from you.
 
 ### Changed
 
@@ -559,12 +481,6 @@ None. This release needs no changes from you.
 
 **Updates now restart the helper and reopen Chargectl by themselves.**
 
-### Action needed
-
-- **Restart the helper once if you are updating from 0.1.3 or earlier.** The
-  old helper never restarts into a new version by itself. Chargectl says so and
-  opens Login Items, where turning Chargectl off and on restarts it. ([#9](https://github.com/tyldra-org/chargectl/pull/9))
-
 ### Added
 
 - **Reopen after an update.** When Chargectl was running, the helper stops any
@@ -579,7 +495,8 @@ None. This release needs no changes from you.
 
 - **The helper follows the app again.** It never restarted into a new version
   and did not remove itself when the app was deleted, because it looked for its
-  own executable at a relative path. ([#9](https://github.com/tyldra-org/chargectl/pull/9))
+  own executable at a relative path. Updating from 0.1.3 or earlier needs one
+  restart of the helper; the app shows how. ([#9](https://github.com/tyldra-org/chargectl/pull/9))
 - **Version in Settings.** It always showed 0.1.0. ([#9](https://github.com/tyldra-org/chargectl/pull/9))
 - **Homebrew stops the app before an upgrade.** Chargectl turns Quit into
   closing its window, so the cask now stops it with a signal. ([#9](https://github.com/tyldra-org/chargectl/pull/9))
@@ -588,10 +505,6 @@ None. This release needs no changes from you.
 
 **The Estimate shows time to your limit, and a new card lists the apps using
 significant energy.**
-
-### Action needed
-
-None. This release needs no changes from you.
 
 ### Added
 
@@ -608,10 +521,6 @@ None. This release needs no changes from you.
 
 ## [0.1.2] - 2026-10-20
 
-### Action needed
-
-None. This release needs no changes from you.
-
 ### Fixed
 
 - **Uninstall clears Homebrew's record.** Settings › Uninstall Chargectl and
@@ -620,10 +529,6 @@ None. This release needs no changes from you.
   '/Applications/Chargectl.app' is not there". ([#6](https://github.com/tyldra-org/chargectl/pull/6))
 
 ## [0.1.1] - 2026-10-20
-
-### Action needed
-
-None. This release needs no changes from you.
 
 ### Fixed
 
@@ -636,10 +541,6 @@ None. This release needs no changes from you.
 
 **The first release of Chargectl: battery charge limits for Apple silicon
 MacBooks, from the menu bar.**
-
-### Action needed
-
-None. This is the first release.
 
 ### Added
 
