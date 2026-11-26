@@ -176,6 +176,8 @@ struct OverviewPage: View {
                 )
                 .frame(height: 132)
                 let total = max(mac + max(batteryPower, 0), 0.1)
+                // Not animated: the readings change every second, and easing the width on each
+                // change lays the whole page out again on every frame.
                 GeometryReader { geometry in
                     HStack(spacing: 2) {
                         Capsule().fill(Theme.mac).frame(width: geometry.size.width * mac / total)
@@ -186,7 +188,6 @@ struct OverviewPage: View {
                 }
                 .frame(height: 6)
                 .background(Theme.track, in: Capsule())
-                .animation(.easeOut(duration: 0.6), value: mac)
                 HStack(spacing: 16) {
                     legend(Theme.mac, "Mac \(Int((mac / total * 100).rounded()))%")
                     if charging {
@@ -248,7 +249,8 @@ struct OverviewPage: View {
                     HealthCell(
                         title: "Temperature",
                         value: battery.temperature.map { String(format: "%.1f", unit.value($0)) } ?? "–",
-                        unit: unit.symbol
+                        unit: unit.symbol,
+                        isLive: true
                     ) {
                         HStack(spacing: 6) {
                             Circle().fill(warm ? Theme.warn : Theme.accent).frame(width: 6, height: 6)
@@ -383,7 +385,6 @@ struct OverviewPage: View {
                                 Text(Format.watts(app.watts))
                                     .font(.system(size: 12.5))
                                     .monospacedDigit()
-                                    .rollingNumber(app.watts)
                                     .frame(minWidth: 48, alignment: .trailing)
                             }
                         }
@@ -688,6 +689,8 @@ private struct HealthCell<Footer: View>: View {
     let title: String
     let value: String
     let unit: String
+    /// A reading that changes every second, which changes without rolling digits.
+    var isLive = false
     @ViewBuilder var footer: Footer
 
     var body: some View {
@@ -698,7 +701,7 @@ private struct HealthCell<Footer: View>: View {
                     .font(.system(size: 24, weight: .medium))
                     .tracking(-0.5)
                     .monospacedDigit()
-                    .rollingNumber(value)
+                    .rollingNumber(value, isLive: isLive)
                 Text(unit).font(.system(size: 12)).foregroundStyle(.tertiary)
             }
             footer
@@ -811,7 +814,7 @@ private struct PowerFlow: View {
             )
             .shadow(color: glow ? tint.opacity(0.35) : .clear, radius: 8)
         let text = VStack(alignment: leading ? .leading : .trailing, spacing: 1) {
-            Text(value).font(.system(size: 14, weight: .semibold)).monospacedDigit().rollingNumber(value)
+            Text(value).font(.system(size: 14, weight: .semibold)).monospacedDigit()
             Text(title).font(.system(size: 11.5)).foregroundStyle(.tertiary)
         }
         return HStack(spacing: 10) {

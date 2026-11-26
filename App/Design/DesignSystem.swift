@@ -44,17 +44,24 @@ extension Theme {
 extension View {
     /// Digits roll whenever the value changes, also when the change came from a background
     /// refresh rather than an animated action. Not while the window is off screen.
-    func rollingNumber<Value: Equatable>(_ value: Value) -> some View {
-        modifier(RollingNumber(value: value))
+    ///
+    /// Only for values that change now and then: the charge, a setting, the cycle count. The roll
+    /// is drawn on the CPU, so on a live reading that changes every second (watts, volts, amps,
+    /// temperature) it keeps the app at around half a CPU core. Pass `isLive` for those, or leave
+    /// the modifier off.
+    func rollingNumber<Value: Equatable>(_ value: Value, isLive: Bool = false) -> some View {
+        modifier(RollingNumber(value: value, rolls: !isLive))
     }
 }
 
 private struct RollingNumber<Value: Equatable>: ViewModifier {
     let value: Value
+    let rolls: Bool
     @Environment(\.isOnScreen) private var isOnScreen
 
     func body(content: Content) -> some View {
-        content.contentTransition(.numericText()).animation(isOnScreen ? .smooth(duration: 0.45) : nil, value: value)
+        content.contentTransition(.numericText())
+            .animation(rolls && isOnScreen ? .smooth(duration: 0.45) : nil, value: value)
     }
 }
 

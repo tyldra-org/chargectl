@@ -16,6 +16,16 @@ sees, with its pull request link. Credit outside contributors with
 
 ## [Unreleased]
 
+### Fixed
+
+- **Chargectl no longer uses CPU while the dashboard is open.** On Overview the
+  watts, volts, amps and temperature rolled their digits, and the Mac and
+  battery bar eased to its new width, every time a reading changed. Readings
+  change every second, so the open window used around half a CPU core, also
+  behind other apps. Live readings now change in place, and the open dashboard
+  uses about a tenth of what it did. The charge, the cycle count and your
+  settings still roll. ([#PR](https://github.com/tyldra-org/chargectl/pull/PR))
+
 ## [0.3.1] - 2026-11-25
 
 ### Fixed
