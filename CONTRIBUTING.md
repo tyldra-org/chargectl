@@ -104,6 +104,12 @@ the build is signed ad hoc. Releases are signed with the release certificate.
 Changes to how charging is controlled must also be tried on a real MacBook.
 Say in the pull request which Mac and macOS version you used and what you saw.
 
+Changes to the dashboard or the menu bar panel should not raise the app's CPU
+use. Run the Debug build with `--demo --live-readings`, which changes the
+watts and the temperature every second as a real Mac does, and watch
+Chargectl in Activity Monitor with the window open, in front and behind
+another app. It should stay at a few percent.
+
 ### Screenshots
 
 The README's pictures come from a Debug build with sample data, so they need no
