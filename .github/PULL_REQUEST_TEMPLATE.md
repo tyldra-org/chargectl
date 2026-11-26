@@ -20,7 +20,7 @@ Delete this section if there is nothing. -->
 Tested: <!-- what you ran by hand beyond CI, where, and what you saw -->
 Not tested: <!-- what you could not check, and why -->
 
-- [ ] `CHANGELOG.md` has an entry under Unreleased saying what a user now sees (under Action needed if they must do something), or nothing user-visible changed.
+- [ ] `CHANGELOG.md` has an entry under Unreleased saying what a user now sees, or nothing user-visible changed.
 - [ ] Docs are updated, or the change needs none.
 - [ ] A breaking change has `!` in the title and the migration above.
 

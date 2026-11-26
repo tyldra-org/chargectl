@@ -187,9 +187,7 @@ review says. Open an issue describing the change instead.
 
 1. Set `MARKETING_VERSION` in [`project.yml`](project.yml) and move the
    `Unreleased` entries in [`CHANGELOG.md`](CHANGELOG.md) under the new version.
-   Add a one-sentence summary in bold (unless the release has one entry) and an
-   Action needed section, which says "None. This release needs no changes from
-   you." when there is nothing to do. The release workflow fails without it.
+   Add a one-sentence summary in bold, unless the release has one entry.
 2. Merge that to `main`, then tag it:
 
    ```sh
