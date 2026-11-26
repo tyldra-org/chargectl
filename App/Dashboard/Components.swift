@@ -34,10 +34,10 @@ struct InfoRow: View {
     var body: some View {
         GridRow {
             Text(title).foregroundStyle(.secondary)
+            // Live readings that change every second: no rolling digits.
             Text(value)
                 .monospacedDigit()
                 .foregroundStyle(tint ?? .primary)
-                .rollingNumber(value)
                 .gridColumnAlignment(.trailing)
         }
     }

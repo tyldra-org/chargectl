@@ -16,7 +16,9 @@ struct ChargectlApp: App {
             // Debug builds started with --demo show sample data everywhere and never talk to the
             // helper, so they can be tried without changing how the Mac charges.
             if Setup.isDemo {
-                _model = State(initialValue: Sample.model(manyLogs: true))
+                let model = Sample.model(manyLogs: true)
+                if CommandLine.arguments.contains("--live-readings") { model.varyReadings() }
+                _model = State(initialValue: model)
                 return
             }
         #endif

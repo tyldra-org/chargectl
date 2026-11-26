@@ -123,6 +123,25 @@ final class AppModel {
             isPreview = true
             updateMenuBarItem()
         }
+
+        /// Changes the charger, Mac and battery readings every second, as a real Mac's do, so a
+        /// debug build started with --demo --live-readings shows what live updates cost. Runs
+        /// until the model goes away.
+        func varyReadings() {
+            Task { [weak self] in
+                while !Task.isCancelled {
+                    try? await Task.sleep(for: .seconds(1))
+                    guard let self, var battery = self.battery else { return }
+                    let systemPower = Double.random(in: 7...14)
+                    battery.date = .now
+                    battery.systemPower = systemPower
+                    battery.wallPower = systemPower
+                    battery.chargerCurrent = systemPower / (battery.chargerVoltage ?? 20)
+                    battery.temperature = Double.random(in: 28...31)
+                    self.battery = battery
+                }
+            }
+        }
     #endif
 
     var settings: ChargeSettings? { status?.settings }

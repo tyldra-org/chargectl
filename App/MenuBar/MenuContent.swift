@@ -113,11 +113,13 @@ struct MenuContent: View {
         return HStack(spacing: 0) {
             Metric(title: "Health", value: Format.percent(battery.health), first: true)
             Metric(title: "Cycles", value: "\(battery.cycleCount)")
-            Metric(title: "Charger", value: (battery.wallPower ?? 0) < 0.05 ? "0 W" : Format.watts(battery.wallPower))
-            Metric(title: "Mac", value: Format.watts(battery.systemPower))
+            Metric(
+                title: "Charger", value: (battery.wallPower ?? 0) < 0.05 ? "0 W" : Format.watts(battery.wallPower),
+                isLive: true)
+            Metric(title: "Mac", value: Format.watts(battery.systemPower), isLive: true)
             Metric(
                 title: "Battery", value: abs(watts) < 0.05 ? "0 W" : Format.signedWatts(watts),
-                tint: watts > 0.05 ? Theme.accent : watts < -0.05 ? Theme.warn : nil)
+                tint: watts > 0.05 ? Theme.accent : watts < -0.05 ? Theme.warn : nil, isLive: true)
         }
         .padding(.top, 10)
         .overlay(alignment: .top) { Rectangle().fill(Theme.line).frame(height: 1) }
@@ -422,6 +424,8 @@ private struct Metric: View {
     let title: String
     let value: String
     var tint: Color?
+    /// A reading that changes every second, which changes without rolling digits.
+    var isLive = false
     var first = false
 
     var body: some View {
@@ -433,7 +437,7 @@ private struct Metric: View {
                 .monospacedDigit()
                 .lineLimit(1)
                 .minimumScaleFactor(0.85)
-                .rollingNumber(value)
+                .rollingNumber(value, isLive: isLive)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.leading, first ? 0 : 9)
