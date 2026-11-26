@@ -65,8 +65,11 @@ the build is signed ad hoc. Releases are signed with the release certificate.
 3. Add or update tests that prove the change. Charging decisions live in
    `Shared/Control/ChargePolicy.swift` and are tested without hardware in
    `Tests/`.
-4. Update documentation and `CHANGELOG.md` under `Unreleased` when behavior
-   visible to users changes.
+4. Update documentation, and add a line to `CHANGELOG.md` under `Unreleased`
+   when behavior visible to users changes. Write what a user now sees, not how
+   the code changed: "Widgets no longer go blank after an update", not "kill the
+   stale extension process". End it with your pull request link and
+   `by @your-handle`, so the release credits you in its Contributors list.
 5. Run the full local check, which is the same entry point CI runs:
 
    ```sh
@@ -184,6 +187,9 @@ review says. Open an issue describing the change instead.
 
 1. Set `MARKETING_VERSION` in [`project.yml`](project.yml) and move the
    `Unreleased` entries in [`CHANGELOG.md`](CHANGELOG.md) under the new version.
+   Add a one-sentence summary in bold (unless the release has one entry) and an
+   Action needed section, which says "None. This release needs no changes from
+   you." when there is nothing to do. The release workflow fails without it.
 2. Merge that to `main`, then tag it:
 
    ```sh

@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Prints the GitHub release notes for a version from its CHANGELOG.md section: the summary,
-# the changes under release headings, install steps and a link to the full diff.
+# Action needed, the changes under release headings, install steps and a link to the full
+# diff. Fails when the section is missing or has no Action needed heading.
 #
 #   ./scripts/release-notes.sh <version>
 set -euo pipefail
@@ -19,6 +20,8 @@ section=$(awk -v heading="## [$version]" '
   index($0, heading) == 1 { take = 1; next }
   take && (/^## \[/ || /^\[[^]]+\]: /) { exit }
   !take { next }
+  /^### Action needed/ { print "## Action needed"; next }
+  /^### Highlights/ { print "## Highlights"; next }
   /^### Added/      { print "## New features"; next }
   /^### Changed/    { print "## Changes"; next }
   /^### Deprecated/ { print "## Deprecated"; next }
@@ -28,6 +31,11 @@ section=$(awk -v heading="## [$version]" '
   { print }' "$changelog")
 if [[ -z "${section//[[:space:]]/}" ]]; then
   echo "release-notes.sh: CHANGELOG.md has no section for $version" >&2
+  exit 1
+fi
+if ! grep -q '^## Action needed$' <<<"$section"; then
+  echo "release-notes.sh: the $version section in CHANGELOG.md needs an Action needed heading" >&2
+  echo '("None. This release needs no changes from you." when there is nothing to do)' >&2
   exit 1
 fi
 # The compare link at the bottom of CHANGELOG.md; the first release has none.
@@ -57,7 +65,7 @@ unwrap() {
 printf '%s\n' "$section" | sed -e '/./,$!d' | sed -e :a -e '/^\n*$/{$d;N;ba' -e '}'
 cat <<NOTES
 
-## Install
+## Install or update
 
 \`\`\`sh
 brew install --cask tyldra-org/tools/chargectl
