@@ -43,9 +43,18 @@ extension Theme {
 
 extension View {
     /// Digits roll whenever the value changes, also when the change came from a background
-    /// refresh rather than an animated action.
+    /// refresh rather than an animated action. Not while the window is off screen.
     func rollingNumber<Value: Equatable>(_ value: Value) -> some View {
-        contentTransition(.numericText()).animation(.smooth(duration: 0.45), value: value)
+        modifier(RollingNumber(value: value))
+    }
+}
+
+private struct RollingNumber<Value: Equatable>: ViewModifier {
+    let value: Value
+    @Environment(\.isOnScreen) private var isOnScreen
+
+    func body(content: Content) -> some View {
+        content.contentTransition(.numericText()).animation(isOnScreen ? .smooth(duration: 0.45) : nil, value: value)
     }
 }
 
@@ -58,7 +67,9 @@ struct Panel<Content: View>: View {
     var spotlight = false
     var tint: Color?
     @ViewBuilder var content: Content
-    @State private var pointer: CGPoint?
+    /// Only the lights read it, so moving the pointer (or scrolling under it) redraws them and
+    /// not the card's content.
+    @State private var hover = PanelHover()
     @Environment(\.colorScheme) private var scheme
 
     var body: some View {
@@ -77,20 +88,7 @@ struct Panel<Content: View>: View {
                         )
                         .clipShape(shape)
                     }
-                    if let pointer {
-                        // A soft light centred on the pointer, inside the card's own frame so it
-                        // has no edges.
-                        GeometryReader { geometry in
-                            RadialGradient(
-                                colors: [Color.primary.opacity(scheme == .dark ? 0.035 : 0.02), .clear],
-                                center: UnitPoint(
-                                    x: pointer.x / max(geometry.size.width, 1),
-                                    y: pointer.y / max(geometry.size.height, 1)),
-                                startRadius: 0, endRadius: 260)
-                        }
-                        .clipShape(shape)
-                        .allowsHitTesting(false)
-                    }
+                    PointerLight(hover: hover, shape: shape, isEdge: false)
                 }
             }
             .overlay {
@@ -100,30 +98,56 @@ struct Panel<Content: View>: View {
                     lineWidth: 1
                 )
                 .opacity(scheme == .dark ? 1 : 0)
-                if let pointer {
-                    GeometryReader { geometry in
-                        shape.strokeBorder(
-                            RadialGradient(
-                                colors: [Theme.accent.opacity(0.55), Color.primary.opacity(0.12), .clear],
-                                center: UnitPoint(
-                                    x: pointer.x / max(geometry.size.width, 1),
-                                    y: pointer.y / max(geometry.size.height, 1)),
-                                startRadius: 0, endRadius: 220),
-                            lineWidth: 1)
-                    }
-                    .allowsHitTesting(false)
-                }
+                PointerLight(hover: hover, shape: shape, isEdge: true)
             }
             .shadow(
                 color: .black.opacity(scheme == .dark ? 0.12 : 0.05), radius: scheme == .dark ? 1 : 12,
                 y: scheme == .dark ? 1 : 6
             )
-            .onContinuousHover(coordinateSpace: .local) { phase in
+            .onContinuousHover(coordinateSpace: .local) { [hover] phase in
                 switch phase {
-                case .active(let location): pointer = location
-                case .ended: withAnimation(.easeOut(duration: 0.3)) { pointer = nil }
+                case .active(let location): hover.pointer = location
+                case .ended: withAnimation(.easeOut(duration: 0.3)) { hover.pointer = nil }
                 }
             }
+    }
+}
+
+/// Where the pointer is over a card, nil when it is elsewhere.
+@Observable
+final class PanelHover {
+    var pointer: CGPoint?
+}
+
+/// A soft light centred on the pointer: across the card, or along its edge.
+private struct PointerLight<S: InsettableShape>: View {
+    let hover: PanelHover
+    let shape: S
+    let isEdge: Bool
+    @Environment(\.colorScheme) private var scheme
+
+    var body: some View {
+        if let pointer = hover.pointer {
+            GeometryReader { geometry in
+                let center = UnitPoint(
+                    x: pointer.x / max(geometry.size.width, 1), y: pointer.y / max(geometry.size.height, 1))
+                if isEdge {
+                    shape.strokeBorder(
+                        RadialGradient(
+                            colors: [Theme.accent.opacity(0.55), Color.primary.opacity(0.12), .clear], center: center,
+                            startRadius: 0, endRadius: 220),
+                        lineWidth: 1)
+                } else {
+                    // Inside the card's own frame so it has no edges.
+                    RadialGradient(
+                        colors: [Color.primary.opacity(scheme == .dark ? 0.035 : 0.02), .clear], center: center,
+                        startRadius: 0, endRadius: 260
+                    )
+                    .clipShape(shape)
+                }
+            }
+            .allowsHitTesting(false)
+        }
     }
 }
 

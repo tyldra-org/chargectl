@@ -43,10 +43,19 @@ final class AppModel {
         "com.apphousekitchen.aldente": "AlDente",
     ]
 
-    private(set) var battery: BatterySnapshot?
+    private(set) var battery: BatterySnapshot? {
+        didSet { updateMenuBarItem() }
+    }
     private(set) var batteryError: String?
-    private(set) var status: DaemonStatus?
-    private(set) var service = ServiceState.checking
+    private(set) var status: DaemonStatus? {
+        didSet { updateMenuBarItem() }
+    }
+    private(set) var service = ServiceState.checking {
+        didSet { updateMenuBarItem() }
+    }
+    /// What the menu bar item shows. It changes far less often than the readings it comes from,
+    /// and the item redraws only when it does.
+    private(set) var menuBarItem = MenuBarItem()
     private(set) var history: [HistorySample] = []
     private(set) var logs: [LogEntry] = []
     /// One point a day, for the long-term health chart.
@@ -112,10 +121,16 @@ final class AppModel {
             self.macOSLimit = macOSLimit
             smoothedCurrent = battery?.current
             isPreview = true
+            updateMenuBarItem()
         }
     #endif
 
     var settings: ChargeSettings? { status?.settings }
+
+    private func updateMenuBarItem() {
+        let item = MenuBarItem(model: self)
+        if item != menuBarItem { menuBarItem = item }
+    }
     var isControllable: Bool { service == .running && status?.adapterKey != nil }
 
     /// macOS's own charge limit is running the Mac on battery while Chargectl has the charger
