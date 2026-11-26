@@ -24,7 +24,7 @@ sees, with its pull request link. Credit outside contributors with
   change every second, so the open window used around half a CPU core, also
   behind other apps. Live readings now change in place, and the open dashboard
   uses about a tenth of what it did. The charge, the cycle count and your
-  settings still roll. ([#PR](https://github.com/tyldra-org/chargectl/pull/PR))
+  settings still roll. ([#106](https://github.com/tyldra-org/chargectl/pull/106))
 
 ## [0.3.1] - 2026-11-25
 
