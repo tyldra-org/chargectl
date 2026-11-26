@@ -7,15 +7,39 @@ struct MenuBarLabel: View {
     @Environment(\.openWindow) private var openWindow
 
     var body: some View {
-        let percent = model.battery?.percent
+        // Reads only menuBarItem: macOS redraws the item, shadow and all, on every change, and
+        // the battery readings behind it change every second.
+        let item = model.menuBarItem
         HStack(spacing: 4) {
-            Image(nsImage: RingIcon.image(for: model))
-            if showPercentage, let percent {
+            Image(nsImage: RingIcon.image(for: item))
+            if showPercentage, let percent = item.percent {
                 Text("\(percent)%")
             }
         }
-        .accessibilityLabel(percent.map { "Battery \($0) percent, \(model.activitySummary)" } ?? "Chargectl")
+        .accessibilityLabel(item.percent.map { "Battery \($0) percent, \(item.summary)" } ?? "Chargectl")
         .onAppear { Dashboard.openWindow = openWindow }
+    }
+}
+
+/// What the menu bar item shows: the ring and the charge.
+struct MenuBarItem: Equatable {
+    var percent: Int?
+    /// Where the ring's track ends, 0…1; nil draws the whole ring.
+    var limit: Double?
+    var glyph = RingIcon.Glyph.attention
+    /// The helper isn't running.
+    var isDashed = true
+    var summary = ""
+
+    init() {}
+
+    init(model: AppModel) {
+        percent = model.battery?.percent
+        summary = model.activitySummary
+        guard model.service == .running, let status = model.status else { return }
+        limit = status.settings.isEnabled ? Double(status.settings.limit) / 100 : nil
+        glyph = RingIcon.glyph(for: status.activity)
+        isDashed = false
     }
 }
 
@@ -32,12 +56,13 @@ enum RingIcon {
     }
 
     static func image(for model: AppModel, size: CGFloat = 16) -> NSImage {
-        let fraction = Double(model.battery?.percent ?? 0) / 100
-        guard model.service == .running, let status = model.status else {
-            return image(fraction: fraction, limit: nil, glyph: .attention, dashed: true, size: size)
-        }
-        let limit = status.settings.isEnabled ? Double(status.settings.limit) / 100 : nil
-        return image(fraction: fraction, limit: limit, glyph: glyph(for: status.activity), size: size)
+        image(for: MenuBarItem(model: model), size: size)
+    }
+
+    static func image(for item: MenuBarItem, size: CGFloat = 16) -> NSImage {
+        image(
+            fraction: Double(item.percent ?? 0) / 100, limit: item.limit, glyph: item.glyph, dashed: item.isDashed,
+            size: size)
     }
 
     static func glyph(for activity: ChargeActivity) -> Glyph {

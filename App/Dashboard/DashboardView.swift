@@ -32,17 +32,20 @@ struct DashboardView: View {
     }
 
     var body: some View {
-        HStack(spacing: 0) {
-            Sidebar(model: model, page: $page)
-            VStack(alignment: .leading, spacing: 0) {
-                toolbar
-                NoticeStack(model: model, includeService: page == .overview)
-                content
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .id(page)
+        WindowContent {
+            HStack(spacing: 0) {
+                Sidebar(model: model, page: $page)
+                VStack(alignment: .leading, spacing: 0) {
+                    toolbar
+                    NoticeStack(model: model, includeService: page == .overview)
+                    content
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .id(page)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background {
             ZStack {
                 Theme.window
@@ -236,11 +239,16 @@ private struct HelperFooter: View {
     }
 }
 
-/// A status dot with a slow ring that pings outwards.
+/// A status dot with a slow ring that pings outwards. The ring is drawn from the clock at 30
+/// frames a second, and holds still while the window is off screen or another app is in front:
+/// every frame redraws the whole window.
 struct PulseDot: View {
     var color: Color = Theme.accent
-    @State private var ping = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.isOnScreen) private var isOnScreen
+    @Environment(\.appearsActive) private var appearsActive
+
+    private static let period = 2.4
 
     var body: some View {
         Circle()
@@ -248,15 +256,20 @@ struct PulseDot: View {
             .frame(width: 7, height: 7)
             .shadow(color: color.opacity(0.7), radius: 4)
             .background {
-                Circle()
-                    .stroke(color, lineWidth: 1.5)
-                    .frame(width: 13, height: 13)
-                    .scaleEffect(ping ? 1.6 : 0.6)
-                    .opacity(ping ? 0 : 0.5)
-            }
-            .onAppear {
-                guard !reduceMotion else { return }
-                withAnimation(.easeOut(duration: 2.4).repeatForever(autoreverses: false)) { ping = true }
+                if !reduceMotion {
+                    TimelineView(.animation(minimumInterval: 1 / 30, paused: !isOnScreen || !appearsActive)) {
+                        context in
+                        let time = context.date.timeIntervalSinceReferenceDate
+                        let progress = time.truncatingRemainder(dividingBy: Self.period) / Self.period
+                        // Ease out: fast at first, settling as it fades.
+                        let eased = 1 - pow(1 - progress, 3)
+                        Circle()
+                            .stroke(color, lineWidth: 1.5)
+                            .frame(width: 13, height: 13)
+                            .scaleEffect(0.6 + eased)
+                            .opacity(0.5 * (1 - eased))
+                    }
+                }
             }
             .accessibilityHidden(true)
     }
