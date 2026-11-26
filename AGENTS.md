@@ -117,8 +117,8 @@ Run `./scripts/check.sh` once before saying the work is done.
 - Pin GitHub Actions to full commit SHAs with the tag in a trailing comment.
 - Add a `CHANGELOG.md` entry under `Unreleased` for user-visible changes: what a
   user now sees, not how the code changed, ending with the pull request link.
-  Anything users must do goes under Action needed. The section order is in the
-  comment at the top of `CHANGELOG.md`; it becomes the release notes.
+  The section order is in the comment at the top of `CHANGELOG.md`; it becomes
+  the release notes.
 
 ## Proving a change
 
