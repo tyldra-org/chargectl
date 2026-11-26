@@ -36,15 +36,17 @@ struct WelcomeView: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            // A ZStack, so the page going out and the page coming in overlap instead of stacking.
-            ZStack(alignment: .top) {
-                page
-                    .id(step)
-                    .transition(pageTransition)
+        WindowContent {
+            VStack(spacing: 0) {
+                // A ZStack, so the page going out and the page coming in overlap instead of stacking.
+                ZStack(alignment: .top) {
+                    page
+                        .id(step)
+                        .transition(pageTransition)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                footer
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-            footer
         }
         .frame(width: Self.size.width, height: Self.size.height)
         .background {
@@ -599,9 +601,11 @@ private struct Beam: View {
 
     let style: Style
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.isOnScreen) private var isOnScreen
 
     var body: some View {
-        TimelineView(.animation(paused: style != .flowing || reduceMotion)) { context in
+        TimelineView(.animation(minimumInterval: 1 / 30, paused: style != .flowing || reduceMotion || !isOnScreen)) {
+            context in
             Canvas { canvas, size in
                 let y = size.height / 2
                 var line = Path()

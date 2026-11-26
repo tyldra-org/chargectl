@@ -25,7 +25,7 @@ struct ChargectlApp: App {
 
     var body: some Scene {
         MenuBarExtra(isInserted: $showInMenuBar) {
-            MenuContent(model: model)
+            WindowContent(dropsContentWhenClosed: false) { MenuContent(model: model) }
         } label: {
             MenuBarLabel(model: model)
         }

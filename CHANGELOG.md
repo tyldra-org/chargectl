@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **Chargectl no longer uses CPU with no window open.** A closed dashboard kept
+  animating and updating off screen, which held the app at around half a CPU
+  core all day and made scrolling lag. Closing the dashboard or the setup window
+  now frees its contents. The moving power lines and pulsing dots pause while
+  the window is hidden, covered or behind another app, and the numbers only roll
+  while you can see them. The menu bar item redraws only when its ring or
+  percentage changes, not every second, and pointing at a card redraws only its
+  light, not everything inside it.
+
 ## [0.3.0] - 2026-11-25
 
 ### Added
