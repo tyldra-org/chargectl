@@ -16,6 +16,15 @@ sees, with its pull request link. Credit outside contributors with
 
 ## [Unreleased]
 
+### Fixed
+
+- **The open dashboard uses less CPU while it is in front.** The pulsing status
+  dots and the moving dashes on the Power card were drawn by Chargectl itself,
+  30 times a second, and every frame updated the whole window: 9 to 17% CPU
+  while you looked at it. macOS now plays these animations itself, at the same
+  speed, so they cost Chargectl almost nothing. They still stop while the window is
+  hidden or another app is in front. ([#PR](https://github.com/tyldra-org/chargectl/pull/PR))
+
 ## [0.3.2] - 2026-11-26
 
 ### Fixed
