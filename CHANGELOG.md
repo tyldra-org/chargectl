@@ -16,6 +16,15 @@ sees, with its pull request link. Credit outside contributors with
 
 ## [Unreleased]
 
+### Fixed
+
+- **History no longer draws a line across time nothing was recorded.** While
+  Chargectl was quit, which stops the helper, or the Mac slept, the charts
+  joined the last reading before to the first one after, and the hover marker
+  jumped between them. The charts now leave a gap there, and the marker
+  follows the pointer smoothly, saying "Not recorded" inside a gap.
+  ([#117](https://github.com/tyldra/chargectl/pull/117))
+
 ### Changed
 
 - **Chargectl moved to github.com/tyldra.** The app checks for updates there,

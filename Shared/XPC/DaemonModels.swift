@@ -33,6 +33,57 @@ nonisolated struct HistorySample: Codable, Equatable, Sendable {
     var batteryPower: Double?
     /// The charger is connected, also while wall power is cut. Helpers before 0.3.0 leave it out.
     var pluggedIn: Bool? = nil
+
+    /// Samples further apart than this have nothing recorded between them: Chargectl was quit, which
+    /// stops the helper, or the Mac slept without waking. The helper records once a minute while the
+    /// Mac is awake, and a sleeping Mac wakes to record about every 15 minutes.
+    static let maximumSpacing: TimeInterval = 20 * 60
+}
+
+extension [HistorySample] {
+    /// For each sample, in date order, the number of the unbroken run it belongs to. Charts draw each
+    /// run as its own line, so a gap in the recording shows as a gap, not a straight line across it.
+    nonisolated var runs: [Int] {
+        var run = 0
+        return indices.map { index in
+            if index > 0, self[index].date.timeIntervalSince(self[index - 1].date) > HistorySample.maximumSpacing {
+                run += 1
+            }
+            return run
+        }
+    }
+
+    /// A value at `date`, read along the line between the samples around it, so a marker can follow the
+    /// pointer smoothly. Nil when nothing was recorded then. Samples must be in date order.
+    nonisolated func value(at date: Date, _ read: (HistorySample) -> Double?) -> Double? {
+        guard let nearest = sample(near: date) else { return nil }
+        let after = firstIndex { $0.date >= date }
+        guard let after, after > 0 else { return read(nearest) }
+        let (a, b) = (self[after - 1], self[after])
+        let span = b.date.timeIntervalSince(a.date)
+        guard span > 0, span <= HistorySample.maximumSpacing, let va = read(a), let vb = read(b) else {
+            return read(nearest)
+        }
+        return va + (vb - va) * date.timeIntervalSince(a.date) / span
+    }
+
+    /// The sample recorded closest to `date`, or nil when nothing was recorded near it. Samples must be
+    /// in date order.
+    nonisolated func sample(near date: Date) -> HistorySample? {
+        var low = 0
+        var high = count
+        while low < high {
+            let middle = (low + high) / 2
+            if self[middle].date < date { low = middle + 1 } else { high = middle }
+        }
+        let nearest = [low - 1, low].filter { indices.contains($0) }.min {
+            abs(self[$0].date.timeIntervalSince(date)) < abs(self[$1].date.timeIntervalSince(date))
+        }
+        guard let nearest, abs(self[nearest].date.timeIntervalSince(date)) <= HistorySample.maximumSpacing / 2 else {
+            return nil
+        }
+        return self[nearest]
+    }
 }
 
 nonisolated struct LogEntry: Codable, Equatable, Identifiable, Sendable {

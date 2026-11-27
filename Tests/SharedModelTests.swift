@@ -117,4 +117,45 @@ import Testing
         new.autoDischarge = true
         #expect(new.changes(from: ChargeSettings()) == ["limit 80% → 75%", "automatic discharge off → on"])
     }
+
+    /// Recorded once a minute, then nothing for five hours (Chargectl was quit), then again.
+    private static func historyWithGap() -> [HistorySample] {
+        let start = Date(timeIntervalSince1970: 1_800_000_000)
+        let minutes = [0, 1, 2, 3] + [300, 301, 302]
+        return minutes.map { HistorySample(date: start.addingTimeInterval(Double($0) * 60), percent: 80) }
+    }
+
+    @Test func historyRunsBreakWhereNothingWasRecorded() {
+        #expect(Self.historyWithGap().runs == [0, 0, 0, 0, 1, 1, 1])
+        // A sleeping Mac wakes to record about every 15 minutes; that is still one run.
+        let start = Date(timeIntervalSince1970: 1_800_000_000)
+        let asleep = [0, 15, 30, 45].map { HistorySample(date: start.addingTimeInterval(Double($0) * 60), percent: 80) }
+        #expect(asleep.runs == [0, 0, 0, 0])
+        #expect([HistorySample]().runs.isEmpty)
+    }
+
+    @Test func historyFindsTheSampleNearAMomentButNotInAGap() {
+        let history = Self.historyWithGap()
+        let start = history[0].date
+        #expect(history.sample(near: start.addingTimeInterval(80))?.date == history[1].date)
+        #expect(history.sample(near: start.addingTimeInterval(-30))?.date == history[0].date)
+        // Two hours into the five-hour gap: nothing was recorded then.
+        #expect(history.sample(near: start.addingTimeInterval(2 * 60 * 60)) == nil)
+        // Five minutes past the last sample before the gap still reads it.
+        #expect(history.sample(near: start.addingTimeInterval(8 * 60))?.date == history[3].date)
+        #expect(history.sample(near: start.addingTimeInterval(301.4 * 60))?.date == history[5].date)
+        #expect([HistorySample]().sample(near: start) == nil)
+    }
+
+    /// A marker follows the pointer: between two samples it sits on the line joining them.
+    @Test func historyValueFollowsTheLineBetweenSamples() {
+        let start = Date(timeIntervalSince1970: 1_800_000_000)
+        let history = [
+            HistorySample(date: start, percent: 70), HistorySample(date: start.addingTimeInterval(60), percent: 80),
+        ]
+        let percent = { (sample: HistorySample) in Double(sample.percent) }
+        #expect(history.value(at: start.addingTimeInterval(15), percent) == 72.5)
+        #expect(history.value(at: start.addingTimeInterval(120), percent) == 80)
+        #expect(Self.historyWithGap().value(at: start.addingTimeInterval(2 * 60 * 60), percent) == nil)
+    }
 }
