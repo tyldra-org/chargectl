@@ -239,16 +239,11 @@ private struct HelperFooter: View {
     }
 }
 
-/// A status dot with a slow ring that pings outwards. The ring is drawn from the clock at 30
-/// frames a second, and holds still while the window is off screen or another app is in front:
-/// every frame redraws the whole window.
+/// A status dot with a slow ring that pings outwards. Core Animation plays the ring, so it costs
+/// the app nothing per frame.
 struct PulseDot: View {
     var color: Color = Theme.accent
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @Environment(\.isOnScreen) private var isOnScreen
-    @Environment(\.appearsActive) private var appearsActive
-
-    private static let period = 2.4
 
     var body: some View {
         Circle()
@@ -257,18 +252,7 @@ struct PulseDot: View {
             .shadow(color: color.opacity(0.7), radius: 4)
             .background {
                 if !reduceMotion {
-                    TimelineView(.animation(minimumInterval: 1 / 30, paused: !isOnScreen || !appearsActive)) {
-                        context in
-                        let time = context.date.timeIntervalSinceReferenceDate
-                        let progress = time.truncatingRemainder(dividingBy: Self.period) / Self.period
-                        // Ease out: fast at first, settling as it fades.
-                        let eased = 1 - pow(1 - progress, 3)
-                        Circle()
-                            .stroke(color, lineWidth: 1.5)
-                            .frame(width: 13, height: 13)
-                            .scaleEffect(0.6 + eased)
-                            .opacity(0.5 * (1 - eased))
-                    }
+                    PingRing(color: color).frame(width: 13, height: 13)
                 }
             }
             .accessibilityHidden(true)
