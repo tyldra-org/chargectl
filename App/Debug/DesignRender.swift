@@ -125,6 +125,10 @@
                     })
             }
             shots.append(
+                Shot(name: "history-gap", size: dashboard) {
+                    AnyView(DashboardView(model: Sample.model(historyGap: true), initialPage: .history))
+                })
+            shots.append(
                 Shot(name: "logs-warning", size: dashboard) {
                     AnyView(DashboardView(model: Sample.model(warning: true), initialPage: .logs))
                 })
@@ -424,7 +428,7 @@
         static func model(
             percent: Int = 61, service: ServiceState = .running, heat: Bool = false, enabled: Bool = true,
             tiles: Bool = false, warning: Bool = false, mode: ChargeMode = .automatic, manyLogs: Bool = false,
-            limit: Int = 80, calibrateEveryMonths: Int? = nil, smartLimit: Bool = false
+            limit: Int = 80, calibrateEveryMonths: Int? = nil, smartLimit: Bool = false, historyGap: Bool = false
         ) -> AppModel {
             let charging = mode == .automatic && percent < 80
             let draining = mode != .automatic
@@ -458,7 +462,11 @@
                     smartLimit: SmartLimit.Status(target: 55, usual: 34, sessions: 23))
                 : nil
             return AppModel(
-                preview: battery, status: status, service: service, history: history(),
+                preview: battery, status: status, service: service,
+                // Chargectl quit for three hours, so the helper recorded nothing.
+                history: history().filter {
+                    !historyGap || !(-240 ... -60).contains($0.date.timeIntervalSinceNow / 60)
+                },
                 logs: manyLogs ? Self.manyLogs() : logs(warning: warning),
                 macOSLimit: 80, daily: daily())
         }

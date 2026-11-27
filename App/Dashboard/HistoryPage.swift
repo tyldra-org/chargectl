@@ -69,10 +69,9 @@ struct HistoryPage: View {
     }
 
     private func content(_ samples: [HistorySample], domain: ClosedRange<Date>) -> some View {
-        let shown = hovered.flatMap { date in
-            samples.min { abs($0.date.timeIntervalSince(date)) < abs($1.date.timeIntervalSince(date)) }
-        }
-        let reading = shown ?? samples.last
+        // The sample recorded nearest the pointer; nil while hovering a time nothing was recorded.
+        let shown = hovered.flatMap { samples.sample(near: $0) }
+        let reading = hovered == nil ? samples.last : shown
         let since = model.history.first.map(\.date).flatMap { $0 > domain.lowerBound ? $0 : nil }
         return VStack(spacing: 14) {
             SpanRow(spans: [1, 1, 1, 1]) {
@@ -83,7 +82,7 @@ struct HistoryPage: View {
                 VStack(alignment: .leading, spacing: 14) {
                     PanelHeader(title: "Charge", symbol: "chart.xyaxis.line") {
                         HStack(alignment: .firstTextBaseline, spacing: 8) {
-                            if let since, shown == nil {
+                            if let since, hovered == nil {
                                 Label(
                                     "Recorded since \(since.formatted(.dateTime.hour().minute()))",
                                     systemImage: "circle.fill"
@@ -91,9 +90,9 @@ struct HistoryPage: View {
                                 .labelStyle(DotLabelStyle())
                                 .padding(.trailing, 6)
                             }
-                            Text(shown.map { $0.date.formatted(.dateTime.hour().minute()) } ?? "Now")
+                            Text(hovered.map { $0.formatted(.dateTime.hour().minute()) } ?? "Now")
                             Text(
-                                "\(Text("\(reading?.percent ?? 0)").font(.system(size: 24, weight: .semibold)))\(Text("%").font(.system(size: 13, weight: .medium)))"
+                                "\(Text(reading.map { "\($0.percent)" } ?? "–").font(.system(size: 24, weight: .semibold)))\(Text("%").font(.system(size: 13, weight: .medium)))"
                             )
                             .foregroundStyle(.primary)
                             .monospacedDigit()
@@ -221,29 +220,34 @@ struct HistoryPage: View {
     private func temperatureCard(
         _ samples: [HistorySample], domain: ClosedRange<Date>, shown: HistorySample?, reading: HistorySample?
     ) -> some View {
-        let points = samples.compactMap { s in s.temperature.map { (s.date, unit.value($0)) } }
+        let points = zip(samples, samples.runs).compactMap { s, run in
+            s.temperature.map { (s.date, unit.value($0), run) }
+        }
         let values = points.map(\.1)
         let low = (values.min() ?? 0) - max(((values.max() ?? 0) - (values.min() ?? 0)) * 0.2, 0.6)
         let high = (values.max() ?? 1) + max(((values.max() ?? 0) - (values.min() ?? 0)) * 0.2, 0.6)
         return Panel {
             VStack(alignment: .leading, spacing: 12) {
                 PanelHeader(title: "Temperature", symbol: "thermometer.medium") {
-                    readout(shown, unit.format(reading?.temperature))
+                    readout(unit.format(reading?.temperature))
                 }
                 Chart {
-                    ForEach(points, id: \.0) { date, value in
+                    ForEach(points, id: \.0) { date, value, run in
                         AreaMark(
-                            x: .value("Time", date), yStart: .value("Base", low), yEnd: .value("Temperature", value)
+                            x: .value("Time", date), yStart: .value("Base", low), yEnd: .value("Temperature", value),
+                            series: .value("Run", run)
                         )
                         .interpolationMethod(.monotone)
                         .foregroundStyle(
                             LinearGradient(
                                 colors: [Theme.warn.opacity(0.2), Theme.warn.opacity(0)], startPoint: .top,
                                 endPoint: .bottom))
-                        LineMark(x: .value("Time", date), y: .value("Temperature", value))
-                            .interpolationMethod(.monotone)
-                            .foregroundStyle(Theme.warn)
-                            .lineStyle(StrokeStyle(lineWidth: 1.8, lineCap: .round))
+                        LineMark(
+                            x: .value("Time", date), y: .value("Temperature", value), series: .value("Run", run)
+                        )
+                        .interpolationMethod(.monotone)
+                        .foregroundStyle(Theme.warn)
+                        .lineStyle(StrokeStyle(lineWidth: 1.8, lineCap: .round))
                     }
                     if let threshold = model.settings.flatMap({ $0.heatProtection ? $0.heatThreshold : nil }),
                         unit.value(threshold) < high + 5
@@ -252,9 +256,9 @@ struct HistoryPage: View {
                             .lineStyle(StrokeStyle(lineWidth: 1, dash: [3, 4]))
                             .foregroundStyle(Theme.warn.opacity(0.7))
                     }
-                    crosshair(shown)
-                    if let shown, let value = shown.temperature {
-                        PointMark(x: .value("Time", shown.date), y: .value("Temperature", unit.value(value)))
+                    crosshair(recorded: shown != nil)
+                    if let hovered, let value = samples.value(at: hovered, { $0.temperature }) {
+                        PointMark(x: .value("Time", hovered), y: .value("Temperature", unit.value(value)))
                             .foregroundStyle(Theme.warn).symbolSize(40)
                     }
                 }
@@ -287,18 +291,18 @@ struct HistoryPage: View {
         return Panel {
             VStack(alignment: .leading, spacing: 12) {
                 PanelHeader(title: "Power", symbol: "bolt") {
-                    Text(shown.map { $0.date.formatted(.dateTime.hour().minute()) } ?? "Now")
+                    Text(hovered.map { $0.formatted(.dateTime.hour().minute()) } ?? "Now")
                 }
                 Chart {
                     RuleMark(y: .value("Zero", 0))
                         .lineStyle(StrokeStyle(lineWidth: 1, dash: [2, 3]))
                         .foregroundStyle(Theme.lineStrong)
                     ForEach(series.filter { !hiddenPower.contains($0.key) }, id: \.key) { item in
-                        ForEach(samples, id: \.date) { sample in
+                        ForEach(Array(zip(samples, samples.runs)), id: \.0.date) { sample, run in
                             if let value = item.value(sample) {
                                 LineMark(
                                     x: .value("Time", sample.date), y: .value(item.title, value),
-                                    series: .value("Series", item.title)
+                                    series: .value("Series", "\(item.title) \(run)")
                                 )
                                 .interpolationMethod(.monotone)
                                 .foregroundStyle(item.tint)
@@ -306,7 +310,7 @@ struct HistoryPage: View {
                             }
                         }
                     }
-                    crosshair(shown)
+                    crosshair(recorded: shown != nil)
                 }
                 .modifier(SharedChartStyle(domain: domain, hovered: $hovered, format: { "\(Int($0)) W" }))
                 .chartYScale(domain: low...high)
@@ -347,18 +351,19 @@ struct HistoryPage: View {
         return Format.watts(value)
     }
 
-    private func readout(_ shown: HistorySample?, _ value: String) -> some View {
+    private func readout(_ value: String) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 8) {
-            Text(shown.map { $0.date.formatted(.dateTime.hour().minute()) } ?? "Now")
+            Text(hovered.map { $0.formatted(.dateTime.hour().minute()) } ?? "Now")
             Text(value).font(.system(size: 15, weight: .semibold)).foregroundStyle(.primary).monospacedDigit()
         }
     }
 
-    @ChartContentBuilder private func crosshair(_ shown: HistorySample?) -> some ChartContent {
-        if let shown {
-            RuleMark(x: .value("Time", shown.date))
-                .lineStyle(StrokeStyle(lineWidth: 1))
-                .foregroundStyle(Color.secondary)
+    /// Follows the pointer; dashed where nothing was recorded.
+    @ChartContentBuilder private func crosshair(recorded: Bool) -> some ChartContent {
+        if let hovered {
+            RuleMark(x: .value("Time", hovered))
+                .lineStyle(StrokeStyle(lineWidth: 1, dash: recorded ? [] : [3, 3]))
+                .foregroundStyle(Color.secondary.opacity(recorded ? 1 : 0.7))
         }
     }
 }

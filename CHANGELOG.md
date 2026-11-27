@@ -18,6 +18,8 @@ sees, with its pull request link. Credit outside contributors with
 
 ## [0.3.5] - 2026-11-26
 
+**Chargectl moved to github.com/tyldra, and History shows where nothing was recorded.**
+
 ### Changed
 
 - **Chargectl moved to github.com/tyldra.** The app checks for updates there,
@@ -25,6 +27,15 @@ sees, with its pull request link. Credit outside contributors with
   `brew install --cask tyldra/tools/chargectl`. Installs from the old
   `tyldra-org/tools` tap keep updating, and Uninstall removes either tap.
   ([#115](https://github.com/tyldra/chargectl/pull/115))
+
+### Fixed
+
+- **History no longer draws a line across time nothing was recorded.** While
+  Chargectl was quit, which stops the helper, or the Mac slept, the charts
+  joined the last reading before to the first one after, and the hover marker
+  jumped between them. The charts now leave a gap there, and the marker
+  follows the pointer smoothly, saying "Not recorded" inside a gap.
+  ([#117](https://github.com/tyldra/chargectl/pull/117))
 
 ## [0.3.4] - 2026-11-26
 

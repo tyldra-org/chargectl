@@ -92,9 +92,10 @@ show overview
 sleep 4
 read -r app_cpu server_cpu < <(measure)
 row "overview, in background" "$app_cpu" "$server_cpu"
-# Quitting from outside only closes the dashboard; the app stays in the menu bar. AppleScript
-# reports that as a cancelled quit.
-osascript -e "tell application \"$app\" to quit" >/dev/null 2>&1 || true
+# Closes this app's window with a link only --background builds answer. Never quit it with
+# AppleScript: that finds apps by bundle identifier and also quits an installed Chargectl, which
+# stops its helper and hands charging back to macOS.
+show close
 sleep 4
 read -r app_cpu server_cpu < <(measure)
 row "window closed" "$app_cpu" "$server_cpu"
