@@ -76,6 +76,27 @@ enum Setup {
         #endif
     }
 
+    /// Debug builds started with --background (scripts/measure-cpu.sh) show their windows
+    /// without making Chargectl the active app, and on the Mac's own screen when another display
+    /// is connected, so a measurement stays out of the way of whoever is using the Mac.
+    static var staysInBackground: Bool {
+        #if DEBUG
+            CommandLine.arguments.contains("--background")
+        #else
+            false
+        #endif
+    }
+
+    /// Debug builds started with --appear-active draw the dashboard as if Chargectl were the app in
+    /// front, also while it stays in the background.
+    static var appearsActive: Bool {
+        #if DEBUG
+            CommandLine.arguments.contains("--appear-active")
+        #else
+            false
+        #endif
+    }
+
     static var isNeeded: Bool {
         if isDemo { return false }
         return !UserDefaults.standard.bool(forKey: PreferenceKey.setupComplete)

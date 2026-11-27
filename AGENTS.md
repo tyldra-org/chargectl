@@ -50,6 +50,7 @@ newly matching skills before continuing. Human contributors do not need them.
 | Check the cask as the tap's CI does | `./scripts/check.sh cask` |
 | Retake the README screenshots | `./scripts/screenshots.sh` (after `./scripts/build.sh Debug`; see CONTRIBUTING.md) |
 | Render the dashboard pages, menu bar panel and widgets to PNG files, light and dark, with sample data | `"${TMPDIR:-/tmp}/Chargectl-DerivedData/Build/Products/Debug/Chargectl.app/Contents/MacOS/Chargectl" --render-design <folder> --only <name prefix>` after `./scripts/build.sh Debug`. It never talks to the helper; shot names are in `App/Debug/DesignRender.swift` |
+| Measure the app's CPU with sample data, page by page, without taking the keyboard or mouse | `./scripts/measure-cpu.sh` (or `./scripts/measure-cpu.sh <Chargectl.app>` for another Debug build). Run it after dashboard or menu bar changes and before a release |
 | Try a changed release workflow without publishing (only when the user asks) | `gh workflow run release.yml --ref <branch>` |
 
 The build and test scripts regenerate the Xcode project from `project.yml`

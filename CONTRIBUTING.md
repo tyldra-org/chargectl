@@ -105,10 +105,14 @@ Changes to how charging is controlled must also be tried on a real MacBook.
 Say in the pull request which Mac and macOS version you used and what you saw.
 
 Changes to the dashboard or the menu bar panel should not raise the app's CPU
-use. Run the Debug build with `--demo --live-readings`, which changes the
-watts and the temperature every second as a real Mac does, and watch
-Chargectl in Activity Monitor with the window open, in front and behind
-another app. It should stay at a few percent.
+use. `./scripts/measure-cpu.sh` builds the Debug app and measures it with
+sample data whose watts and temperature change every second, as a real Mac's
+do: each dashboard page in front, the window in the background, and the window
+closed. It takes about two minutes and never takes the keyboard or moves the
+mouse. The window comes forward without focus, on the Mac's own screen when
+another display is connected; keep it uncovered while it runs. Compare the
+Chargectl column with a run on `main`. The WindowServer column also counts
+every other app on screen, so read it only as a rough guide.
 
 ### Screenshots
 
@@ -194,7 +198,10 @@ review says. Open an issue describing the change instead.
 1. Set `MARKETING_VERSION` in [`project.yml`](project.yml) and move the
    `Unreleased` entries in [`CHANGELOG.md`](CHANGELOG.md) under the new version.
    Add a one-sentence summary in bold, unless the release has one entry.
-2. Merge that to `main`, then tag it:
+2. Run `./scripts/measure-cpu.sh` and compare it with the last release. With
+   the window in front, a page that uses clearly more CPU than before needs a
+   reason before you ship.
+3. Merge that to `main`, then tag it:
 
    ```sh
    git tag -a v0.2.0 -m "Chargectl 0.2.0" && git push origin v0.2.0
