@@ -81,6 +81,13 @@ enum Dashboard {
 
     /// Shows the Dock icon and brings the window forward.
     static func show(_ window: NSWindow? = nil) {
+        if Setup.staysInBackground {
+            if let window = window ?? Self.window {
+                placeOnBuiltInScreen(window)
+                window.orderFrontRegardless()
+            }
+            return
+        }
         NSApp.setActivationPolicy(.regular)
         NSApp.activate()
         let window = window ?? Self.window
@@ -88,6 +95,20 @@ enum Dashboard {
             if let window { ScreenshotLayout.place(window) }
         #endif
         window?.makeKeyAndOrderFront(nil)
+    }
+
+    /// Measuring in the background: with another display connected, the window goes in the middle
+    /// of the Mac's own screen, away from whatever the user is doing on the main one.
+    private static func placeOnBuiltInScreen(_ window: NSWindow) {
+        guard NSScreen.screens.count > 1,
+            let screen = NSScreen.screens.first(where: {
+                let id = $0.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? CGDirectDisplayID
+                return id.map { CGDisplayIsBuiltin($0) != 0 } ?? false
+            })
+        else { return }
+        let area = screen.visibleFrame
+        let size = window.frame.size
+        window.setFrameOrigin(NSPoint(x: area.midX - size.width / 2, y: area.midY - size.height / 2))
     }
 
     /// Back to a menu bar–only app once no window of ours is open.

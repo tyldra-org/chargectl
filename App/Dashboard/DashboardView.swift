@@ -44,6 +44,7 @@ struct DashboardView: View {
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             }
+            .transformEnvironment(\.appearsActive) { if Setup.appearsActive { $0 = true } }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background {
@@ -64,6 +65,8 @@ struct DashboardView: View {
         .onOpenURL { url in
             // chargectl://dashboard/<page>
             if let target = DashboardPage(rawValue: url.lastPathComponent) { page = target }
+            // Measuring in the background: keep the window above whatever the user brought forward.
+            if Setup.staysInBackground { Dashboard.show() }
         }
     }
 
