@@ -19,6 +19,8 @@ enum PreferenceKey {
     static let calibrationTipDismissed = "calibrationTipDismissed"
     /// The version that last started; a different one means Chargectl was updated.
     static let lastLaunchedVersion = "lastLaunchedVersion"
+    /// The version the dashboard last opened with; a newer one says "Updated to" in the status island.
+    static let lastDashboardVersion = "lastDashboardVersion"
 }
 
 enum AppearanceMode: String, CaseIterable, Identifiable {

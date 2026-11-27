@@ -44,6 +44,7 @@ struct DashboardView: View {
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             }
+            .overlay { UpdatePrompt() }
             .transformEnvironment(\.appearsActive) { if Setup.appearsActive { $0 = true } }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -60,7 +61,10 @@ struct DashboardView: View {
         .frame(minWidth: 980, minHeight: 680)
         .tint(Theme.accent)
         .ignoresSafeArea(edges: .top)
-        .onAppear { Dashboard.show() }
+        .onAppear {
+            Dashboard.show()
+            Updater.announceNewVersion()
+        }
         .onDisappear { Dashboard.didClose() }
         .onOpenURL { url in
             // chargectl://dashboard/<page>

@@ -21,6 +21,8 @@
             let only = arguments.firstIndex(of: "--only").flatMap { $0 + 1 < arguments.count ? arguments[$0 + 1] : nil }
             for shot in shots() where only.map({ shot.name.contains($0) }) ?? true {
                 for dark in [true, false] {
+                    // Only the update shots show the update prompt.
+                    Updater.shared.preview(.idle)
                     render(
                         shot, dark: dark,
                         to: folder.appendingPathComponent("\(shot.name)-\(dark ? "dark" : "light").png"))
@@ -101,6 +103,25 @@
                 shots.append(
                     Shot(name: "\(page.rawValue)-no-helper", size: dashboard) {
                         AnyView(DashboardView(model: Sample.model(service: .notInstalled), initialPage: page))
+                    })
+            }
+            let update = Updater.sampleVersion
+            let prompts: [(String, DashboardPage, Updater.Phase)] = [
+                ("update-prompt", .overview, .available(update)),
+                ("update-prompt-settings", .settings, .available(update)),
+                ("update-installing", .logs, .installing(update)),
+                ("update-failed", .overview, .failed("The update to \(update) failed")),
+            ]
+            for (name, page, phase) in prompts {
+                shots.append(
+                    Shot(name: name, size: dashboard) {
+                        if case .failed = phase {
+                            Updater.shared.preview(
+                                phase, failure: (update, UpdateError.checksum.localizedDescription))
+                        } else {
+                            Updater.shared.preview(phase)
+                        }
+                        return AnyView(DashboardView(model: Sample.model(), initialPage: page))
                     })
             }
             shots.append(
