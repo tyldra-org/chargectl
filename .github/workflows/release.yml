@@ -12,7 +12,7 @@
 #   publish   only once both passed: the GitHub release with the zip, its
 #             checksum and the Homebrew cask
 #   homebrew  opens a pull request with the new cask in
-#             tyldra-org/homebrew-tools, which merges itself once the tap's
+#             tyldra/homebrew-tools, which merges itself once the tap's
 #             CI passes
 # A failed homebrew job can be rerun on its own; the release stays published.
 #
@@ -192,7 +192,7 @@ jobs:
         with:
           client-id: ${{ vars.TAP_APP_CLIENT_ID }}
           private-key: ${{ secrets.TAP_APP_PRIVATE_KEY }}
-          owner: tyldra-org
+          owner: tyldra
           repositories: homebrew-tools
           # Only what opening and auto-merging the pull request needs, not every
           # permission of the app's installation.
@@ -201,7 +201,7 @@ jobs:
 
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          repository: tyldra-org/homebrew-tools
+          repository: tyldra/homebrew-tools
           token: ${{ steps.token.outputs.token }}
           path: tap
           # The git push below uses these credentials; nothing in this job uploads the folder.

@@ -33,7 +33,7 @@ rm -rf "$app"
 # What Homebrew keeps of the cask, when it installed Chargectl.
 brew=
 for prefix in /opt/homebrew /usr/local; do
-  if [[ -x "$prefix/bin/brew" && ( -d "$prefix/Caskroom/chargectl" || -d "$prefix/Library/Taps/tyldra-org/homebrew-tools" ) ]]; then
+  if [[ -x "$prefix/bin/brew" && ( -d "$prefix/Caskroom/chargectl" || -d "$prefix/Library/Taps/tyldra/homebrew-tools" || -d "$prefix/Library/Taps/tyldra-org/homebrew-tools" ) ]]; then
     brew="$prefix/bin/brew"
   fi
 done
@@ -45,7 +45,7 @@ section() {
   awk -v name="$1" '$0 ~ "static let " name " = \"\"\"" { take = 1; next } take && /^        """/ { exit } take { sub(/^        /, ""); print }' \
     "$(dirname "$0")/../Shared/UninstallCleanup.swift" |
     sed -e 's/\\(bundleIdentifier)/com.tyldra.chargectl/g' -e 's/\\(widgetsIdentifier)/com.tyldra.chargectl.widgets/g' \
-      -e 's/\\(widgetsProcess)/ChargectlWidgets/g' -e 's|\\(tap)|tyldra-org/tools|g'
+      -e 's/\\(widgetsProcess)/ChargectlWidgets/g' -e 's|\\(tap)|tyldra/tools|g' -e 's|\\(oldTap)|tyldra-org/tools|g'
 }
 cleanup="$(section files)
 $(section trash)

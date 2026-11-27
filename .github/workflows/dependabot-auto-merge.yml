@@ -28,7 +28,7 @@ concurrency:
 jobs:
   merge:
     name: merge
-    if: github.repository == 'tyldra-org/chargectl'
+    if: github.repository == 'tyldra/chargectl'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:

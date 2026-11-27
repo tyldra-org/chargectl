@@ -11,7 +11,7 @@ Do not report security vulnerabilities through public issues, discussions or
 pull requests.
 
 Report privately through
-[GitHub private vulnerability reporting](https://github.com/tyldra-org/chargectl/security/advisories/new).
+[GitHub private vulnerability reporting](https://github.com/tyldra/chargectl/security/advisories/new).
 If you cannot use GitHub, email yogeshprasad098@gmail.com.
 
 Include as much of the following as you can:

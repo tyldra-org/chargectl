@@ -585,6 +585,7 @@ final class AppModel {
             let files = FileManager.default
             if files.isExecutableFile(atPath: brew.path),
                 files.fileExists(atPath: "\(prefix)/Caskroom/chargectl")
+                    || files.fileExists(atPath: "\(prefix)/Library/Taps/tyldra/homebrew-tools")
                     || files.fileExists(atPath: "\(prefix)/Library/Taps/tyldra-org/homebrew-tools")
             {
                 return brew

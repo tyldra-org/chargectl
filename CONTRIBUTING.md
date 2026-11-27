@@ -6,7 +6,7 @@ This guide explains how to propose a change and what makes it easy to accept.
 
 - Read the [Code of Conduct](CODE_OF_CONDUCT.md). It applies everywhere the
   project operates.
-- Search [existing issues](https://github.com/tyldra-org/chargectl/issues) first.
+- Search [existing issues](https://github.com/tyldra/chargectl/issues) first.
 - Every pull request starts from an issue. Find one or open one; for anything
   larger than a small fix, agree on the approach there before writing code.
 - Report security problems privately through [SECURITY.md](SECURITY.md), never
@@ -20,7 +20,7 @@ You need an Apple silicon Mac on macOS 27, Xcode 27 and XcodeGen.
 
 ```sh
 brew install xcodegen
-git clone https://github.com/tyldra-org/chargectl.git
+git clone https://github.com/tyldra/chargectl.git
 cd chargectl
 ./scripts/check.sh
 ```
@@ -212,7 +212,7 @@ matches `project.yml`, runs the tests, and builds and attests
 `Chargectl-<version>.zip`, while the cask check runs on another runner. Once
 both are done, it publishes the release with notes from the changelog, and
 opens a pull request that updates the cask in
-[tyldra-org/homebrew-tools](https://github.com/tyldra-org/homebrew-tools).
+[tyldra/homebrew-tools](https://github.com/tyldra/homebrew-tools).
 Running the workflow by hand from the Actions tab is a dry run: the same checks
 and signed build, with nothing published. `./scripts/package.sh` builds the same
 zip locally.

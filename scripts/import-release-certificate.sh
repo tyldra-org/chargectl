@@ -12,7 +12,7 @@ set -euo pipefail
 # SHA-1 of the certificate made with scripts/make-release-certificate.sh. Public; the private
 # key exists only in the secrets and the maintainer's backup.
 expected=653E52E5F86FE7D3F69BCAC212ABEFFC4DBCF82B
-upstream=tyldra-org/chargectl
+upstream=tyldra/chargectl
 if [[ -z "${CERTIFICATE:-}" ]]; then
   if [[ "${GITHUB_REPOSITORY:-}" == "$upstream" ]]; then
     echo "::error::The release certificate secrets are missing. A release signed ad hoc would make every user install the helper again."
