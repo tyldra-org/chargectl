@@ -18,6 +18,9 @@ struct ChargectlApp: App {
             if Setup.isDemo {
                 let model = Sample.model(manyLogs: true)
                 if CommandLine.arguments.contains("--live-readings") { model.varyReadings() }
+                if CommandLine.arguments.contains("--update-available") {
+                    Updater.shared.preview(.available(Updater.sampleVersion))
+                }
                 _model = State(initialValue: model)
                 return
             }

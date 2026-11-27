@@ -434,6 +434,12 @@ struct SettingsPage: View {
                 .font(.system(size: 12))
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
+                if updater.postponed == version {
+                    Text("You chose Later: it installs when you close this window.")
+                        .font(.system(size: 12))
+                        .foregroundStyle(.tertiary)
+                        .padding(.top, 2)
+                }
                 if case .installing = updater.phase {
                     ProgressView().progressViewStyle(.linear).tint(Theme.accent).padding(.top, 8)
                 } else {

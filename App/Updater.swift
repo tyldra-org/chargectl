@@ -3,9 +3,9 @@ import CryptoKit
 import Observation
 
 /// Keeps Chargectl up to date from its GitHub releases. Checks a minute after launch and then
-/// every few hours; with automatic updates on, installs a new version once no Chargectl window
-/// is open. The helper notices the replaced app, restarts into its own new version and reopens
-/// the app.
+/// every few hours; with automatic updates on, or after Later in the dashboard's update prompt,
+/// installs a new version once no Chargectl window is open. The helper notices the replaced app,
+/// restarts into its own new version and reopens the app.
 @Observable
 final class Updater {
     enum Phase: Equatable {
@@ -24,11 +24,29 @@ final class Updater {
 
     private(set) var phase = Phase.idle
     private(set) var lastChecked: Date?
+    /// The version put off with Later in the update prompt. It installs once no Chargectl window is
+    /// open. Kept in memory only, so the prompt shows again if Chargectl quits before that.
+    private(set) var postponed: String?
+    /// The version whose install failed, and why, for the update prompt to say so.
+    private(set) var failure: (version: String, reason: String)?
     @ObservationIgnored private var release: AppRelease?
     @ObservationIgnored private var loop: Task<Void, Never>?
 
     static var isAutomatic: Bool {
         UserDefaults.standard.object(forKey: PreferenceKey.autoUpdate) as? Bool ?? true
+    }
+
+    /// The version the dashboard's update prompt offers: a new one, one installing, or one whose
+    /// install just failed, unless it was put off with Later.
+    var promptVersion: String? {
+        let version: String? =
+            switch phase {
+            case .available(let version), .installing(let version): version
+            case .failed: failure?.version
+            default: nil
+            }
+        guard let version, version != postponed else { return nil }
+        return version
     }
 
     var isBusy: Bool {
@@ -51,13 +69,39 @@ final class Updater {
 
     private func runScheduled() async {
         if lastChecked.map({ Date.now.timeIntervalSince($0) >= Self.checkInterval }) ?? true { await check() }
-        guard Self.isAutomatic, case .available = phase, !Dashboard.isShowingWindow else { return }
+        guard Self.isAutomatic || postponed != nil, case .available = phase, !Dashboard.isShowingWindow else { return }
         await installAvailable()
+    }
+
+    /// Later in the update prompt: hides it for this version, which then installs once the
+    /// dashboard is closed.
+    func postpone() {
+        guard let version = promptVersion else { return }
+        postponed = version
+        Confirmations.shared.show("Updates when you close this window")
+    }
+
+    /// Installs a version put off with Later, now that no Chargectl window is open.
+    func installPostponed() async {
+        guard postponed != nil, case .available = phase, !Dashboard.isShowingWindow else { return }
+        await installAvailable()
+    }
+
+    /// Says "Updated to …" in the status island the first time the dashboard opens on a newer
+    /// version, after an update from here or from Homebrew.
+    static func announceNewVersion() {
+        guard !Setup.isDemo else { return }
+        let defaults = UserDefaults.standard
+        let current = DaemonIdentity.version
+        let last = defaults.string(forKey: PreferenceKey.lastDashboardVersion)
+        defaults.set(current, forKey: PreferenceKey.lastDashboardVersion)
+        if let last, AppRelease.isNewer(current, than: last) { Confirmations.shared.show("Updated to \(current)") }
     }
 
     func check() async {
         guard !isBusy else { return }
         phase = .checking
+        failure = nil
         do {
             var request = URLRequest(url: AppRelease.feed)
             request.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
@@ -80,14 +124,18 @@ final class Updater {
 
     func installAvailable() async {
         guard let release, !isBusy else { return }
+        failure = nil
         guard let app = Self.replaceableApp else {
-            phase = .failed("Chargectl updates itself only when it is in the Applications folder.")
+            let reason = "Chargectl updates itself only when it is in the Applications folder."
+            failure = (release.version, reason)
+            phase = .failed(reason)
             return
         }
         phase = .installing(release.version)
         do {
             try await Self.replace(app, with: release)
         } catch {
+            failure = (release.version, error.localizedDescription)
             phase = .failed("The update to \(release.version) failed: \(error.localizedDescription)")
             return
         }
@@ -159,6 +207,25 @@ final class Updater {
         exit(0)
     }
 }
+
+#if DEBUG
+    extension Updater {
+        /// The version after this one, for sample prompts.
+        static var sampleVersion: String {
+            var parts = DaemonIdentity.version.split(separator: ".").map { Int($0) ?? 0 }
+            if parts.isEmpty { parts = [0] }
+            parts[parts.count - 1] += 1
+            return parts.map(String.init).joined(separator: ".")
+        }
+
+        /// Shows a phase without checking GitHub, for design renders and --update-available.
+        func preview(_ phase: Phase, failure: (version: String, reason: String)? = nil) {
+            self.phase = phase
+            self.failure = failure
+            postponed = nil
+        }
+    }
+#endif
 
 enum UpdateError: LocalizedError {
     case noRelease

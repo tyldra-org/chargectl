@@ -16,6 +16,14 @@ sees, with its pull request link. Credit outside contributors with
 
 ## [Unreleased]
 
+### Added
+
+- **A new version now shows in the middle of the dashboard.** When an update is
+  out, every page shows it with Restart to Update and Later. Later puts it away
+  and installs the update the next time you close the window, even with Update
+  automatically off, and the status island says "Updated to" the version when
+  you open Chargectl again. ([#112](https://github.com/tyldra-org/chargectl/pull/112))
+
 ## [0.3.3] - 2026-11-26
 
 ### Fixed
