@@ -885,9 +885,9 @@ struct ChargeChart: View {
     private var selection: Binding<Date?> { usesLocalHover ? $localHover : $hovered }
 
     var body: some View {
-        let shown = selection.wrappedValue.flatMap { date in
-            samples.min { abs($0.date.timeIntervalSince(date)) < abs($1.date.timeIntervalSince(date)) }
-        }
+        let hovered = selection.wrappedValue
+        let shown = hovered.flatMap { samples.sample(near: $0) }
+        let runs = samples.runs
         VStack(spacing: 10) {
             Chart {
                 if let limit, let lowerBound, lowerBound < limit {
@@ -897,21 +897,24 @@ struct ChargeChart: View {
                     )
                     .foregroundStyle(Theme.accentSoft)
                 }
-                ForEach(samples, id: \.date) { sample in
+                ForEach(Array(zip(samples, runs)), id: \.0.date) { sample, run in
                     AreaMark(
                         x: .value("Time", sample.date), yStart: .value("Base", 0),
-                        yEnd: .value("Charge", sample.percent)
+                        yEnd: .value("Charge", sample.percent), series: .value("Run", run)
                     )
                     .interpolationMethod(.monotone)
                     .foregroundStyle(
                         LinearGradient(
                             colors: [Theme.accent.opacity(0.22), Theme.accent.opacity(0)], startPoint: .top,
                             endPoint: .bottom))
-                    LineMark(x: .value("Time", sample.date), y: .value("Charge", sample.percent))
-                        .interpolationMethod(.monotone)
-                        .foregroundStyle(Theme.accent)
-                        .lineStyle(StrokeStyle(lineWidth: 1.8, lineCap: .round, lineJoin: .round))
-                        .shadow(color: Theme.glow.opacity(0.6), radius: 4)
+                    LineMark(
+                        x: .value("Time", sample.date), y: .value("Charge", sample.percent),
+                        series: .value("Run", run)
+                    )
+                    .interpolationMethod(.monotone)
+                    .foregroundStyle(Theme.accent)
+                    .lineStyle(StrokeStyle(lineWidth: 1.8, lineCap: .round, lineJoin: .round))
+                    .shadow(color: Theme.glow.opacity(0.6), radius: 4)
                 }
                 if let limit {
                     RuleMark(y: .value("Limit", limit))
@@ -923,17 +926,21 @@ struct ChargeChart: View {
                         .symbolSize(40)
                         .foregroundStyle(Theme.accent)
                 }
-                if let shown {
-                    RuleMark(x: .value("Time", shown.date))
-                        .lineStyle(StrokeStyle(lineWidth: 1))
-                        .foregroundStyle(Color.secondary)
-                    PointMark(x: .value("Time", shown.date), y: .value("Charge", shown.percent))
-                        .symbolSize(50)
+                if let hovered {
+                    // The line and the time follow the pointer; the dot slides along the charge line. Where
+                    // nothing was recorded, the line is dashed and says so.
+                    let y = samples.value(at: hovered) { Double($0.percent) }
+                    RuleMark(x: .value("Time", hovered))
+                        .lineStyle(StrokeStyle(lineWidth: 1, dash: y == nil ? [3, 3] : []))
+                        .foregroundStyle(Color.secondary.opacity(y == nil ? 0.7 : 1))
+                    PointMark(x: .value("Time", hovered), y: .value("Charge", y ?? 100))
+                        .symbolSize(y == nil ? 0 : 50)
                         .foregroundStyle(Theme.accent)
                         .annotation(position: .top, spacing: 8, overflowResolution: .init(x: .fit, y: .disabled)) {
                             VStack(alignment: .leading, spacing: 1) {
-                                Text("\(shown.percent)%").font(.system(size: 13, weight: .semibold))
-                                Text(shown.date, format: .dateTime.hour().minute())
+                                Text(shown.map { "\($0.percent)%" } ?? "Not recorded")
+                                    .font(.system(size: 13, weight: .semibold))
+                                Text(hovered, format: .dateTime.hour().minute())
                                     .font(.system(size: 11)).foregroundStyle(.secondary)
                             }
                             .padding(.horizontal, 10)
@@ -981,7 +988,11 @@ struct ChargerStrip: View {
             context.fill(
                 Path(roundedRect: CGRect(origin: .zero, size: size), cornerRadius: 3), with: .color(Theme.track))
             for (index, sample) in samples.enumerated() where (sample.wallPower ?? 0) > 0.5 {
-                let end = index + 1 < samples.count ? samples[index + 1].date : sample.date.addingTimeInterval(60)
+                // Up to the next sample, unless nothing was recorded in between.
+                let next = index + 1 < samples.count ? samples[index + 1].date : nil
+                let end =
+                    next.flatMap { $0.timeIntervalSince(sample.date) <= HistorySample.maximumSpacing ? $0 : nil }
+                    ?? sample.date.addingTimeInterval(60)
                 let x0 = size.width * sample.date.timeIntervalSince(domain.lowerBound) / span
                 let x1 = size.width * end.timeIntervalSince(domain.lowerBound) / span
                 let charging = (sample.batteryPower ?? 0) > 0.5
