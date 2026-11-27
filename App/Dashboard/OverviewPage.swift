@@ -711,30 +711,6 @@ private struct HealthCell<Footer: View>: View {
     }
 }
 
-/// Dashes travelling along a wire, drawn from the clock at 30 frames a second. They stand still
-/// with Reduce Motion, while the window is off screen and while another app is in front.
-private struct FlowingDashes: View {
-    let path: Path
-    let color: Color
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @Environment(\.isOnScreen) private var isOnScreen
-    @Environment(\.appearsActive) private var appearsActive
-
-    private static let period = 1.2
-    /// One dash and its gap.
-    private static let length: CGFloat = 18
-
-    var body: some View {
-        TimelineView(.animation(minimumInterval: 1 / 30, paused: reduceMotion || !isOnScreen || !appearsActive)) {
-            context in
-            let time = context.date.timeIntervalSinceReferenceDate
-            let phase =
-                reduceMotion ? 0 : -Self.length * time.truncatingRemainder(dividingBy: Self.period) / Self.period
-            path.stroke(color, style: StrokeStyle(lineWidth: 2, lineCap: .round, dash: [6, 12], dashPhase: phase))
-        }
-    }
-}
-
 /// Charger on the left, Mac and battery on the right, with power travelling along the wires.
 private struct PowerFlow: View {
     let charger: Double
