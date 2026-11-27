@@ -226,5 +226,6 @@ right to license that way.
 ## AI-assisted contributions
 
 AI tools are welcome. You remain responsible for every line you submit: read
-it, test it, and be able to explain it. Agents should follow
-[AGENTS.md](AGENTS.md).
+it, test it, and be able to explain it. Commits and pull requests carry no AI
+credit: remove the `Co-authored-by` lines, "Generated with" notes and similar
+that tools add by default. Agents should follow [AGENTS.md](AGENTS.md).
