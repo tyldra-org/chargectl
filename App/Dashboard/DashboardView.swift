@@ -67,6 +67,11 @@ struct DashboardView: View {
         }
         .onDisappear { Dashboard.didClose() }
         .onOpenURL { url in
+            // scripts/measure-cpu.sh closes the window of the build it measures this way.
+            if Setup.staysInBackground, url.lastPathComponent == "close" {
+                Dashboard.close()
+                return
+            }
             // chargectl://dashboard/<page>
             if let target = DashboardPage(rawValue: url.lastPathComponent) { page = target }
             // Measuring in the background: keep the window above whatever the user brought forward.
