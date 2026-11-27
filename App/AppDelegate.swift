@@ -111,10 +111,13 @@ enum Dashboard {
         window.setFrameOrigin(NSPoint(x: area.midX - size.width / 2, y: area.midY - size.height / 2))
     }
 
-    /// Back to a menu bar–only app once no window of ours is open.
+    /// Back to a menu bar–only app once no window of ours is open, then installs an update put
+    /// off with Later.
     static func didClose() {
         DispatchQueue.main.async {
-            if !isShowingWindow { NSApp.setActivationPolicy(.accessory) }
+            guard !isShowingWindow else { return }
+            NSApp.setActivationPolicy(.accessory)
+            Task { await Updater.shared.installPostponed() }
         }
     }
 
