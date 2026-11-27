@@ -9,8 +9,8 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/tyldra-org/chargectl/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/tyldra-org/chargectl/actions/workflows/ci.yml/badge.svg?branch=main"></a>
-  <a href="https://github.com/tyldra-org/chargectl/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/tyldra-org/chargectl"></a>
+  <a href="https://github.com/tyldra/chargectl/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/tyldra/chargectl/actions/workflows/ci.yml/badge.svg?branch=main"></a>
+  <a href="https://github.com/tyldra/chargectl/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/tyldra/chargectl"></a>
   <a href="LICENSE"><img alt="License: Apache-2.0" src="https://img.shields.io/badge/license-Apache--2.0-blue.svg"></a>
   <img alt="macOS 27" src="https://img.shields.io/badge/macOS-27-black.svg?logo=apple">
   <img alt="Apple silicon" src="https://img.shields.io/badge/Apple%20silicon-arm64-black.svg">
@@ -53,11 +53,11 @@ working while the app is closed.
 | macOS | 27 or later |
 
 ```sh
-brew install --cask tyldra-org/tools/chargectl
+brew install --cask tyldra/tools/chargectl
 ```
 
 You can also download `Chargectl-<version>.zip` from
-[Releases](https://github.com/tyldra-org/chargectl/releases/latest), or
+[Releases](https://github.com/tyldra/chargectl/releases/latest), or
 [build it from source](#build-from-source).
 
 Then open **Chargectl** from Applications. A short welcome walks you through:
@@ -298,18 +298,18 @@ macOS charge limit, then removes everything Chargectl added. Details are under
 ### Homebrew
 
 ```sh
-brew install --cask tyldra-org/tools/chargectl                  # install
-brew update && brew upgrade --cask tyldra-org/tools/chargectl   # update
-brew uninstall --zap --cask tyldra-org/tools/chargectl          # remove everything
+brew install --cask tyldra/tools/chargectl                  # install
+brew update && brew upgrade --cask tyldra/tools/chargectl   # update
+brew uninstall --zap --cask tyldra/tools/chargectl          # remove everything
 ```
 
 Chargectl updates itself, so `brew upgrade` without a name skips it. Use the
-full name `tyldra-org/tools/chargectl`: Homebrew only loads casks from
-other taps when you name them, or after `brew trust tyldra-org/tools`.
+full name `tyldra/tools/chargectl`: Homebrew only loads casks from
+other taps when you name them, or after `brew trust tyldra/tools`.
 
 ### Download
 
-Each [release](https://github.com/tyldra-org/chargectl/releases) has
+Each [release](https://github.com/tyldra/chargectl/releases) has
 `Chargectl-<version>.zip`, its SHA-256 checksum and a build provenance
 attestation. Unzip it and move Chargectl to Applications. Releases are not
 notarized, so macOS blocks the first launch of a downloaded copy: open it once,
@@ -318,7 +318,7 @@ download:
 
 ```sh
 shasum -a 256 -c Chargectl-<version>.zip.sha256
-gh attestation verify Chargectl-<version>.zip --repo tyldra-org/chargectl
+gh attestation verify Chargectl-<version>.zip --repo tyldra/chargectl
 ```
 
 ### Build from source
@@ -327,7 +327,7 @@ Needs Xcode 27 and [XcodeGen](https://github.com/yonaskolb/XcodeGen)
 (`brew install xcodegen`).
 
 ```sh
-git clone https://github.com/tyldra-org/chargectl.git
+git clone https://github.com/tyldra/chargectl.git
 cd chargectl
 ./scripts/install.sh           # build and install the app
 ./scripts/install.sh --logs    # same, then follow the helper's log
@@ -349,7 +349,7 @@ limit, and removes:
 - the Login Items entries, preferences, caches and saved state;
 - Chargectl's tile in the Dock, pinned or under recent apps;
 - Homebrew's record of the cask, its cached download, and the
-  `tyldra-org/tools` tap when nothing else from it is installed.
+  `tyldra/tools` tap when nothing else from it is installed.
 
 If the helper is not running, it asks for your password and does the same as an
 administrator.

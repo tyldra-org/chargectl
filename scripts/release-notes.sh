@@ -6,7 +6,7 @@
 set -euo pipefail
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 changelog="$root/CHANGELOG.md"
-repo=https://github.com/tyldra-org/chargectl
+repo=https://github.com/tyldra/chargectl
 if [[ $# -ne 1 ]]; then
   echo 'Usage: release-notes.sh <version>' >&2
   exit 2
@@ -61,10 +61,10 @@ cat <<NOTES
 ## Install or update
 
 \`\`\`sh
-brew install --cask tyldra-org/tools/chargectl
+brew install --cask tyldra/tools/chargectl
 \`\`\`
 
-Already installed with Homebrew? Run \`brew update && brew upgrade --cask tyldra-org/tools/chargectl\`. To install by hand,
+Already installed with Homebrew? Run \`brew update && brew upgrade --cask tyldra/tools/chargectl\`. To install by hand,
 download [\`$zip\`]($repo/releases/download/v$version/$zip), unzip it and move Chargectl to
 Applications.
 
@@ -91,7 +91,7 @@ Actions:
 
 \`\`\`sh
 shasum -a 256 -c $zip.sha256
-gh attestation verify $zip --repo tyldra-org/chargectl
+gh attestation verify $zip --repo tyldra/chargectl
 \`\`\`
 
 </details>

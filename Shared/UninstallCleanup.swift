@@ -9,7 +9,9 @@
 nonisolated enum UninstallCleanup {
     static let bundleIdentifier = "com.tyldra.chargectl"
     static let widgetsIdentifier = "com.tyldra.chargectl.widgets"
-    static let tap = "tyldra-org/tools"
+    static let tap = "tyldra/tools"
+    /// The tap's name before the organization was renamed. Installs from then keep it.
+    static let oldTap = "tyldra-org/tools"
     /// The widget extension's process, which WidgetKit keeps running between timeline updates.
     static let widgetsProcess = "ChargectlWidgets"
 
@@ -82,15 +84,19 @@ nonisolated enum UninstallCleanup {
         /bin/rm -f "$plist"
         """
 
-    /// Removes Homebrew's record of the cask, its cached downloads, and the tap when nothing else
-    /// from it is installed. `$1` is brew. `--force` succeeds although the app is already
-    /// deleted; everything the cask's zap lists is already removed by then.
+    /// Removes Homebrew's record of the cask, its cached downloads, and the tap, under its current
+    /// or old name, when nothing else from it is installed. `$1` is brew. `--force` succeeds
+    /// although the app is already deleted; everything the cask's zap lists is already removed by
+    /// then.
     static let homebrew = """
         if [ -n "$1" ]; then
           export HOMEBREW_NO_AUTO_UPDATE=1 HOMEBREW_NO_ENV_HINTS=1
-          "$1" uninstall --cask --force \(tap)/chargectl
-          "$1" cleanup --prune=all \(tap)/chargectl
-          "$1" list --full-name 2>/dev/null | /usr/bin/grep -q '^\(tap)/' || "$1" untap \(tap)
+          "$1" uninstall --cask --force chargectl
+          "$1" cleanup --prune=all chargectl
+          for tap in \(tap) \(oldTap); do
+            "$1" tap | /usr/bin/grep -qx "$tap" || continue
+            "$1" list --full-name 2>/dev/null | /usr/bin/grep -q "^$tap/" || "$1" untap "$tap"
+          done
         fi
         """
 

@@ -59,4 +59,15 @@ import Testing
             #expect(script.contains("$(section \(section))"))
         }
     }
+
+    /// Homebrew cleanup covers the tap under its current name and the one from before the
+    /// organization was renamed, and scripts/uninstall.sh fills in both.
+    @Test func homebrewCleanupCoversBothTapNames() throws {
+        let script = try String(
+            contentsOf: Self.root.appendingPathComponent("scripts/uninstall.sh"), encoding: .utf8)
+        #expect(UninstallCleanup.homebrew.contains(UninstallCleanup.tap))
+        #expect(UninstallCleanup.homebrew.contains(UninstallCleanup.oldTap))
+        #expect(script.contains(#"s|\\(tap)|\#(UninstallCleanup.tap)|g"#))
+        #expect(script.contains(#"s|\\(oldTap)|\#(UninstallCleanup.oldTap)|g"#))
+    }
 }

@@ -8,7 +8,7 @@ nonisolated struct AppRelease: Equatable, Sendable {
     /// Chargectl-<version>.zip.sha256
     var checksum: URL
 
-    static let feed = URL(string: "https://api.github.com/repos/tyldra-org/chargectl/releases/latest")!
+    static let feed = URL(string: "https://api.github.com/repos/tyldra/chargectl/releases/latest")!
 
     /// nil for a draft or prerelease, a tag that is not vMAJOR.MINOR.PATCH, or a release without
     /// its zip and checksum.

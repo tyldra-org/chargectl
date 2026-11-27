@@ -7,7 +7,7 @@ import Testing
     {
         let names = assets ?? ["Chargectl-0.2.0.zip", "Chargectl-0.2.0.zip.sha256", "chargectl.rb"]
         let list = names.map {
-            #"{"name":"\#($0)","browser_download_url":"https://github.com/tyldra-org/chargectl/releases/download/\#(tag)/\#($0)"}"#
+            #"{"name":"\#($0)","browser_download_url":"https://github.com/tyldra/chargectl/releases/download/\#(tag)/\#($0)"}"#
         }
         return Data(
             #"{"tag_name":"\#(tag)","draft":\#(draft),"prerelease":\#(prerelease),"assets":[\#(list.joined(separator: ","))]}"#
