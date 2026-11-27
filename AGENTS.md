@@ -108,6 +108,10 @@ Run `./scripts/check.sh` once before saying the work is done.
   decided.
 - Conventional commits: `type(scope?): description`. Pull requests are squash
   merged with the PR title as the commit subject.
+- No AI attribution in commits, squash merges, pull requests or issues: no
+  `Co-authored-by` or `Assisted-by` naming Claude, Cursor, Copilot or any
+  model, and no "Generated with" lines. GitHub lists a co-author as a
+  contributor, and only rewriting `main` removes it. Strip any a tool adds.
 - A pull request closes an issue: find or open it first and put
   `Closes #<n>` in the body. The required `linked-issue` check fails without
   one, except for Markdown-only changes and pull requests from the maintainers
