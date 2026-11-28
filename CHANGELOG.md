@@ -23,6 +23,13 @@ the entry.
 
 ## [Unreleased]
 
+### Changed
+
+- **Chargectl looks for updates every hour and when your Mac wakes,** not
+  every few hours, and its first check comes 10 seconds after it starts.
+  Settings shows when it last checked, also after a restart, instead of
+  "Not checked yet". ([#123](https://github.com/tyldra/chargectl/pull/123))
+
 ## [0.3.6] - 2026-11-28
 
 ### Changed

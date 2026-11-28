@@ -366,7 +366,7 @@ struct SettingsPage: View {
                 }
                 .padding(.top, 8)
                 Text(
-                    "Chargectl checks GitHub for a new release every few hours. Each download is checked against its published checksum and code signature."
+                    "Chargectl checks GitHub for a new release when it starts, every hour and when your Mac wakes. Each download is checked against its published checksum and code signature."
                 )
                 .font(.system(size: 11.5))
                 .foregroundStyle(.tertiary)
@@ -380,7 +380,10 @@ struct SettingsPage: View {
     @ViewBuilder private var updateStatus: some View {
         Group {
             switch updater.phase {
-            case .idle: Label("Not checked yet", systemImage: "clock")
+            case .idle:
+                Label(
+                    updater.lastChecked.map { "Checked \($0.formatted(.relative(presentation: .named)))" }
+                        ?? "Checking in a moment", systemImage: "clock")
             case .checking:
                 Label {
                     Text("Checking…")

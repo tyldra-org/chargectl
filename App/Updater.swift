@@ -2,8 +2,8 @@ import AppKit
 import CryptoKit
 import Observation
 
-/// Keeps Chargectl up to date from its GitHub releases. Checks a minute after launch and then
-/// every few hours; with automatic updates on, or after Later in the dashboard's update prompt,
+/// Keeps Chargectl up to date from its GitHub releases. Checks shortly after launch, every hour
+/// and when the Mac wakes; with automatic updates on, or after Later in the dashboard's update prompt,
 /// installs a new version once no Chargectl window is open. The helper notices the replaced app,
 /// restarts into its own new version and reopens the app.
 @Observable
@@ -18,12 +18,16 @@ final class Updater {
     }
 
     static let shared = Updater()
-    private static let checkInterval: TimeInterval = 6 * 60 * 60
+    private static let checkInterval: TimeInterval = 60 * 60
+    /// A wake checks again unless the last check is this recent.
+    private static let wakeRecheck: TimeInterval = 15 * 60
     /// How often a pending automatic install looks for a moment with no window open.
     private static let retryInterval = Duration.seconds(10 * 60)
 
     private(set) var phase = Phase.idle
-    private(set) var lastChecked: Date?
+    /// When GitHub last answered, kept across launches so Settings can say so after a restart.
+    private(set) var lastChecked = UserDefaults.standard.object(forKey: PreferenceKey.lastUpdateCheck) as? Date
+    @ObservationIgnored private var checkedSinceLaunch = false
     /// The version put off with Later in the update prompt. It installs once no Chargectl window is
     /// open. Kept in memory only, so the prompt shows again if Chargectl quits before that.
     private(set) var postponed: String?
@@ -31,6 +35,7 @@ final class Updater {
     private(set) var failure: (version: String, reason: String)?
     @ObservationIgnored private var release: AppRelease?
     @ObservationIgnored private var loop: Task<Void, Never>?
+    @ObservationIgnored private var wake: Task<Void, Never>?
 
     static var isAutomatic: Bool {
         UserDefaults.standard.object(forKey: PreferenceKey.autoUpdate) as? Bool ?? true
@@ -59,16 +64,27 @@ final class Updater {
     func start() {
         guard loop == nil else { return }
         loop = Task { [weak self] in
-            try? await Task.sleep(for: .seconds(60))
+            try? await Task.sleep(for: .seconds(10))
             while !Task.isCancelled {
                 await self?.runScheduled()
                 try? await Task.sleep(for: Self.retryInterval)
             }
         }
+        wake = Task { [weak self] in
+            for await _ in NSWorkspace.shared.notificationCenter.notifications(named: NSWorkspace.didWakeNotification) {
+                // The network takes a moment to come back after sleep.
+                try? await Task.sleep(for: .seconds(30))
+                guard let self else { return }
+                if lastChecked.map({ Date.now.timeIntervalSince($0) >= Self.wakeRecheck }) ?? true {
+                    await runScheduled(force: true)
+                }
+            }
+        }
     }
 
-    private func runScheduled() async {
-        if lastChecked.map({ Date.now.timeIntervalSince($0) >= Self.checkInterval }) ?? true { await check() }
+    private func runScheduled(force: Bool = false) async {
+        let due = lastChecked.map { Date.now.timeIntervalSince($0) >= Self.checkInterval } ?? true
+        if force || due || !checkedSinceLaunch { await check() }
         guard Self.isAutomatic || postponed != nil, case .available = phase, !Dashboard.isShowingWindow else { return }
         await installAvailable()
     }
@@ -110,6 +126,8 @@ final class Updater {
                 throw UpdateError.noRelease
             }
             lastChecked = .now
+            checkedSinceLaunch = true
+            UserDefaults.standard.set(lastChecked, forKey: PreferenceKey.lastUpdateCheck)
             if AppRelease.isNewer(latest.version, than: DaemonIdentity.version) {
                 release = latest
                 phase = .available(latest.version)
