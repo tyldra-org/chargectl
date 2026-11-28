@@ -138,6 +138,8 @@ final class Updater {
         } catch {
             phase = .failed("Could not check for updates: \(error.localizedDescription)")
         }
+        // The remote config changes without a release, so it is read on the same schedule.
+        await RemoteContent.shared.refresh()
     }
 
     func installAvailable() async {

@@ -1,0 +1,42 @@
+{
+  "items": [
+    {
+      "id": "tap-moved-2026-11",
+      "placement": "prompt",
+      "tone": "info",
+      "symbol": "shippingbox",
+      "title": "Chargectl's Homebrew tap moved",
+      "body": "Chargectl now comes from tyldra/tools. Run these in Terminal to keep getting it through Homebrew and remove the old tyldra-org/tools. Chargectl quits during the uninstall; open it again afterwards. Your settings stay.",
+      "commands": [
+        "brew tap tyldra/tools",
+        "brew uninstall --cask chargectl",
+        "brew install --cask tyldra/tools/chargectl",
+        "brew untap tyldra-org/tools"
+      ],
+      "dismissal": "later",
+      "when": {
+        "installedFrom": "tyldra-org/tools"
+      },
+      "until": "2027-06-01T00:00:00Z"
+    },
+    {
+      "id": "old-tap-left-2026-11",
+      "placement": "prompt",
+      "tone": "info",
+      "symbol": "shippingbox",
+      "title": "Remove the old Homebrew tap",
+      "body": "Chargectl already comes from tyldra/tools, but the old tyldra-org/tools tap is still on this Mac. Run this in Terminal to remove it.",
+      "commands": [
+        "brew untap tyldra-org/tools"
+      ],
+      "dismissal": "later",
+      "when": {
+        "installedFrom": "tyldra/tools",
+        "tapped": "tyldra-org/tools"
+      },
+      "until": "2027-06-01T00:00:00Z"
+    }
+  ],
+  "flags": {},
+  "values": {}
+}

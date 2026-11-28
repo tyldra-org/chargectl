@@ -21,8 +21,9 @@
             let only = arguments.firstIndex(of: "--only").flatMap { $0 + 1 < arguments.count ? arguments[$0 + 1] : nil }
             for shot in shots() where only.map({ shot.name.contains($0) }) ?? true {
                 for dark in [true, false] {
-                    // Only the update shots show the update prompt.
+                    // Only the update shots show the update prompt, and the remote shots remote content.
                     Updater.shared.preview(.idle)
+                    RemoteContent.shared.preview(.empty)
                     render(
                         shot, dark: dark,
                         to: folder.appendingPathComponent("\(shot.name)-\(dark ? "dark" : "light").png"))
@@ -122,6 +123,31 @@
                             Updater.shared.preview(phase)
                         }
                         return AnyView(DashboardView(model: Sample.model(), initialPage: page))
+                    })
+            }
+            let tapMoved = RemoteConfig.Item(
+                id: "tap-moved", placement: .prompt, tone: .info, symbol: "shippingbox",
+                title: "Chargectl's Homebrew tap moved",
+                body:
+                    "Chargectl now comes from tyldra/tools. Run these in Terminal to keep getting it through Homebrew and remove the old tyldra-org/tools. Chargectl quits during the uninstall; open it again afterwards. Your settings stay.",
+                commands: [
+                    "brew tap tyldra/tools", "brew uninstall --cask chargectl",
+                    "brew install --cask tyldra/tools/chargectl", "brew untap tyldra-org/tools",
+                ],
+                dismissal: .later, when: .init(tapped: "tyldra-org/tools"))
+            var banner = tapMoved
+            banner.id = "banner"
+            banner.placement = .banner
+            banner.symbol = "sparkles"
+            banner.title = "Smart limit is out of beta"
+            banner.body = "Turn it on in Control › Charging."
+            banner.commands = nil
+            banner.when = nil
+            for (name, item) in [("remote-prompt", tapMoved), ("remote-banner", banner)] {
+                shots.append(
+                    Shot(name: name, size: dashboard) {
+                        RemoteContent.shared.preview(RemoteConfig(items: [item]), taps: ["tyldra-org/tools"])
+                        return AnyView(DashboardView(model: Sample.model(), initialPage: .overview))
                     })
             }
             shots.append(

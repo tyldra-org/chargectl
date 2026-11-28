@@ -38,12 +38,14 @@ struct DashboardView: View {
                 VStack(alignment: .leading, spacing: 0) {
                     toolbar
                     NoticeStack(model: model, includeService: page == .overview)
+                    RemoteBanners()
                     content
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .id(page)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             }
+            .overlay { RemotePrompt() }
             .overlay { UpdatePrompt() }
             .transformEnvironment(\.appearsActive) { if Setup.appearsActive { $0 = true } }
         }

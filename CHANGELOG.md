@@ -23,6 +23,16 @@ the entry.
 
 ## [Unreleased]
 
+### Added
+
+- **Chargectl can show a prompt or a banner from the maintainers without a
+  new release,** like the prompt that walks Macs still on the old
+  `tyldra-org/tools` tap over to `tyldra/tools`. It reads a signed file
+  from this repository with every update check and ignores one whose
+  signature doesn't match. The last good copy is kept, so a prompt shows
+  again right after a restart or an update.
+  ([#125](https://github.com/tyldra/chargectl/pull/125))
+
 ## [0.3.7] - 2026-11-28
 
 ### Changed
