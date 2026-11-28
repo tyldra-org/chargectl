@@ -188,8 +188,10 @@ review says. Open an issue describing the change instead.
   typo fix. Pull requests from the maintainers in
   [`.github/MAINTAINERS`](.github/MAINTAINERS) and from Dependabot need none.
 - Link the issue your change fixes, maintainers included: `Fixes #<number>`,
-  or `Refs #<number>` when it fixes part of it. The release uses the link to
-  credit whoever reported it.
+  or `Refs #<number>` when it fixes part of it. If it continues someone
+  else's pull request, say `Based on #<number>` (or `Supersedes` or
+  `Replaces`). The release uses these links to credit whoever reported the
+  problem or started the work.
 - Fill in the pull request template, including how you verified the change.
 - Keep pull requests small; they are reviewed faster and more thoroughly.
 - All required checks must pass before merge.

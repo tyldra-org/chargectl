@@ -13,9 +13,12 @@ Added, Changed, Deprecated, Removed, Fixed. Each entry is what a user now
 sees, with its pull request link and then its credits, which list people
 under Contributors on the release: "by @handle" for an outside author,
 "reported by @handle in #N" for whoever opened the issue it fixes, "with
-@handle" for a co-author and "based on #N by @handle" for earlier work it
-used. Maintainers and bots get none. scripts/credits.sh checks the first
-three before a release.
+@handle" for anyone else who did real work in it (10 or more changed lines
+outside merge commits, or a Co-authored-by line), and "based on #N by
+@handle" for an earlier pull request it says it is based on, supersedes or
+replaces. Maintainers and bots get none. scripts/credits.sh checks all four
+before a release; where it misjudges, add <!-- credits: skip @handle --> to
+the entry.
 -->
 
 ## [Unreleased]
@@ -27,7 +30,8 @@ three before a release.
 - **Release notes credit everyone behind a change.** Whoever wrote a change,
   reported the issue it fixes or co-wrote it is named in the notes and listed
   under Contributors on the release, and a release can't go out while one of
-  them is missing. ([#120](https://github.com/tyldra/chargectl/pull/120))
+  them is missing. Only real work earns a credit: a merge of the main branch
+  or a one-line touch-up doesn't. ([#120](https://github.com/tyldra/chargectl/pull/120), [#122](https://github.com/tyldra/chargectl/pull/122))
 
 ## [0.3.5] - 2026-11-26
 
