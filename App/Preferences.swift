@@ -21,6 +21,8 @@ enum PreferenceKey {
     static let lastLaunchedVersion = "lastLaunchedVersion"
     /// The version the dashboard last opened with; a newer one says "Updated to" in the status island.
     static let lastDashboardVersion = "lastDashboardVersion"
+    /// When the updater last heard from GitHub.
+    static let lastUpdateCheck = "lastUpdateCheck"
 }
 
 enum AppearanceMode: String, CaseIterable, Identifiable {
