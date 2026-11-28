@@ -23,6 +23,8 @@ enum PreferenceKey {
     static let lastDashboardVersion = "lastDashboardVersion"
     /// When the updater last heard from GitHub.
     static let lastUpdateCheck = "lastUpdateCheck"
+    /// Remote prompts and banners put away with Done.
+    static let remoteDone = "remoteDone"
 }
 
 enum AppearanceMode: String, CaseIterable, Identifiable {

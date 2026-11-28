@@ -49,6 +49,7 @@ newly matching skills before continuing. Human contributors do not need them.
 | Print the Homebrew cask | `./scripts/cask.sh <version> <sha256>` |
 | Check that a version's changelog entries credit everyone who did real work: authors, reporters, co-authors, earlier pull requests | `./scripts/credits.sh <version>` |
 | Check the cask as the tap's CI does | `./scripts/check.sh cask` |
+| Sign `feed/app.json` after editing it (key in the maintainer's login Keychain) | `swift scripts/remote-config.swift sign feed/app.json` |
 | Retake the README screenshots | `./scripts/screenshots.sh` (after `./scripts/build.sh Debug`; see CONTRIBUTING.md) |
 | Render the dashboard pages, menu bar panel and widgets to PNG files, light and dark, with sample data | `"${TMPDIR:-/tmp}/Chargectl-DerivedData/Build/Products/Debug/Chargectl.app/Contents/MacOS/Chargectl" --render-design <folder> --only <name prefix>` after `./scripts/build.sh Debug`. It never talks to the helper; shot names are in `App/Debug/DesignRender.swift` |
 | Measure the app's CPU with sample data, page by page, without taking the keyboard or mouse | `./scripts/measure-cpu.sh` (or `./scripts/measure-cpu.sh <Chargectl.app>` for another Debug build). Run it after dashboard or menu bar changes and before a release |
