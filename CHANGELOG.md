@@ -11,7 +11,8 @@ Section order: a one-sentence summary in bold (left out when the release has
 one entry), Security, Highlights (3 to 5, only for large releases), then
 Added, Changed, Deprecated, Removed, Fixed. Each entry is what a user now
 sees, with its pull request link. Credit outside contributors with
-"by @handle", which lists them under Contributors on the release.
+"by @handle" and the people who reported what a fix solves with "reported
+by @handle in #N"; both list them under Contributors on the release.
 -->
 
 ## [Unreleased]
@@ -56,7 +57,7 @@ sees, with its pull request link. Credit outside contributors with
   30 times a second, and every frame updated the whole window: 9 to 17% CPU
   while you looked at it. macOS now plays these animations itself, at the same
   speed, so they cost Chargectl almost nothing. They still stop while the window is
-  hidden or another app is in front. ([#108](https://github.com/tyldra/chargectl/pull/108))
+  hidden or another app is in front. ([#108](https://github.com/tyldra/chargectl/pull/108), reported by @bortolatto-creator in [#90](https://github.com/tyldra/chargectl/issues/90))
 
 ## [0.3.2] - 2026-11-26
 
@@ -68,7 +69,7 @@ sees, with its pull request link. Credit outside contributors with
   change every second, so the open window used around half a CPU core, also
   behind other apps. Live readings now change in place, and the open dashboard
   uses about a tenth of what it did. The charge, the cycle count and your
-  settings still roll. ([#106](https://github.com/tyldra/chargectl/pull/106))
+  settings still roll. ([#106](https://github.com/tyldra/chargectl/pull/106), reported by @bortolatto-creator in [#90](https://github.com/tyldra/chargectl/issues/90))
 
 ## [0.3.1] - 2026-11-25
 
@@ -81,7 +82,7 @@ sees, with its pull request link. Credit outside contributors with
   the window is hidden, covered or behind another app, and the numbers only roll
   while you can see them. The menu bar item redraws only when its ring or
   percentage changes, not every second, and pointing at a card redraws only its
-  light, not everything inside it. ([#102](https://github.com/tyldra/chargectl/pull/102))
+  light, not everything inside it. ([#102](https://github.com/tyldra/chargectl/pull/102), reported by @bortolatto-creator in [#90](https://github.com/tyldra/chargectl/issues/90))
 
 ## [0.3.0] - 2026-11-25
 
