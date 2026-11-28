@@ -20,6 +20,8 @@ three before a release.
 
 ## [Unreleased]
 
+## [0.3.6] - 2026-11-28
+
 ### Changed
 
 - **Release notes credit everyone behind a change.** Whoever wrote a change,
@@ -631,7 +633,8 @@ MacBooks, from the menu bar.**
   hands charging back to macOS and removes every file Chargectl added.
 - **Homebrew.** `brew install --cask tyldra/tools/chargectl`.
 
-[Unreleased]: https://github.com/tyldra/chargectl/compare/v0.3.5...HEAD
+[Unreleased]: https://github.com/tyldra/chargectl/compare/v0.3.6...HEAD
+[0.3.6]: https://github.com/tyldra/chargectl/compare/v0.3.5...v0.3.6
 [0.3.5]: https://github.com/tyldra/chargectl/compare/v0.3.4...v0.3.5
 [0.3.4]: https://github.com/tyldra/chargectl/compare/v0.3.3...v0.3.4
 [0.3.3]: https://github.com/tyldra/chargectl/compare/v0.3.2...v0.3.3
