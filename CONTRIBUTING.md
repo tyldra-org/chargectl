@@ -177,7 +177,7 @@ review says. Open an issue describing the change instead.
 - `scripts/check.sh` and `scripts/ci-scope.sh`, which decide what CI checks.
 - The release and signing scripts: `package.sh`, `signing.sh`, `version.sh`,
   `import-release-certificate.sh`, `make-release-certificate.sh`, `cask.sh`,
-  `check-cask.sh` and `release-notes.sh` in `scripts/`.
+  `check-cask.sh`, `release-notes.sh` and `credits.sh` in `scripts/`.
 - The `.entitlements` files, which set what the app and widgets may do.
 
 ## Pull requests
@@ -187,6 +187,9 @@ review says. Open an issue describing the change instead.
   without one, unless the pull request changes Markdown files only, such as a
   typo fix. Pull requests from the maintainers in
   [`.github/MAINTAINERS`](.github/MAINTAINERS) and from Dependabot need none.
+- Link the issue your change fixes, maintainers included: `Fixes #<number>`,
+  or `Refs #<number>` when it fixes part of it. The release uses the link to
+  credit whoever reported it.
 - Fill in the pull request template, including how you verified the change.
 - Keep pull requests small; they are reviewed faster and more thoroughly.
 - All required checks must pass before merge.

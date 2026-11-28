@@ -76,6 +76,7 @@ jobs:
               scripts/package.sh | scripts/signing.sh | scripts/version.sh) return 0 ;;
               scripts/import-release-certificate.sh | scripts/make-release-certificate.sh) return 0 ;;
               scripts/cask.sh | scripts/check-cask.sh | scripts/release-notes.sh) return 0 ;;
+              scripts/credits.sh) return 0 ;;
               *.entitlements) return 0 ;;
             esac
             return 1
