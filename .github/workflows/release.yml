@@ -47,6 +47,8 @@ jobs:
       contents: read
       id-token: write # sign the build provenance attestation
       attestations: write
+      pull-requests: read # credits.sh reads who wrote each pull request
+      issues: read # and who reported the issues they fix
     outputs:
       version: ${{ steps.version.outputs.version }}
       sha256: ${{ steps.package.outputs.sha256 }}
@@ -78,6 +80,14 @@ jobs:
           mkdir -p "$RUNNER_TEMP/dist"
           ./scripts/release-notes.sh "$version" > "$RUNNER_TEMP/notes.md"
           echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      # Every author, reporter and co-author of the version's changes is
+      # credited, so they are listed under Contributors on the release.
+      - name: Check the credits in CHANGELOG.md
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: ./scripts/credits.sh "$VERSION"
 
       # The tests use the compilation cache CI's macOS job keeps on main; the key must match
       # ci.yml's. The build that is published does not: it is compiled from scratch below.
